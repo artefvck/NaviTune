@@ -1,0 +1,138 @@
+use eframe::egui;
+use crate::pptable_rdna2::AtomSmcDpmInfoV4_9;
+use crate::pptable_rdna3::AtomSmcDpmInfoV4_12;
+use crate::PowerPlayApp;
+
+impl PowerPlayApp {
+    pub fn draw_fan_tab(&mut self, ui: &mut egui::Ui) {
+        use crate::card_layout::*;
+
+        let is_rdna3 = AtomSmcDpmInfoV4_12::from_bytes(&self.raw_buffer).is_some();
+        let is_rdna2 = !is_rdna3 && AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer).is_some();
+
+        let mut issues: Vec<&'static str> = Vec::new();
+        if self.fan_pwm_min < 0 || self.fan_pwm_min > 100 {
+            issues.push("PWM Min out of 0..100%");
+        }
+        if self.fan_max_rpm > 0 && self.fan_acoustic_limit > self.fan_max_rpm {
+            issues.push("Acoustic Limit > Max RPM");
+        }
+        if self.fan_zero_rpm_enable && self.fan_stop_temp >= self.fan_start_temp {
+            issues.push("Zero RPM Stop Temp >= Start Temp");
+        }
+        if self.fan_start_temp > 0 && self.fan_target_temp > 0 && self.fan_start_temp >= self.fan_target_temp {
+            issues.push("Start Temp >= Target Temp");
+        }
+        if is_rdna2 {
+            for i in 1..5 {
+                if self.fan_curve_temp[i] < self.fan_curve_temp[i - 1]
+                    || self.fan_curve_pwm[i] < self.fan_curve_pwm[i - 1]
+                {
+                    issues.push("5-Point Fan Curve not ascending");
+                    break;
+                }
+            }
+        }
+
+        ui.horizontal(|ui| {
+            if is_rdna3 {
+                ui.colored_label(
+                    egui::Color32::from_rgb(95, 200, 145),
+                    "RDNA 3 Thermal & Fan (SMU 13.0 — PWM @ 0x86C, MaxRPM @ 0x870, Target @ 0x878, ZeroRPM @ 0x87C)",
+                );
+            } else if is_rdna2 {
+                ui.colored_label(
+                    egui::Color32::from_rgb(95, 200, 145),
+                    "RDNA 2 Thermal & Fan (SMU 11.0 — PWM/RPM @ 0x716, ZeroRPM @ 0x726 & 5-Point Curve)",
+                );
+            } else {
+                ui.weak("Load a PowerPlay table to verify Fan & Zero RPM settings.");
+            }
+
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if !self.raw_buffer.is_empty() {
+                    if issues.is_empty() {
+                        ui.colored_label(
+                            egui::Color32::from_rgb(80, 210, 120),
+                            "✔ Thermal & Fan Curve Verified",
+                        );
+                    } else {
+                        if ui.button("Fix Hysteresis / Curve").clicked() {
+                            if self.fan_zero_rpm_enable && self.fan_stop_temp >= self.fan_start_temp {
+                                self.fan_stop_temp = (self.fan_start_temp - 10).max(30);
+                            }
+                            if is_rdna2 {
+                                for i in 1..5 {
+                                    if self.fan_curve_temp[i] < self.fan_curve_temp[i - 1] {
+                                        self.fan_curve_temp[i] = self.fan_curve_temp[i - 1];
+                                    }
+                                    if self.fan_curve_pwm[i] < self.fan_curve_pwm[i - 1] {
+                                        self.fan_curve_pwm[i] = self.fan_curve_pwm[i - 1];
+                                    }
+                                }
+                            }
+                        }
+                        ui.colored_label(
+                            egui::Color32::from_rgb(245, 185, 65),
+                            format!("⚠ {}", issues.join(" | ")),
+                        );
+                    }
+                }
+            });
+        });
+        ui.add_space(4.0);
+
+        two_col_cards(ui, "fan_cols", |ui| {
+            draw_card(ui, "Fan Parameters", |ui| {
+                kv_row_1(ui, "PWM Min (%)", "fan_pwm_min (0x716 / 0x86C)", &mut self.fan_pwm_min, 62.0);
+                kv_row_1(ui, "Acoustic Limit (RPM)", "fan_acoustic_limit (0x718 / 0x86E)", &mut self.fan_acoustic_limit, 62.0);
+                kv_row_1(ui, "Throttling RPM", "fan_throttling_rpm (0x71A / 0x86A)", &mut self.fan_throttling_rpm, 62.0);
+                kv_row_1(ui, "Max RPM", "fan_max_rpm (0x71C / 0x870)", &mut self.fan_max_rpm, 62.0);
+                kv_row_1(ui, "Target Temp (°C)", "fan_target_temp (0x720 / 0x878)", &mut self.fan_target_temp, 62.0);
+                kv_row_1(ui, "Target GFX Clock", "fan_target_gfx_clock (0x722 / 0x876)", &mut self.fan_target_gfx_clock, 62.0);
+                if is_rdna2 || !is_rdna3 {
+                    kv_row_1(ui, "Fan Mode", "fan_mode (0x71E)", &mut self.fan_mode, 62.0);
+                    kv_row_1(ui, "Hyst / Ctrl", "fan_hyst_ctrl (0x71F)", &mut self.fan_hyst_ctrl, 62.0);
+                }
+            });
+            draw_card(ui, "Fan OverDrive Limits", |ui| {
+                kv_header_2(ui, "Min", "Max", 62.0);
+                kv_row_2(ui, "Fan RPM", "od_fan_min/max (0x106 / 0x113)", &mut self.oc_fan_rpm, 62.0);
+                kv_row_2(ui, "Acoustic RPM", "od_acoustic_min/max (0x10A / 0x117)", &mut self.oc_fan_acoustic_rpm, 62.0);
+                if is_rdna2 || !is_rdna3 {
+                    kv_row_2(ui, "OD Temp (°C)", "od_fan_curve_min/max", &mut self.od_fan_temp, 62.0);
+                    kv_row_2(ui, "OD Speed (%)", "od_fan_curve_min/max", &mut self.od_fan_speed, 62.0);
+                }
+            });
+        }, |ui| {
+            draw_card(ui, "Zero RPM", |ui| {
+                ui.horizontal(|ui| {
+                    crate::ui_theme::green_checkbox(ui, &mut self.fan_zero_rpm_enable, "Enable Zero RPM");
+                    ui.colored_label(
+                        egui::Color32::from_rgb(130, 145, 170),
+                        egui::RichText::new("[0x726 / 0x87C]").monospace().small(),
+                    );
+                });
+                ui.add_space(4.0);
+                kv_row_1(ui, "Stop Temp (°C)", "fan_stop_temp (0x728 / 0x81E)", &mut self.fan_stop_temp, 62.0);
+                kv_row_1(ui, "Start Temp (°C)", "fan_start_temp (0x72A / 0x838)", &mut self.fan_start_temp, 62.0);
+            });
+            draw_card(ui, "Fan Curve (5-Point)", |ui| {
+                if is_rdna3 {
+                    ui.colored_label(
+                        egui::Color32::from_rgb(160, 175, 195),
+                        "RDNA 3 (SMU 13.0) computes dynamic fan PWM from Target Temp (101°C) & Acoustic Limit; 5-point curve slots are RDNA 2 only.",
+                    );
+                } else {
+                    kv_header_2(ui, "Temp (°C)", "PWM (%)", 62.0);
+                    for i in 0..5 {
+                        let mut pair = [self.fan_curve_temp[i], self.fan_curve_pwm[i]];
+                        kv_row_2(ui, &format!("Point {}", i + 1), &format!("fan_pt_{}", i), &mut pair, 62.0);
+                        self.fan_curve_temp[i] = pair[0];
+                        self.fan_curve_pwm[i] = pair[1];
+                    }
+                }
+            });
+        });
+    }
+}

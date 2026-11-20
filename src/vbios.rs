@@ -21,6 +21,7 @@ pub struct VbiosInfo {
     pub psp_signed_size: Option<usize>,
     pub rsa_sig_offset: Option<usize>,
     pub rsa_sig_size: Option<usize>,
+    pub has_legacy_opt_rom: bool,
     pub checksum_byte: u8,
     pub checksum_sum: u8,
 }
@@ -63,7 +64,7 @@ pub fn resolve_master_powerplay_table(buf: &[u8]) -> Option<(usize, usize, usize
         let frev = buf[ppt_off + 2];
         let crev = buf[ppt_off + 3];
         let trev = buf[ppt_off + 4];
-        if (1500..=3300).contains(&ppt_size)
+        if (1500..=6144).contains(&ppt_size)
             && ppt_off + ppt_size <= buf.len()
             && matches!(frev, 0x0F | 0x10 | 0x11 | 0x12 | 0x13 | 0x14 | 0x15 | 0x16)
             && crev <= 0x10
@@ -96,10 +97,26 @@ fn scan_powerplay_signature(buf: &[u8]) -> Option<(usize, usize)> {
 }
 
 pub fn extract_ppt_from_rom(rom: &[u8]) -> Result<(Vec<u8>, usize), String> {
-    if let Some((_ah, _md, ppt_off, ppt_size)) = resolve_master_powerplay_table(rom) {
+    if rom.starts_with(&[0x55, 0xAA]) {
+        if let Some((_ah, _md, ppt_off, ppt_size)) = resolve_master_powerplay_table(rom) {
+            return Ok((rom[ppt_off..ppt_off + ppt_size].to_vec(), ppt_off));
+        }
+    }
+    // 2 MB RDNA 3 (Navi 31/32/33) SPI flash images store the 5,424-byte (0x1530) PowerPlayInfo table inside the PSP image region
+    for i in (0..rom.len().saturating_sub(5424)).step_by(4) {
+        if rom[i] == 0x30
+            && rom[i + 1] == 0x15
+            && matches!(rom[i + 2], 0x14 | 0x15 | 0x16)
+            && rom[i + 3] <= 0x10
+            && rom[i + 4] == 0x03
+        {
+            return Ok((rom[i..i + 5424].to_vec(), i));
+        }
+    }
+    if let Some((ppt_off, ppt_size)) = scan_powerplay_signature(rom) {
         return Ok((rom[ppt_off..ppt_off + ppt_size].to_vec(), ppt_off));
     }
-    Err("Could not locate MasterDataTable -> PowerPlayInfo or valid PPTable signature in VBIOS ROM.".to_string())
+    Err("Could not locate MasterDataTable -> PowerPlayInfo or valid RDNA 3 (5424 B) PPTable in ROM.".to_string())
 }
 
 pub fn patch_ppt_into_rom(orig_rom: &[u8], ppt_offset: usize, new_ppt: &[u8]) -> Result<Vec<u8>, String> {
@@ -117,13 +134,20 @@ pub fn patch_ppt_into_rom(orig_rom: &[u8], ppt_offset: usize, new_ppt: &[u8]) ->
 }
 
 pub fn recalc_vbios_checksum(buf: &mut [u8]) {
-    let legacy_len = buf.get(2).map(|&b| (b as usize) * 512).filter(|&l| l > 0 && l <= buf.len()).unwrap_or(buf.len());
+    let opt_base = if buf.starts_with(&[0x55, 0xAA]) {
+        Some(0usize)
+    } else {
+        (0..buf.len().saturating_sub(0x60)).step_by(512).find(|&o| buf.get(o..o + 2) == Some(b"\x55\xAA"))
+    };
+    let Some(base) = opt_base else { return; };
+    let slice = &mut buf[base..];
+    let legacy_len = slice.get(2).map(|&b| (b as usize) * 512).filter(|&l| l > 0 && l <= slice.len()).unwrap_or(slice.len());
     if legacy_len <= 0x21 {
         return;
     }
-    buf[0x21] = 0;
-    let sum = buf[..legacy_len].iter().fold(0u8, |acc, &b| acc.wrapping_add(b));
-    buf[0x21] = 0u8.wrapping_sub(sum);
+    slice[0x21] = 0;
+    let sum = slice[..legacy_len].iter().fold(0u8, |acc, &b| acc.wrapping_add(b));
+    slice[0x21] = 0u8.wrapping_sub(sum);
 }
 
 fn gpu_device_name(did: u16) -> &'static str {
@@ -136,6 +160,9 @@ fn gpu_device_name(did: u16) -> &'static str {
         0x73E0 | 0x73E1 | 0x73E3 => "Navi 23 (RX 6600M/W6600)",
         0x743F => "Navi 24 (RX 6400/6500 XT)",
         0x7422 | 0x7423 | 0x7424 => "Navi 24 (Beige Goby)",
+        0x744C | 0x7448 | 0x745E => "Navi 31 (RX 7900 XTX/XT/GRE)",
+        0x747E | 0x7470 | 0x7479 => "Navi 32 (RX 7800/7700 XT)",
+        0x7480 | 0x7483 | 0x7489 => "Navi 33 (RX 7600/7600 XT)",
         _ => "AMD Radeon GPU",
     }
 }
@@ -161,25 +188,43 @@ pub fn inspect_vbios_info(buf: &[u8], ppt_offset: usize) -> Option<VbiosInfo> {
     if buf.len() < 0x50 {
         return None;
     }
-    let resolved = resolve_master_powerplay_table(buf);
-    let atom_header_offset = resolved.map(|r| r.0);
-    let master_data_offset = resolved.map(|r| r.1);
+    let opt_base = if buf.starts_with(&[0x55, 0xAA]) {
+        0usize
+    } else {
+        (0..buf.len().saturating_sub(0x60))
+            .step_by(512)
+            .find(|&o| buf.get(o..o + 2) == Some(b"\x55\xAA"))
+            .unwrap_or(0)
+    };
+    let slice = &buf[opt_base..];
+    let resolved = resolve_master_powerplay_table(slice);
+    let atom_hdr_rel = resolved.map(|r| r.0).or_else(|| {
+        let ah = read_u16(slice, 0x48)? as usize;
+        (slice.get(ah + 4..ah + 8) == Some(b"ATOM")).then_some(ah)
+    });
+    let master_data_rel = resolved
+        .map(|r| r.1)
+        .or_else(|| atom_hdr_rel.and_then(|ah| read_u16(slice, ah + 0x20).map(|m| m as usize)).filter(|&m| m > 0 && m + 0x20 <= slice.len()));
+    let atom_header_offset = atom_hdr_rel.map(|ah| opt_base + ah);
+    let master_data_offset = master_data_rel.map(|md| opt_base + md);
 
-    let pcir_off = read_u16(buf, 0x18).unwrap_or(0) as usize;
-    let (vendor_id, device_id, legacy_size) = if buf.get(pcir_off..pcir_off + 4) == Some(b"PCIR") {
-        let vid = read_u16(buf, pcir_off + 4).unwrap_or(0x1002);
-        let did = read_u16(buf, pcir_off + 6).unwrap_or(0);
-        let ilen = (read_u16(buf, pcir_off + 0x10).unwrap_or(0) as usize) * 512;
+    let pcir_off = read_u16(slice, 0x18).unwrap_or(0) as usize;
+    let (vendor_id, device_id, legacy_size) = if slice.get(pcir_off..pcir_off + 4) == Some(b"PCIR") {
+        let vid = read_u16(slice, pcir_off + 4).unwrap_or(0x1002);
+        let did = read_u16(slice, pcir_off + 6).unwrap_or(0);
+        let ilen = (read_u16(slice, pcir_off + 0x10).unwrap_or(0) as usize) * 512;
         (vid, did, if ilen > 0 && ilen <= buf.len() { ilen } else { buf.len() })
     } else {
         (0x1002, 0, buf.len())
     };
 
-    let (subvendor_id, subdevice_id) = if let Some(ah) = atom_header_offset {
-        (
-            read_u16(buf, ah + 0x22).unwrap_or(0),
-            read_u16(buf, ah + 0x24).unwrap_or(0),
-        )
+    let (subvendor_id, subdevice_id) = if let Some(ah) = atom_hdr_rel {
+        let sv18 = read_u16(slice, ah + 0x18).unwrap_or(0);
+        if sv18 != 0 && sv18 != 0xFFFF {
+            (sv18, read_u16(slice, ah + 0x1A).unwrap_or(0))
+        } else {
+            (read_u16(slice, ah + 0x26).unwrap_or(0), read_u16(slice, ah + 0x28).unwrap_or(0))
+        }
     } else {
         (0, 0)
     };
@@ -230,8 +275,10 @@ pub fn inspect_vbios_info(buf: &[u8], ppt_offset: usize) -> Option<VbiosInfo> {
         }
     }
 
-    let checksum_byte = buf.get(0x21).copied().unwrap_or(0);
-    let checksum_sum = buf[..legacy_size].iter().fold(0u8, |acc, &b| acc.wrapping_add(b));
+    let has_legacy_opt_rom = slice.starts_with(&[0x55, 0xAA]);
+    let csum_len = legacy_size.min(slice.len());
+    let checksum_byte = slice.get(0x21).copied().unwrap_or(0);
+    let checksum_sum = slice[..csum_len].iter().fold(0u8, |acc, &b| acc.wrapping_add(b));
 
     Some(VbiosInfo {
         device_name: gpu_device_name(device_id).to_string(),
@@ -255,6 +302,7 @@ pub fn inspect_vbios_info(buf: &[u8], ppt_offset: usize) -> Option<VbiosInfo> {
         psp_signed_size,
         rsa_sig_offset,
         rsa_sig_size,
+        has_legacy_opt_rom,
         checksum_byte,
         checksum_sum,
     })

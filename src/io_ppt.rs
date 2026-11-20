@@ -30,7 +30,7 @@ impl PowerPlayApp {
                 self.vbios_buffer = None;
                 self.vbios_ppt_offset = None;
                 crate::import_formats::parse_plist_ppt(&raw)
-            } else if ext != "mpt" && ext != "reg" && raw.starts_with(&[0x55, 0xAA]) {
+            } else if ext != "mpt" && ext != "reg" && (raw.starts_with(&[0x55, 0xAA]) || (ext == "rom" && raw.len() >= 65536)) {
                 match crate::vbios::extract_ppt_from_rom(&raw) {
                     Ok((ppt, off)) => {
                         self.vbios_buffer = Some(raw);
@@ -99,13 +99,95 @@ impl PowerPlayApp {
             (0x07 | 0x08, _) => "Polaris (RX 400/500)",
             _ => "Unknown AMD Architecture",
         };
+        if let Some(t3) = crate::pptable_rdna3::AtomSmcDpmInfoV4_12::from_bytes(&b) {
+            let chip = t3.detect_chip(0);
+            let saved_vbios = self.vbios_buffer.take();
+            let saved_voff = self.vbios_ppt_offset.take();
+            let saved_file = self.loaded_file.take();
+            let saved_gpu = self.selected_gpu;
+            self.reset_all_values();
+            self.vbios_buffer = saved_vbios;
+            self.vbios_ppt_offset = saved_voff;
+            self.loaded_file = saved_file;
+            self.selected_gpu = saved_gpu;
+
+            let f = t3.od_feature_flags;
+            self.gpu_clock_limit = f[0] != 0;
+            self.gpu_clock_curve = f[1] != 0;
+            self.memory_clock_limit = f[2] != 0;
+            self.zero_rpm = f[3] != 0;
+            self.min_fan_speed = f[4] != 0;
+            self.fan_target_temp_limit = f[5] != 0;
+            self.operating_temp_limit = f[6] != 0;
+            self.fan_acoustic_rpm = f[7] != 0;
+            self.fan_curve = f[8] != 0;
+            self.power_limit_feat = f[9] != 0;
+            self.timing_tuning = f[10] != 0;
+            self.power_mode = f[11] != 0;
+
+            let mask = { t3.features_to_run };
+            for bit in 0..64 {
+                self.smu_features[bit] = (mask & (1u64 << bit)) != 0;
+            }
+
+            self.oc_gfx_clock = [0, { t3.od_gfx_max } as i32];
+            self.oc_mem_clock = [0, { t3.od_mem_max } as i32];
+            self.oc_power_limit = [0, { t3.od_pwr_max } as i32];
+            self.oc_fan_rpm = [0, { t3.od_fan_max } as i32];
+            self.oc_fan_acoustic_rpm = [0, { t3.od_acoustic_max } as i32];
+
+            self.power_limit_w = { t3.socket_power_limit_ac } as i32;
+            self.volt_gfx = [{ t3.min_voltage_gfx } as i32 / 4, { t3.max_voltage_gfx } as i32 / 4];
+            self.volt_soc = [{ t3.min_voltage_soc } as i32 / 4, { t3.max_voltage_soc } as i32 / 4];
+            self.ulv_gfx = [{ t3.ulv_voltage_vmin_gfx } as i32 / 4, 0];
+            self.ulv_soc = [{ t3.ulv_voltage_vmin_soc } as i32 / 4, 0];
+
+            self.freq_gfx = [{ t3.freq_gfx_min } as i32, { t3.freq_gfx_max } as i32];
+            self.freq_soc = [500, { t3.freq_soc_max } as i32];
+            self.freq_fclk = [{ t3.freq_fclk_min } as i32, { t3.freq_fclk_max } as i32];
+            self.tdc_gfx = { t3.tdc_limit_gfx } as i32;
+            self.tdc_soc = { t3.tdc_limit_soc } as i32;
+            for i in 0..4 {
+                self.mem_dpm_freq[i] = [t3.freq_uclk[i] as i32, 1];
+                self.mem_dpm_volt[i] = [(t3.mem_vddci[i] / 4) as i32, (t3.mem_mvdd[i] / 4) as i32];
+            }
+            self.pcie_gen_speed = [t3.pcie_gen_speed[0] as i32, t3.pcie_gen_speed[2] as i32];
+            self.pcie_lane_count = [t3.pcie_lane_count[0] as i32, t3.pcie_lane_count[2] as i32];
+            self.lclk_mhz = [t3.lclk_freq[0] as i32, t3.lclk_freq[2] as i32];
+            self.fan_throttling_rpm = { t3.fan_throttling_rpm } as i32;
+            self.fan_pwm_min = { t3.fan_pwm_min } as i32;
+            self.fan_acoustic_limit = { t3.fan_acoustic_limit } as i32;
+            self.fan_max_rpm = { t3.fan_max_rpm } as i32;
+            self.fan_target_gfx_clock = { t3.fan_target_gfx_clock } as i32;
+            let raw_tt = { t3.fan_target_temp } as i32;
+            self.fan_target_temp = if raw_tt > 200 { raw_tt / 10 } else { raw_tt };
+            self.fan_zero_rpm_enable = t3.fan_zero_rpm_enable != 0;
+            self.fan_stop_temp = { t3.fan_stop_temp } as i32;
+            self.fan_start_temp = { t3.fan_start_temp } as i32;
+            for i in 0..9 {
+                self.temp_limits[i] = t3.temp_limit[i] as i32;
+            }
+
+            let vbios_tag = if let Some(voff) = self.vbios_ppt_offset {
+                format!(" | VBIOS PowerPlayInfo @ 0x{:04X}", voff)
+            } else {
+                String::new()
+            };
+            self.status_msg = format!(
+                "Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B{}]",
+                label, chip.display_name(), frev, crev, trev, b.len(), vbios_tag
+            );
+            self.raw_buffer = b;
+            return;
+        }
+
         let supported_rdna2 = matches!(frev, 0x10 | 0x11 | 0x12 | 0x13) || (frev == 0x0F && b.len() == 2470);
         if !supported_rdna2 {
             self.show_error(
                 "Unsupported PPTable Architecture",
                 &format!(
                     "Detected {} (format_revision 0x{:02X}.{:02X}, {} bytes).\n\n\
-                     NaviTune is calibrated for RDNA 2 (0x12 Navi 21/22/23 & 0x13 Navi 24). Editing fields on other architectures is blocked to prevent table corruption.",
+                     NaviTune supports RDNA 2 (0x0F–0x13) and RDNA 3 (0x14–0x16, 5424 B).",
                     arch_label, frev, crev, b.len()
                 ),
             );
@@ -241,6 +323,59 @@ impl PowerPlayApp {
     }
 
     pub fn sync_fields_to_buffer(&mut self) {
+        if let Some(t3) = crate::pptable_rdna3::AtomSmcDpmInfoV4_12::from_bytes_mut(&mut self.raw_buffer) {
+            t3.od_feature_flags[0..12].copy_from_slice(&[
+                self.gpu_clock_limit as u8, self.gpu_clock_curve as u8, self.memory_clock_limit as u8, self.zero_rpm as u8,
+                self.min_fan_speed as u8, self.fan_target_temp_limit as u8, self.operating_temp_limit as u8, self.fan_acoustic_rpm as u8,
+                self.fan_curve as u8, self.power_limit_feat as u8, self.timing_tuning as u8, self.power_mode as u8,
+            ]);
+            let mut mask = 0u64;
+            for (bit, &en) in self.smu_features.iter().enumerate() {
+                if en { mask |= 1u64 << bit; }
+            }
+            t3.features_to_run = mask;
+            t3.od_gfx_max = self.oc_gfx_clock[1] as u32;
+            t3.od_mem_max = self.oc_mem_clock[1] as u32;
+            t3.od_pwr_max = self.oc_power_limit[1] as u32;
+            t3.od_fan_max = self.oc_fan_rpm[1] as u32;
+            t3.od_acoustic_max = self.oc_fan_acoustic_rpm[1] as u32;
+            t3.socket_power_limit_ac = self.power_limit_w as u16;
+            t3.min_voltage_gfx = (self.volt_gfx[0] * 4) as u16;
+            t3.max_voltage_gfx = (self.volt_gfx[1] * 4) as u16;
+            t3.min_voltage_soc = (self.volt_soc[0] * 4) as u16;
+            t3.max_voltage_soc = (self.volt_soc[1] * 4) as u16;
+            t3.freq_gfx_min = self.freq_gfx[0] as u16;
+            t3.freq_gfx_max = self.freq_gfx[1] as u16;
+            t3.freq_soc_max = self.freq_soc[1] as u16;
+            t3.freq_fclk_min = self.freq_fclk[0] as u16;
+            t3.freq_fclk_max = self.freq_fclk[1] as u16;
+            t3.tdc_limit_gfx = self.tdc_gfx as u16;
+            t3.tdc_limit_soc = self.tdc_soc as u16;
+            for i in 0..4 {
+                t3.freq_uclk[i] = self.mem_dpm_freq[i][0] as u16;
+                t3.mem_vddci[i] = (self.mem_dpm_volt[i][0] * 4) as u16;
+                t3.mem_mvdd[i] = (self.mem_dpm_volt[i][1] * 4) as u16;
+            }
+            t3.pcie_gen_speed[0] = self.pcie_gen_speed[0] as u8;
+            t3.pcie_gen_speed[2] = self.pcie_gen_speed[1] as u8;
+            t3.pcie_lane_count[0] = self.pcie_lane_count[0] as u8;
+            t3.pcie_lane_count[2] = self.pcie_lane_count[1] as u8;
+            t3.lclk_freq[0] = self.lclk_mhz[0] as u16;
+            t3.lclk_freq[2] = self.lclk_mhz[1] as u16;
+            t3.fan_throttling_rpm = self.fan_throttling_rpm as u16;
+            t3.fan_pwm_min = self.fan_pwm_min as u16;
+            t3.fan_acoustic_limit = self.fan_acoustic_limit as u16;
+            t3.fan_max_rpm = self.fan_max_rpm as u16;
+            t3.fan_target_gfx_clock = self.fan_target_gfx_clock as u16;
+            t3.fan_target_temp = (self.fan_target_temp * 10) as u16;
+            t3.fan_zero_rpm_enable = self.fan_zero_rpm_enable as u8;
+            t3.fan_stop_temp = self.fan_stop_temp as u16;
+            t3.fan_start_temp = self.fan_start_temp as u16;
+            for i in 0..9 {
+                t3.temp_limit[i] = self.temp_limits[i] as u16;
+            }
+            return;
+        }
         let Some(t) = AtomSmcDpmInfoV4_9::from_bytes_mut(&mut self.raw_buffer) else {
             return;
         };
@@ -341,12 +476,17 @@ impl PowerPlayApp {
 
 
     pub fn save_ppt_file(&mut self) {
+        let default_name = if self.vbios_buffer.is_some() { "patched_vbios.rom" } else { "custom_ppt.bin" };
+        self.save_ppt_file_with_default(default_name);
+    }
+
+    pub fn save_ppt_file_with_default(&mut self, default_name: &str) {
         if self.raw_buffer.is_empty() {
             self.show_error("Nothing to Save", "Please load a PowerPlay table (.bin, .rom, .reg, .mpt) or select a GPU from ioreg first.");
             return;
         }
         if let Some(path) = FileDialog::new()
-            .set_file_name("custom_ppt.bin")
+            .set_file_name(default_name)
             .add_filter("PowerPlay Binary (*.bin)", &["bin"])
             .add_filter("Patched VBIOS ROM (*.rom)", &["rom"])
             .add_filter("Windows Registry (*.reg)", &["reg"])
@@ -354,135 +494,23 @@ impl PowerPlayApp {
             .add_filter("OpenCore DeviceProperties (*.plist)", &["plist"])
             .save_file()
         {
-            let Some(t) = AtomSmcDpmInfoV4_9::from_bytes_mut(&mut self.raw_buffer) else {
-                self.show_error("Save Error", &format!("Buffer size ({} bytes) is smaller than AtomSmcDpmInfoV4_9 ({} bytes).", self.raw_buffer.len(), std::mem::size_of::<crate::pptable_rdna2::AtomSmcDpmInfoV4_9>()));
-                return;
-            };
-
-            t.od_feature_flags = [
-                self.gpu_clock_limit as u8, self.gpu_clock_curve as u8, self.memory_clock_limit as u8, self.zero_rpm as u8,
-                self.min_fan_speed as u8, self.fan_target_temp_limit as u8, self.operating_temp_limit as u8, self.fan_acoustic_rpm as u8,
-                self.fan_curve as u8, self.power_limit_feat as u8, self.timing_tuning as u8, self.power_mode as u8,
-                self.auto_undervolt_gpu as u8, self.auto_overclock_gpu as u8, self.auto_overclock_mem as u8, self.auto_fan_acoustic_limit as u8,
-            ];
-
-            let mut mask = 0u64;
-            for (bit, &en) in self.smu_features.iter().enumerate() {
-                if en { mask |= 1u64 << bit; }
-            }
-            t.features_to_run = mask;
-
-            t.od_gfx_min[0] = self.oc_gfx_clock[0] as u32; t.od_gfx_max[0] = self.oc_gfx_clock[1] as u32;
-            t.od_mem_min[0] = self.oc_mem_clock[0] as u32; t.od_mem_max[0] = self.oc_mem_clock[1] as u32;
-            t.od_pwr_min = self.oc_power_limit[0] as u32; t.od_pwr_max = self.oc_power_limit[1] as u32;
-            t.od_fan_min = self.oc_fan_rpm[0] as u32; t.od_fan_max = self.oc_fan_rpm[1] as u32;
-            t.od_acoustic_min = self.oc_fan_acoustic_rpm[0] as u32; t.od_acoustic_max = self.oc_fan_acoustic_rpm[1] as u32;
-            t.od_mem_timing_ctrl = self.oc_mem_timing_ctrl as u32;
-            t.od_pwr_mode_ctrl = self.oc_power_mode_ctrl as u32;
-            t.od_zero_rpm_ctrl = self.oc_zero_rpm_ctrl as u32;
-
-            t.pm_quiet_limit = self.pm_quiet[0] as u32; t.pm_quiet_temp = self.pm_quiet[1] as u16;
-            t.pm_balanced_limit = self.pm_balanced[0] as u32; t.pm_balanced_temp = self.pm_balanced[1] as u16;
-            t.pm_turbo_limit = self.pm_turbo[0] as u32; t.pm_turbo_temp = self.pm_turbo[1] as u16;
-            t.pm_rage_limit = self.pm_rage[0] as u32; t.pm_rage_temp = self.pm_rage[1] as u16;
-            t.ac_quiet = [self.ac_quiet[0] as u16, self.ac_quiet[1] as u16];
-            t.ac_balanced = [self.ac_balanced[0] as u16, self.ac_balanced[1] as u16];
-            t.ac_turbo = [self.ac_turbo[0] as u16, self.ac_turbo[1] as u16];
-            t.ac_rage = [self.ac_rage[0] as u16, self.ac_rage[1] as u16];
-
-            t.min_voltage_gfx = (self.volt_gfx[0] * 4) as u16; t.max_voltage_gfx = (self.volt_gfx[1] * 4) as u16;
-            t.min_voltage_soc = (self.volt_soc[0] * 4) as u16; t.max_voltage_soc = (self.volt_soc[1] * 4) as u16;
-            let pwr = self.power_limit_w as u16;
-            t.socket_power_limit_ac[0] = pwr;
-        t.socket_power_limit_dc = pwr;
-            t.tdc_limit_gfx = self.tdc_gfx as u16; t.tdc_limit_soc = self.tdc_soc as u16;
-            t.ulv_voltage_vmin_gfx = (self.ulv_gfx[0] * 4) as u16; t.ulv_voltage_offset_gfx = (self.ulv_gfx[1] * 4) as u16;
-            t.ulv_voltage_vmin_soc = (self.ulv_soc[0] * 4) as u16; t.ulv_voltage_offset_soc = (self.ulv_soc[1] * 4) as u16;
-            t.tvmin_hyst_gfx = self.tvmin_gfx[0] as u16; t.tvmin_gfx = self.tvmin_gfx[1] as u16;
-            t.tvmin_hyst_soc = self.tvmin_soc[0] as u16; t.tvmin_soc = self.tvmin_soc[1] as u16;
-            t.vmin_low_gfx = (self.vmin_lh_gfx[0] * 4) as u16;
-            t.vmin_high_gfx = (self.vmin_lh_gfx[1] * 4) as u16;
-            t.vmin_low_soc = (self.vmin_lh_soc[0] * 4) as u16;
-            t.vmin_high_soc = (self.vmin_lh_soc[1] * 4) as u16;
-            for i in 0..4 {
-                t.mem_vddci[i] = (self.mem_dpm_volt[i][0] * 4) as u16;
-                t.mem_mvdd[i] = (self.mem_dpm_volt[i][1] * 4) as u16;
-                t.freq_uclk[i] = self.mem_dpm_freq[i][0] as u16;
-                t.mem_clk_div[i] = self.mem_dpm_freq[i][1] as u8;
-            }
-
-            t.freq_gfx_min = self.freq_gfx[0] as u16; t.freq_gfx_max = self.freq_gfx[1] as u16; t.freq_gfx_max_mirror = self.freq_gfx[1] as u16;
-            t.freq_soc = [self.freq_soc[0] as u16, self.freq_soc[1] as u16];
-            t.freq_vclk = [self.freq_vclk[0] as u16, self.freq_vclk[1] as u16];
-            t.freq_dclk = [self.freq_dclk[0] as u16, self.freq_dclk[1] as u16];
-            t.freq_dcef = [self.freq_dcefclk[0] as u16, self.freq_dcefclk[1] as u16];
-            t.freq_disp = [self.freq_dispclk[0] as u16, self.freq_dispclk[1] as u16];
-            t.freq_pix = [self.freq_pixclk[0] as u16, self.freq_pixclk[1] as u16];
-            t.freq_phy[1] = self.freq_phyclk[1] as u16;
-            t.freq_dtb = [self.freq_dtbclk[0] as u16, self.freq_dtbclk[1] as u16];
-            t.freq_fclk = [self.freq_fclk[0] as u16, self.freq_fclk[1] as u16];
-            t.pcie_gen_speed = [self.pcie_gen_speed[0] as u8, self.pcie_gen_speed[1] as u8];
-            t.pcie_lane_count = [self.pcie_lane_count[0] as u8, self.pcie_lane_count[1] as u8];
-            t.lclk_freq = [self.lclk_mhz[0] as u16, self.lclk_mhz[1] as u16];
-
-            t.static_volt_gfx.a = self.static_volt_a[0] as f32; t.static_volt_soc.a = self.static_volt_a[1] as f32;
-            t.static_volt_gfx.b = self.static_volt_b[0] as f32; t.static_volt_soc.b = self.static_volt_b[1] as f32;
-            t.static_volt_gfx.c = self.static_volt_c[0] as f32; t.static_volt_soc.c = self.static_volt_c[1] as f32;
-        t.static_volt_offset_gfx.a = self.static_off_a[0] as f32; t.static_volt_offset_soc.a = self.static_off_a[1] as f32;
-        t.static_volt_offset_gfx.b = self.static_off_b[0] as f32; t.static_volt_offset_soc.b = self.static_off_b[1] as f32;
-        t.static_volt_offset_gfx.c = self.static_off_c[0] as f32; t.static_volt_offset_soc.c = self.static_off_c[1] as f32;
-            t.dcbtc_enable_gfx = self.dcbtc_gfx_en as u8; t.dcbtc_enable_soc = self.dcbtc_soc_en as u8;
-            t.dcbtc_min_gfx = (self.dcbtc_min[0] * 4.0).round() as i16; t.dcbtc_min_soc = (self.dcbtc_min[1] * 4.0).round() as i16;
-            t.dcbtc_max_gfx = (self.dcbtc_max[0] * 4.0).round() as i16; t.dcbtc_max_soc = (self.dcbtc_max[1] * 4.0).round() as i16;
-            t.dcbtc_gb_gfx = (self.dcbtc_gb[0] * 4.0).round() as i16; t.dcbtc_gb_soc = (self.dcbtc_gb[1] * 4.0).round() as i16;
-            t.dctol_gfx = self.dctol[0] as i16; t.dctol_soc = self.dctol[1] as i16;
-
-            t.fan_pwm_min = self.fan_pwm_min as u16; t.fan_acoustic_limit = self.fan_acoustic_limit as u16;
-            t.fan_throttling_rpm = self.fan_throttling_rpm as u16; t.fan_max_rpm = self.fan_max_rpm as u16;
-            t.fan_target_temp = self.fan_target_temp as u16; t.fan_target_gfx_clock = self.fan_target_gfx_clock as u16;
-        t.fan_mode = self.fan_mode as u8;
-        t.fan_hyst_ctrl = self.fan_hyst_ctrl as u8;
-            t.fan_zero_rpm_enable = self.fan_zero_rpm_enable as u8;
-            t.fan_stop_temp = self.fan_stop_temp as u16; t.fan_start_temp = self.fan_start_temp as u16;
-            for i in 0..5 {
-                t.od_fan_curve_min[i].temp = self.fan_curve_temp[i] as u32;
-                t.od_fan_curve_min[i].pwm = self.fan_curve_pwm[i] as u32;
-            }
-            t.od_fan_curve_min[0].temp = self.od_fan_temp[0] as u32;
-            t.od_fan_curve_max[0].temp = self.od_fan_temp[1] as u32;
-            t.od_fan_curve_min[0].pwm = self.od_fan_speed[0] as u32;
-            t.od_fan_curve_max[0].pwm = self.od_fan_speed[1] as u32;
-        for i in 0..9 {
-            t.temp_limit[i] = self.temp_limits[i] as u16;
-        }
-        for i in 0..4 {
-            t.power_limit_ac[i] = self.power_limit_ac[i] as u16;
-        }
-
+            self.sync_fields_to_buffer();
             let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("bin").to_ascii_lowercase();
-            let write_res = match ext.as_str() {
-                "rom" => {
-                    match (&self.vbios_buffer, self.vbios_ppt_offset) {
-                        (Some(orig_rom), Some(off)) => {
-                            match crate::vbios::patch_ppt_into_rom(orig_rom, off, &self.raw_buffer) {
-                                Ok(patched_rom) => fs::write(&path, patched_rom),
-                                Err(e) => {
-                                    self.show_error("VBIOS Patch Error", &e);
-                                    return;
-                                }
-                            }
-                        }
-                        _ => {
-                            self.show_error("Missing Base VBIOS", "You must load an original VBIOS (.rom / .bin) before saving a patched .rom image.");
-                            return;
-                        }
-                    }
+            let bytes = match crate::export_formats::serialize_export_bytes(
+                &ext,
+                &self.raw_buffer,
+                self.vbios_buffer.as_deref(),
+                self.vbios_ppt_offset,
+                "PciRoot(0x0)/Pci(0x1,0x0)/Pci(0x0,0x0)",
+            ) {
+                Ok(b) => b,
+                Err(err) => {
+                    let title = if ext == "rom" && self.vbios_buffer.is_none() { "Missing Base VBIOS" } else { "VBIOS Patch Error" };
+                    self.show_error(title, &err);
+                    return;
                 }
-                "reg" => fs::write(&path, crate::export_formats::format_reg_ppt(&self.raw_buffer)),
-                "mpt" => fs::write(&path, crate::export_formats::format_mpt_ppt(&self.raw_buffer)),
-                "plist" => fs::write(&path, crate::export_formats::format_opencore_plist(&self.raw_buffer, "PciRoot(0x0)/Pci(0x1,0x0)/Pci(0x0,0x0)")),
-                _ => fs::write(&path, &self.raw_buffer),
             };
+            let write_res = fs::write(&path, bytes);
             match write_res {
                 Ok(_) => self.status_msg = format!("Saved to {}", path.file_name().unwrap_or_default().to_string_lossy()),
                 Err(e) => self.show_error("File Save Error", &e.to_string()),

@@ -1,0 +1,137 @@
+use eframe::egui;
+use crate::pptable_rdna2::{AtomSmcDpmInfoV4_9, NaviRDNA2Chip};
+use crate::pptable_rdna3::{AtomSmcDpmInfoV4_12, NaviRDNA3Chip};
+use crate::PowerPlayApp;
+
+impl PowerPlayApp {
+    pub fn draw_safe_tune_tab(&mut self, ui: &mut egui::Ui) {
+        if self.raw_buffer.is_empty() {
+            ui.centered_and_justified(|ui| {
+                ui.label("Load a PowerPlay table (.bin, .rom, .reg, .mpt, pp_table) first to run Safe Tune diagnostics.");
+            });
+            return;
+        }
+
+        let did = self
+            .vbios_buffer
+            .as_deref()
+            .and_then(|vb| crate::vbios::inspect_vbios_info(vb, self.vbios_ppt_offset.unwrap_or(0)))
+            .map(|vi| vi.device_id)
+            .unwrap_or(0);
+
+        let (
+            chip_label, is_rdna3, max_gfx_v, max_soc_v, min_w, max_w,
+            max_tdc_gfx, max_tdc_soc, safe_uclk_max, max_fan_tgt, min_fclk, min_soc, expected_lanes,
+        ) = if let Some(t3) = AtomSmcDpmInfoV4_12::from_bytes(&self.raw_buffer) {
+            let chip3 = t3.detect_chip(did);
+            match chip3 {
+                NaviRDNA3Chip::Navi31PlumBonito => (chip3.display_name(), true, 1200, 1200, 260, 365, 460, 90, 1300, 105, 1400, 2200, 16),
+                NaviRDNA3Chip::Navi32WheatNas => (chip3.display_name(), true, 1200, 1200, 200, 275, 340, 75, 1250, 105, 1400, 2000, 16),
+                NaviRDNA3Chip::Navi33Hotbeige => (chip3.display_name(), true, 1200, 1200, 140, 200, 240, 60, 1150, 105, 1400, 1800, 8),
+                NaviRDNA3Chip::UnknownRdna3 => (chip3.display_name(), true, 1200, 1200, 140, 365, 460, 90, 1300, 105, 1400, 1800, 16),
+            }
+        } else {
+            let chip2 = AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer)
+                .map(|t| t.detect_chip(&self.raw_buffer))
+                .unwrap_or(NaviRDNA2Chip::Navi23DimgreyCavefish);
+            match chip2 {
+                NaviRDNA2Chip::Navi24BeigeGoby => (chip2.display_name(), false, 1150, 1100, 25, 115, 95, 22, 1050, 95, 1350, 1000, 4),
+                NaviRDNA2Chip::Navi23DimgreyCavefish => (chip2.display_name(), false, 1150, 1150, 80, 145, 135, 28, 1000, 95, 1550, 1150, 8),
+                NaviRDNA2Chip::Navi22NavyFlounder => (chip2.display_name(), false, 1200, 1200, 175, 230, 186, 32, 1000, 95, 1550, 1150, 16),
+                NaviRDNA2Chip::Navi21SiennaCichlid => (chip2.display_name(), false, 1200, 1200, 250, 300, 255, 40, 1000, 95, 1550, 1150, 16),
+            }
+        };
+
+        let mut checks: Vec<(&str, &str, String, String, u8, &str)> = Vec::new();
+
+        let gfx_ok = self.freq_gfx[0] > 0 && self.freq_gfx[0] < self.freq_gfx[1] && (self.oc_gfx_clock[1] == 0 || self.freq_gfx[1] <= self.oc_gfx_clock[1]);
+        let gfx_sev = if self.freq_gfx[0] >= self.freq_gfx[1] { 2 } else if !gfx_ok { 1 } else { 0 };
+        checks.push(("Clocks", "GFX Min / Max vs OD8", format!("{} / {} MHz (OD Max: {})", self.freq_gfx[0], self.freq_gfx[1], self.oc_gfx_clock[1]), "Min < Max <= OD Max".to_string(), gfx_sev, "Keep GFX Max within OverDrive Max to prevent driver clock clamping."));
+
+        let uclk_dpm3 = self.mem_dpm_freq[3][0];
+        let uclk_sev = if uclk_dpm3 > safe_uclk_max + 50 { 2 } else if uclk_dpm3 > safe_uclk_max || (self.oc_mem_clock[1] > 0 && uclk_dpm3 > self.oc_mem_clock[1]) { 1 } else { 0 };
+        checks.push(("Clocks", "UCLK DPM3 vs Safe Max", format!("{} MHz (OD Max: {} MHz)", uclk_dpm3, self.oc_mem_clock[1]), format!("<= {} MHz (OD <= {})", safe_uclk_max, self.oc_mem_clock[1]), uclk_sev, "GDDR6 strap timing loosens or throws ECC retries if UCLK exceeds silicon ceiling."));
+
+        let eff_vmax_gfx = (self.volt_gfx[1] as f32 + self.static_off_c[0] as f32 * 1000.0).round() as i32;
+        let v_gfx_sev = if self.volt_gfx[0] > self.volt_gfx[1] || eff_vmax_gfx > max_gfx_v + 50 || eff_vmax_gfx < 650 { 2 } else if self.volt_gfx[0] < 675 || eff_vmax_gfx > max_gfx_v { 1 } else { 0 };
+        checks.push(("Voltage", "GFX Vmin / Vmax (+Offset)", format!("{} / {} mV (Eff Max: {} mV)", self.volt_gfx[0], self.volt_gfx[1], eff_vmax_gfx), format!("700..{} mV (Min <= Max)", max_gfx_v), v_gfx_sev, "Effective Vmax includes Static Voltage Offset (c); keep within silicon safe bounds."));
+
+        let v_soc_sev = if self.volt_soc[0] > self.volt_soc[1] || self.volt_soc[1] > max_soc_v + 50 { 2 } else if self.volt_soc[0] < 675 || self.volt_soc[1] > max_soc_v { 1 } else { 0 };
+        checks.push(("Voltage", "Soc Vmin / Vmax", format!("{} / {} mV", self.volt_soc[0], self.volt_soc[1]), format!("700..{} mV (Min <= Max)", max_soc_v), v_soc_sev, "Keep SoC voltage within silicon spec for Infinity Cache & memory controller stability."));
+
+        let pwr_sev = if self.power_limit_w <= 0 || self.tdc_gfx <= 0 || self.power_limit_w > max_w + 50 { 2 } else if self.power_limit_w < min_w || self.power_limit_w > max_w || self.tdc_gfx > max_tdc_gfx || self.tdc_soc > max_tdc_soc { 1 } else { 0 };
+        checks.push(("Power", "PPT & TDC GFX / Soc", format!("{} W | {} A / {} A", self.power_limit_w, self.tdc_gfx, self.tdc_soc), format!("{}..{} W | TDC <= {}/{} A", min_w, max_w, max_tdc_gfx, max_tdc_soc), pwr_sev, "Calibrated to factory silicon VRM current & socket board power limits."));
+
+        let mut mem_v_sev = 0u8;
+        for i in 0..4 {
+            let vddci = self.mem_dpm_volt[i][0];
+            let mvdd = self.mem_dpm_volt[i][1];
+            if vddci > mvdd || mvdd > 1425 { mem_v_sev = 2; } else if (vddci > 900 || mvdd > 1365) && mem_v_sev < 1 { mem_v_sev = 1; }
+        }
+        checks.push(("Memory", "VDDCI / MVDD DPM 0..3", format!("DPM3: {} / {} mV", self.mem_dpm_volt[3][0], self.mem_dpm_volt[3][1]), "VDDCI <= MVDD <= 1365 mV".to_string(), mem_v_sev, "Factory DPM3 is 800..850 mV VDDCI / 1350 mV MVDD; keep MVDD <= 1365 mV on air."));
+
+        let hotspot_lim = self.temp_limits[1];
+        let fan_sev = if self.fan_stop_temp >= self.fan_start_temp || self.fan_start_temp >= self.fan_target_temp || hotspot_lim > 115 { 2 } else if self.fan_target_temp > max_fan_tgt || self.fan_pwm_min < 10 || hotspot_lim > 110 { 1 } else { 0 };
+        checks.push(("Thermal", "Fan & Hotspot Limits", format!("Stop {}° / Start {}° / Tgt {}° | Hotspot {}°C", self.fan_stop_temp, self.fan_start_temp, self.fan_target_temp, hotspot_lim), format!("Stop < Start < Tgt <= {}° | Hotspot <= 110°C", max_fan_tgt), fan_sev, "Ensures smooth Zero-RPM hysteresis and safe Junction/Hotspot throttling margin."));
+
+        let od_pwr_sev = if self.oc_power_limit[0] > self.oc_power_limit[1] || self.oc_power_limit[1] > 30 { 2 } else if self.oc_power_limit[0] < -10 || self.oc_power_limit[1] > 20 { 1 } else { 0 };
+        checks.push(("OverDrive", "OD Power Slider (%)", format!("{}% .. +{}%", self.oc_power_limit[0], self.oc_power_limit[1]), "-6% .. +20% (Factory Range)".to_string(), od_pwr_sev, "Standard AMD OverDrive power slider allows up to +15%..+20% around socket PPT."));
+
+        let fclk_sev = if self.freq_fclk[0] > self.freq_fclk[1] || self.freq_soc[0] > self.freq_soc[1] { 2 } else if self.freq_fclk[1] < min_fclk || self.freq_soc[1] < min_soc { 1 } else { 0 };
+        checks.push(("Fabric", "FCLK & SoC Max Coupling", format!("FCLK {} MHz | SoC {} MHz", self.freq_fclk[1], self.freq_soc[1]), format!("FCLK >= {} MHz | SoC >= {} MHz", min_fclk, min_soc), fclk_sev, "Factory RDNA 2 runs ~1800 MHz FCLK; factory RDNA 3 runs ~1500 MHz FCLK / 2400+ MHz SoC."));
+
+        let pcie_sev = if self.pcie_gen_speed[1] > 4 || self.pcie_lane_count[1] > expected_lanes { 2 } else if self.pcie_gen_speed[1] < 4 || self.pcie_lane_count[1] < expected_lanes { 1 } else { 0 };
+        checks.push(("PCIe Bus", "Link Gen & Lane Width", format!("Gen {} x{} lanes", self.pcie_gen_speed[1], self.pcie_lane_count[1]), format!("Gen 4 x{} lanes (Silicon Native)", expected_lanes), pcie_sev, "Navi 21/22/31/32 use PCIe 4.0 x16; Navi 23/33 use x8; Navi 24 uses x4."));
+
+        let prot_ok = if is_rdna3 {
+            self.smu_features.get(17).copied().unwrap_or(true) && self.smu_features.get(20).copied().unwrap_or(true)
+        } else {
+            self.smu_features.get(32).copied().unwrap_or(true) && self.smu_features.get(33).copied().unwrap_or(true) && self.smu_features.get(34).copied().unwrap_or(true)
+        };
+        checks.push(("SMU Safety", "PPT / TDC / Thermal Guards", if prot_ok { "Enabled (Hardware Guards ON)".to_string() } else { "DISABLED (Protection Bit Off!)".to_string() }, "PPT + TDC + Thermal ON".to_string(), if prot_ok { 0 } else { 2 }, "Never disable SMU PPT, TDC, or Thermal throttle bits on daily hardware."));
+
+        let warn_cnt = checks.iter().filter(|c| c.4 == 1).count();
+        let risk_cnt = checks.iter().filter(|c| c.4 == 2).count();
+        ui.horizontal(|ui| {
+            ui.strong(format!("Target Silicon: {}  |", chip_label));
+            if risk_cnt == 0 && warn_cnt == 0 {
+                ui.colored_label(egui::Color32::from_rgb(80, 210, 120), "✔ All calibrated Safe Tune checks passed.");
+            } else {
+                ui.colored_label(egui::Color32::from_rgb(245, 185, 65), format!("Summary: {} Warning(s), {} Risk(s)", warn_cnt, risk_cnt));
+            }
+        });
+        ui.add_space(6.0);
+
+        let avail_w = ui.available_width();
+        let avail_h = ui.available_height();
+        let col_w = ((avail_w - 60.0) / 5.0).max(90.0);
+        egui::ScrollArea::both()
+            .id_salt("safe_tune_full_scroll")
+            .auto_shrink([false, false])
+            .max_height(avail_h)
+            .show(ui, |ui| {
+                ui.set_min_size(egui::vec2(avail_w, avail_h));
+                egui::Grid::new("safe_tune_grid")
+                    .num_columns(5)
+                    .min_col_width(col_w)
+                    .striped(true)
+                    .spacing([12.0, 6.0])
+                    .show(ui, |ui| {
+                ui.strong("Area"); ui.strong("Check"); ui.strong("Current"); ui.strong("Safe Guideline"); ui.strong("Status");
+                ui.end_row();
+                for (area, name, cur, guide, sev, tip) in checks {
+                    ui.label(area);
+                    ui.label(name).on_hover_text(tip);
+                    ui.monospace(cur);
+                    ui.label(guide);
+                    match sev {
+                        0 => ui.colored_label(egui::Color32::from_rgb(80, 210, 120), "SAFE"),
+                        1 => ui.colored_label(egui::Color32::from_rgb(245, 185, 65), "WARN").on_hover_text(tip),
+                        _ => ui.colored_label(egui::Color32::from_rgb(245, 75, 95), "RISK").on_hover_text(tip),
+                    };
+                    ui.end_row();
+                }
+            });
+        });
+    }
+}

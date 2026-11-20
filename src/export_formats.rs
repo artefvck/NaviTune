@@ -7,16 +7,8 @@ pub fn encode_base64(data: &[u8]) -> String {
         let b2 = chunk.get(2).copied().unwrap_or(0) as usize;
         out.push(CHARS[b0 >> 2] as char);
         out.push(CHARS[((b0 & 0x03) << 4) | (b1 >> 4)] as char);
-        if chunk.len() > 1 {
-            out.push(CHARS[((b1 & 0x0f) << 2) | (b2 >> 6)] as char);
-        } else {
-            out.push('=');
-        }
-        if chunk.len() > 2 {
-            out.push(CHARS[b2 & 0x3f] as char);
-        } else {
-            out.push('=');
-        }
+        out.push(if chunk.len() > 1 { CHARS[((b1 & 0x0f) << 2) | (b2 >> 6)] as char } else { '=' });
+        out.push(if chunk.len() > 2 { CHARS[b2 & 0x3f] as char } else { '=' });
     }
     out
 }
@@ -85,4 +77,49 @@ pub fn format_opencore_plist(data: &[u8], pci_path: &str) -> String {
 "#,
         pci_path, wrapped
     )
+}
+
+pub fn serialize_export_bytes(
+    ext: &str,
+    raw_buffer: &[u8],
+    vbios_buffer: Option<&[u8]>,
+    vbios_ppt_offset: Option<usize>,
+    pci_path: &str,
+) -> Result<Vec<u8>, String> {
+    match ext {
+        "rom" => match (vbios_buffer, vbios_ppt_offset) {
+            (Some(orig_rom), Some(off)) => crate::vbios::patch_ppt_into_rom(orig_rom, off, raw_buffer),
+            _ => Err("You must load an original VBIOS (.rom / .bin) before saving a patched .rom image.".into()),
+        },
+        "reg" => Ok(format_reg_ppt(raw_buffer).into_bytes()),
+        "mpt" => Ok(format_mpt_ppt(raw_buffer)),
+        "plist" => Ok(format_opencore_plist(raw_buffer, pci_path).into_bytes()),
+        _ => Ok(raw_buffer.to_vec()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn roundtrip_mpt_reg_plist_rdna2_and_rdna3() {
+        for sz in [2470usize, 5424usize] {
+            let mut sample = vec![0u8; sz];
+            sample[0..2].copy_from_slice(&(sz as u16).to_le_bytes());
+            sample[2] = if sz == 2470 { 0x0F } else { 0x15 };
+            for (i, b) in sample.iter_mut().enumerate().skip(4) {
+                *b = (i.wrapping_mul(31) & 0xFF) as u8;
+            }
+
+            let mpt = format_mpt_ppt(&sample);
+            assert_eq!(crate::import_formats::parse_mpt_ppt(&mpt).unwrap(), sample);
+
+            let reg = format_reg_ppt(&sample).into_bytes();
+            assert_eq!(crate::import_formats::parse_reg_ppt(&reg).unwrap(), sample);
+
+            let plist = format_opencore_plist(&sample, "PciRoot(0x0)/Pci(0x1,0x0)/Pci(0x0,0x0)").into_bytes();
+            assert_eq!(crate::import_formats::parse_plist_ppt(&plist).unwrap(), sample);
+        }
+    }
 }

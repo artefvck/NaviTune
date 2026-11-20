@@ -1,52 +1,36 @@
-# NaviTune (`pptool`) — Cross-Platform RDNA 2 Soft PowerPlay Table Editor
+# NaviTune (`pptool`) — Cross-Platform RDNA 2 & RDNA 3 Soft PowerPlay Table Editor
 
-**NaviTune** (CLI/binary: `pptool`) is a native Rust GUI application (`eframe` / `egui`) for inspecting, decoding, editing, validating, and exporting **AMD Radeon RDNA 2 (`Navi 21` / `Navi 22` / `Navi 23` / `Navi 24`)** Soft PowerPlay Tables (`PP_PhmSoftPowerPlayTable`, `AtomSmcDpmInfoV4_9` — 2,470 bytes) across **macOS**, **Windows**, and **Linux**.
+**NaviTune** (CLI/binary: `pptool`) is a native Rust GUI application (`eframe` / `egui`) for inspecting, decoding, editing, validating, and exporting **AMD Radeon RDNA 2 (`Navi 21` / `Navi 22` / `Navi 23` / `Navi 24` — `AtomSmcDpmInfoV4_9`, 2,470 bytes)** and **RDNA 3 (`Navi 31` / `Navi 32` / `Navi 33` — `AtomSmcDpmInfoV4_12`, 5,424 bytes)** Soft PowerPlay Tables (`PP_PhmSoftPowerPlayTable`) across **macOS**, **Windows**, and **Linux**.
 
 ---
 
 ## Key Features
 
-### 1. Native Rust RDNA 2 Binary Engine (`AtomSmcDpmInfoV4_9`)
-* **Zero-Copy Packed Struct Mapping**: Directly maps the 2,470-byte `PP_PhmSoftPowerPlayTable` layout (`#[repr(C, packed)]`) with compile-time `core::mem::offset_of!` offset verification.
-* **Supported Parameter Groups**:
-  * **Features & SMU Flags**: OverDrive 8 feature flags (`od_feature_flags[0..16]`), `PPTable Features` 64-bit bitmask (`DPM_GFXCLK`, `GFXOFF`, `BACO`, `VCN_PG`, etc.), and Power Modes (`Quiet`, `Balanced`, `Turbo`, `Rage`).
-  * **OverDrive Limits**: GFX Clock (`Min/Max`), Memory Clock (`Min/Max`), Power Limit (`%`), Fan Speed (`RPM`), Acoustic Limit (`RPM`), and Fan Target Temperature (`°C`).
-  * **Power & Voltage**: Socket Power Limit (`W`), TDC Limits (`GFX` / `SoC` in `A`), AC Power Limits, ULV `Vmin`, GFX/SoC voltage rails (`0.25 mV` native resolution), `Tvmin` thermal thresholds, `DcBtc`, and `DcTol`.
-  * **Frequencies & Memory**: GFXCLK (`Min`, `Max`, and secondary mirror), SoC, FCLK, VCLK, DCLK, DCEFCLK, DISPCLK, PIXCLK, PHYCLK, DTBCLK, UCLK DPM states (`0..3`), `VDDCI`, `MVDD`, PCIe Gen/Lane/LCLK states.
-  * **V/F Curve & Thermal**: Static voltage curve coefficients (`a`, `b`, `c`) and `TemperatureLimit` array (Edge, Hotspot, Memory, VR GFX/Mem/SoC, Liquid).
-  * **Fan Control**: Min PWM (`%`), Acoustic Limit, Throttling/Max RPM, Target Temp, Zero RPM enable, Fan Stop/Start hysteresis temperatures, and OverDrive fan ranges.
+### 1. Native Rust RDNA 2 & RDNA 3 Binary Engine (`V4_9` & `V4_12`)
+* **Zero-Copy Packed Struct Mapping**: Directly maps both the 2,470-byte `AtomSmcDpmInfoV4_9` (RDNA 2) and 5,424-byte `AtomSmcDpmInfoV4_12` (RDNA 3) `PP_PhmSoftPowerPlayTable` layouts (`#[repr(C, packed)]`) with compile-time `core::mem::offset_of!` offset verification.
+* **Tab-by-Tab Workspace**:
+  * **Features**: OverDrive 8 feature flags (`od_feature_flags[0..16]`), `PPTable Features` 64-bit SMU bitmask (`DPM_GFXCLK`, `GFXOFF`, `BACO`, `VCN_PG`, etc.), Power Modes, and **VBIOS ROM & Table Header Verification** (Silicon Family, PCI `[VID:DID]`, AIB Partner `[SVID:SSID]`, BIOS Version, `$PSP` security status, AtomBIOS `ATOM -> MasterData` chain, and Option ROM checksum).
+  * **OC Limits**: GFX Clock (`Min/Max`), Memory Clock (`Min/Max`), Power Limit (`%`), Fan Speed (`RPM`), Acoustic Limit (`RPM`), and Power Mode limits (`Quiet`, `Balanced`, `Turbo`, `Rage`).
+  * **Power**: Socket Power Limit (`PPT0` in `W`), TDC Limits (`GFX` / `SoC` in `A`), ULV `Vmin`, GFX/SoC voltage rails (`0.25 mV` native resolution), `Tvmin` thermal thresholds, `DcBtc`, and `DcTol`.
+  * **Frequency**: GFXCLK (`Min`, `Max`, and secondary mirror), SoC, FCLK, VCLK, DCLK, DCEFCLK, DISPCLK, PIXCLK, PHYCLK, DTBCLK, UCLK DPM states (`0..3`), `VDDCI`, `MVDD`, PCIe Gen/Lane/LCLK states.
+  * **Curve & Fan**: Static V/F voltage curve coefficients (`a`, `b`, `c`), Min PWM (`%`), Acoustic Limit, Throttling/Max RPM, Target Temp, Zero RPM enable, and Fan Stop/Start hysteresis temperatures.
+  * **Safe Tune & More**: Calibrated safety guardrail checks (`Safe Tune`) plus inline cards (`More`) for **Secondary Power Limits (`PPT1..3`)** and **Thermal Throttler Limits** (`Edge`, `Hotspot`, `Mem`, `VR GFX/Mem/SoC`, `Liquid`).
+  * **Log**: 5-view diagnostic suite (**Offset Audit**, **Capture Log**, **Native Offset**, **Struct Window**, and **Dump Audit**) with RDNA 2 / RDNA 3 struct offset inspection.
 
 ### 2. Multi-Format Decode, Edit & Encode Round-Trip
 
 | Format | Extension | Load / Decode | Save / Encode | Notes |
 | :--- | :--- | :---: | :---: | :--- |
-| **Raw PowerPlay Binary** | `.bin`, `.dat`, `.ppt`, `pp_table` | Yes | Yes | Direct 2,470-byte `AtomSmcDpmInfoV4_9` buffer |
-| **AMD VBIOS ROM** | `.rom` | Yes | Yes | Extracts via ATOM `MasterDataTable`, patches in-place, recalculates 8-bit ROM checksum, & inspects `$PSP` / RSA-2048 signatures |
-| **MorePowerTool** | `.mpt` | Yes | Yes | Parses & generates XML `<PowerPlayTable>` hex payloads |
+| **Raw PowerPlay Binary** | `.bin`, `.dat`, `.ppt`, `pp_table` | Yes | Yes | Direct `AtomSmcDpmInfoV4_9` (2,470 B) or `AtomSmcDpmInfoV4_12` (5,424 B) buffer |
+| **AMD VBIOS ROM** | `.rom` | Yes | Yes | Extracts via ATOM `MasterDataTable` / `$PSP` scan, patches in-place, recalculates 8-bit Option ROM checksum, & verifies `$PSP` signatures |
+| **MorePowerTool** | `.mpt` | Yes | Yes | Parses & generates binary/XML MorePowerTool profiles (RDNA 2 Windows driver compatible) |
 | **Windows Registry** | `.reg` | Yes | Yes | Parses & generates UTF-16LE/UTF-8 `PP_PhmSoftPowerPlayTable=hex:...` files |
 | **OpenCore Property List** | `.plist` | Yes | Yes | Parses & generates Base64 `<data>` entries under `PP_PhmSoftPowerPlayTable` |
 
 ### 3. Cross-Platform OS Deployment (`Advance` Tab)
-* **macOS (OpenCore / Hackintosh)**:
-  * **Copy OpenCore Base64/Hex**: Detached OS window offering one-click Base64 or continuous raw Hex clipboard copy.
-  * **Export `.plist`**: Saves OpenCore `DeviceProperties` `.plist`.
-  * **Export ACPI `.aml` / `.dsl`**: Auto-detects the live GPU `IOACPIPlane` path (e.g., `_SB_.PCI0.GPP0.VGA` or `_SB_.PCI0.PEG0.PEGP.GFX0`) from `IORegistry`, generates `SSDT-sPPT.dsl` with `_OSI ("Darwin")` guard, and compiles directly to `SSDT-sPPT.aml` via `iasl` (with automatic missing-`iasl` notification).
-  * **Export Injector `.kext`**: Generates a codeless `RadeonPowerPlayInjector.kext` (`Contents/Info.plist`) to merge `PP_PhmSoftPowerPlayTable` onto `IOPCIDevice` before `AMDRadeonX6000.kext` initializes.
-* **Windows**:
-  * **Write to Registry / Delete Registry Key**: Writes or removes `PP_PhmSoftPowerPlayTable` (`REG_BINARY`) directly in `HKLM\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000`.
-  * **Export `.reg` / `.mpt`** & **Copy Raw Hex (No Space)**.
-  * Uses `eframe::Renderer::Glow` with `vsync: true` and `multisampling: 0` on Windows to prevent swapchain flicker on Windows.
-* **Linux (`amdgpu`)**:
-  * **Install / Uninstall**: Applies `pp_table` live to `/sys/class/drm/cardX/device/pp_table` and installs `/etc/xppt/pp_table.bin` + `xppt-pptable.service` (`systemd`) for boot persistence, with byte-for-byte `Config Sync` verification.
-
-### 4. Live GPU Telemetry & Struct Diagnostics
-* **Live GPU Telemetry**: Non-blocking background poller displaying real-time **GFX Clock (MHz)**, **MEM Clock (MHz)**, **Core / Hotspot Temp (°C)**, **GPU Load (%)**, **Board Power (W)**, **Fan Speed (RPM / %)**, and **VRAM Usage (MB)** on macOS (`IOAccelerator`), Linux (`amdgpu` `sysfs`/`hwmon`), and Windows (PDH).
-* **More -> Struct & Offset Audit**:
-  * `1. Offset Audit` — Verifies every field offset against `AtomSmcDpmInfoV4_9`.
-  * `2. Capture Log` — Hex/byte-level diff log.
-  * `3. Safe Tune` — Hardware range and safety validation checks.
-  * `4. Native Offset` — Full `=== NATIVE RUST OFFSET DEBUG ===` dump with raw little-endian bytes and decoded values.
-  * `Struct Window` & `Throttler` — Detached native windows for inspecting full struct layouts and thermal limits.
+* **macOS (OpenCore / Hackintosh)**: Copy OpenCore Base64/Hex, export `DeviceProperties` `.plist`, auto-detect live `IOACPIPlane` path and compile `SSDT-sPPT.aml` via `iasl`, or generate a codeless `RadeonPowerPlayInjector.kext`.
+* **Windows**: Write or delete `PP_PhmSoftPowerPlayTable` (`REG_BINARY`) in `HKLM\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000`, export `.reg` / `.mpt`, or copy continuous raw Hex.
+* **Linux (`amdgpu`)**: Apply `pp_table` live to `/sys/class/drm/cardX/device/pp_table` and manage `/etc/xppt/pp_table.bin` + `xppt-pptable.service` (`systemd`) persistence with byte-for-byte `Config Sync` verification.
 
 ---
 
@@ -54,27 +38,51 @@
 
 ```text
 NaviTune/
-├── Cargo.toml                  # Crate dependencies (eframe/egui, rfd) & binary definition (pptool)
-├── README.md                   # Project documentation & build guide
-├── build_macos.sh              # Build macOS Universal Binary (arm64 + x86_64) .app & .dmg
-├── build_windows.ps1           # Build native Windows x86_64 release .zip
-├── build_linux.sh              # Build native Linux release .tar.gz with navitune.desktop
-├── build_window_from_macos.sh  # Cross-compile Windows x86_64 .zip from macOS (mingw-w64)
-├── build_linux_from_macos.sh   # Cross-compile Linux x86_64 .tar.gz from macOS (cargo-zigbuild / cross)
+├── Cargo.toml                      # Crate dependencies (eframe/egui, rfd) & binary definition (pptool)
+├── LICENSE                         # MIT License
+├── README.md                       # Project documentation & build guide
+├── build_macos.sh                  # Build macOS Universal Binary (arm64 + x86_64) .app & .dmg
+├── build_windows.ps1               # Build native Windows x86_64 release .zip
+├── build_linux.sh                  # Build native Linux release .tar.gz with navitune.desktop
+├── build_window_from_macos.sh      # Cross-compile Windows x86_64 .zip from macOS (mingw-w64)
+├── build_linux_from_macos.sh       # Cross-compile Linux x86_64 .tar.gz from macOS (cargo-zigbuild / cross)
 └── src/
-    ├── main.rs                 # Application entry point, viewport options, tab bar & telemetry strip
-    ├── pptable_rdna2.rs        # Packed #[repr(C, packed)] AtomSmcDpmInfoV4_9 struct & offset_of! table
-    ├── io_ppt.rs               # File load/save dispatch, UI <-> binary buffer synchronization
-    ├── import_formats.rs       # Native decoders for .reg (hex), .mpt (XML), and .plist (Base64)
-    ├── export_formats.rs       # Native encoders for Base64, .reg, .mpt, and OpenCore .plist
-    ├── vbios.rs                # AMD VBIOS Option ROM parser, ATOM MasterDataTable, \$PSP & checksum patcher
-    ├── advance_os.rs           # macOS (.plist/.aml/.kext), Windows (regedit), & Linux (sysfs/systemd) tools
-    ├── gpu_telemetry.rs        # Cross-platform background GPU sensor & clock telemetry poller
-    ├── macos_ioreg.rs          # Live GPU enumeration (macOS IORegistry, Linux DRM, Windows Registry)
-    ├── debug_tab.rs            # Offset Audit, Capture Log, Safe Tune, Native Offset & Struct Window
-    ├── more_popups.rs          # Detached native windows (Thermal Throttler Limits)
-    ├── card_layout.rs          # Responsive two-column card & key-value row UI components
-    └── ui_theme.rs             # High-contrast dark theme palette & modal error dialog
+    ├── main.rs                     # Application entry point, viewport options, tab bar & telemetry strip
+    ├── pptable_rdna2.rs            # Packed #[repr(C, packed)] AtomSmcDpmInfoV4_9 (RDNA 2) struct & offsets
+    ├── pptable_rdna3.rs            # Packed #[repr(C, packed)] AtomSmcDpmInfoV4_12 (RDNA 3) struct & offsets
+    ├── smu_features.rs             # SMU feature bit definitions & descriptions
+    ├── io_ppt.rs                   # File load/save dispatch & UI <-> binary buffer synchronization
+    ├── import_formats.rs           # Native decoders for .reg (hex), .mpt, and .plist (Base64)
+    ├── export_formats.rs           # Unified encoders for Base64, .reg, .mpt, .rom, and OpenCore .plist
+    ├── vbios.rs                    # AMD VBIOS Option ROM parser, ATOM MasterDataTable, \$PSP & checksum patcher
+    ├── advance_os.rs               # macOS (.plist/.aml/.kext), Windows (regedit), & Linux (sysfs/systemd) backend
+    ├── gpu_telemetry.rs            # Cross-platform background GPU sensor & clock telemetry poller
+    ├── macos_ioreg.rs              # Live GPU enumeration (macOS IORegistry, Linux DRM, Windows Registry)
+    ├── more_popups.rs              # Secondary viewport hooks
+    ├── card_layout.rs              # Responsive two-column card, dynamic field boxes & tooltip helpers
+    ├── ui_theme.rs                 # Theme presets, high-contrast styling & modal error dialog
+    └── tabs/
+        ├── mod.rs                  # Tab module exports
+        ├── features.rs             # OD8 feature flags, SMU bitmask, Power Modes & VBIOS header verification
+        ├── oc_limits.rs            # OverDrive clock, power, fan & acoustic limits
+        ├── power.rs                # PPT0, TDC, ULV Vmin, GFX/SoC voltage rails, Tvmin, DcBtc & DcTol
+        ├── frequency.rs            # GFXCLK, SoC, FCLK, UCLK DPM states, VDDCI/MVDD & PCIe states
+        ├── curve.rs                # Static V/F quadratic voltage curve coefficients
+        ├── fan.rs                  # PWM, acoustic/throttling RPM, target temp & Zero RPM hysteresis
+        ├── advance_tab.rs          # OS deployment tab switcher & OpenCore Base64/Hex copy modal
+        ├── advance_macos_tab.rs    # macOS VCN mask, .plist, Injector .kext & ACPI .aml export
+        ├── advance_windows_tab.rs  # Windows Registry write/delete & .reg/.mpt export
+        ├── advance_linux_tab.rs    # Linux amdgpu sysfs/systemd install/uninstall & sync status
+        ├── safe_tune.rs            # Calibrated hardware safety guardrail checks
+        ├── more_tab.rs             # Inline secondary settings container
+        ├── more_power_settings_tab.rs # Secondary power limits (PPT1..3)
+        ├── more_throttler_tab.rs   # Thermal throttler temperature limits
+        ├── log_tab.rs              # Diagnostic Log sub-tab navigation
+        ├── log_offset_audit_tab.rs # Field-to-struct byte offset audit
+        ├── log_capture_log_tab.rs  # Live runtime capture log
+        ├── log_native_offset_tab.rs # Native Rust struct field & hex offset dump
+        ├── log_struct_window_tab.rs # Raw struct byte/hex window viewer
+        └── log_dump_audit_tab.rs   # Full binary dump & header audit exporter
 ```
 
 ---
