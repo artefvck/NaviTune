@@ -1,0 +1,12 @@
+/target
+**/*.rs.bk
+*.rom
+*.bin
+*.mpt
+*.reg
+*.aml
+*.dsl
+*.kext
+.DS_Store
+Thumbs.db
+/dist
