@@ -73,7 +73,7 @@ impl PowerPlayApp {
         let frev = b[2];
         let crev = b[3];
         let trev = b[4];
-        let known_frev = matches!(frev, 0x07 | 0x08 | 0x0B | 0x0C | 0x0F | 0x12 | 0x14);
+        let known_frev = matches!(frev, 0x07 | 0x08 | 0x0B | 0x0C | 0x0F | 0x10 | 0x11 | 0x12 | 0x13 | 0x14 | 0x15 | 0x16);
         if hdr_size != b.len() || !known_frev || trev > 0x06 {
             self.vbios_buffer = None;
             self.vbios_ppt_offset = None;
@@ -88,21 +88,24 @@ impl PowerPlayApp {
             );
             return;
         }
-        let arch_label = match frev {
-            0x12 => "RDNA 2 (Navi 21/22/23)",
-            0x14 => "RDNA 2 (Navi 24 Beige Goby)",
-            0x0F => "RDNA 1 (Navi 10/12/14)",
-            0x15 | 0x16 => "RDNA 3 (Navi 31/32/33)",
-            0x0B | 0x0C => "Vega 10/20",
-            0x07 | 0x08 => "Polaris (RX 400/500)",
+        let arch_label = match (frev, b.len()) {
+            (0x0F, 2470) => "RDNA 2 (Navi 21 Sienna Cichlid)",
+            (0x10 | 0x11, 2470) => "RDNA 2 (Navi 22 Navy Flounder)",
+            (0x12, _) => "RDNA 2 (Navi 21/22/23)",
+            (0x13, _) => "RDNA 2 (Navi 24 Beige Goby)",
+            (0x0F, _) => "RDNA 1 (Navi 10/12/14)",
+            (0x14, _) => "RDNA 3 (Navi 31/32/33)",
+            (0x0B | 0x0C, _) => "Vega 10/20",
+            (0x07 | 0x08, _) => "Polaris (RX 400/500)",
             _ => "Unknown AMD Architecture",
         };
-        if !matches!(frev, 0x12 | 0x14) {
+        let supported_rdna2 = matches!(frev, 0x10 | 0x11 | 0x12 | 0x13) || (frev == 0x0F && b.len() == 2470);
+        if !supported_rdna2 {
             self.show_error(
                 "Unsupported PPTable Architecture",
                 &format!(
                     "Detected {} (format_revision 0x{:02X}.{:02X}, {} bytes).\n\n\
-                     NaviTune is calibrated for RDNA 2 (0x12 / 0x14). Editing fields on other architectures is blocked to prevent table corruption.",
+                     NaviTune is calibrated for RDNA 2 (0x12 Navi 21/22/23 & 0x13 Navi 24). Editing fields on other architectures is blocked to prevent table corruption.",
                     arch_label, frev, crev, b.len()
                 ),
             );
@@ -152,7 +155,7 @@ impl PowerPlayApp {
         self.pm_quiet = [t.pm_quiet_limit as i32, t.pm_quiet_temp as i32];
         self.pm_balanced = [t.pm_balanced_limit as i32, t.pm_balanced_temp as i32];
         self.pm_turbo = [t.pm_turbo_limit as i32, t.pm_turbo_temp as i32];
-        self.pm_rage = [t.pm_rage_limit as i32, t.pm_rage_temp as i32];
+        self.pm_rage = [(t.pm_rage_limit & 0xFFFF) as i32, t.pm_rage_temp as i32];
         self.ac_quiet = [t.ac_quiet[0] as i32, t.ac_quiet[1] as i32];
         self.ac_balanced = [t.ac_balanced[0] as i32, t.ac_balanced[1] as i32];
         self.ac_turbo = [t.ac_turbo[0] as i32, t.ac_turbo[1] as i32];
@@ -333,14 +336,7 @@ impl PowerPlayApp {
         }
         t.od_fan_curve_min[0].temp = self.od_fan_temp[0] as u32;
         t.od_fan_curve_max[0].temp = self.od_fan_temp[1] as u32;
-        t.od_fan_curve_min[0].pwm = self.od_fan_speed[0] as u32;
-        t.od_fan_curve_max[0].pwm = self.od_fan_speed[1] as u32;
-        for i in 0..9 {
-            t.temp_limit[i] = self.temp_limits[i] as u16;
-        }
-        for i in 0..4 {
-            t.power_limit_ac[i] = self.power_limit_ac[i] as u16;
-        }
+
     }
 
 

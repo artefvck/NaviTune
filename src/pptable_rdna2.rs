@@ -228,13 +228,23 @@ const _: () = assert!(offset_of!(AtomSmcDpmInfoV4_9, static_volt_offset_gfx) == 
 const _: () = assert!(offset_of!(AtomSmcDpmInfoV4_9, dctol_gfx) == 0x7C2);
 
 impl AtomSmcDpmInfoV4_9 {
-    pub fn detect_chip(&self, _buf: &[u8]) -> NaviRDNA2Chip {
-        NaviRDNA2Chip::from_header(
-            self.header.structure_size,
-            self.header.format_revision,
-            self.table_revision,
-            self.smc_pptable_if_version,
-        )
+    pub fn detect_chip(&self, raw: &[u8]) -> NaviRDNA2Chip {
+        let frev = raw.get(2).copied().unwrap_or(0);
+        match frev {
+            0x0F => NaviRDNA2Chip::Navi21SiennaCichlid,
+            0x10 | 0x11 => NaviRDNA2Chip::Navi22NavyFlounder,
+            0x13 => NaviRDNA2Chip::Navi24BeigeGoby,
+            _ => {
+                let pwr = self.socket_power_limit_ac[0];
+                if pwr >= 200 {
+                    NaviRDNA2Chip::Navi21SiennaCichlid
+                } else if pwr >= 145 {
+                    NaviRDNA2Chip::Navi22NavyFlounder
+                } else {
+                    NaviRDNA2Chip::Navi23DimgreyCavefish
+                }
+            }
+        }
     }
 
     pub fn from_bytes(buf: &[u8]) -> Option<&Self> {

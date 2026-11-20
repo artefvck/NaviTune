@@ -8,6 +8,7 @@ mod io_ppt;
 mod macos_ioreg;
 mod more_popups;
 mod pptable_rdna2;
+mod smu_features;
 mod ui_theme;
 mod vbios;
 
@@ -490,42 +491,36 @@ impl PowerPlayApp {
                     for (bit, &en) in self.smu_features.iter().enumerate() {
                         if en { live_mask |= 1u64 << bit; }
                     }
+                    let arch = crate::smu_features::detect_silicon_arch(&self.raw_buffer);
+                    let active_cnt = live_mask.count_ones();
                     ui.horizontal(|ui| {
                         ui.strong("FeaturesToRun:");
                         ui.monospace(format!("0x{:016X}", live_mask));
+                        ui.separator();
+                        ui.colored_label(
+                            egui::Color32::from_rgb(72, 235, 148),
+                            egui::RichText::new(format!("{} [{}] ({} active)", arch.label(), arch.mask_tag(), active_cnt)).strong(),
+                        );
                     });
                     ui.separator();
-
-                                        let smu_feats: [(usize, &str); 64] = [
-                        (0, "DPM_PREFETCHER"), (1, "DPM_GFXCLK"), (2, "DPM_GFX_GPO"), (3, "DPM_UCLK"),
-                        (4, "DPM_FCLK"), (5, "DPM_SOCCLK"), (6, "DPM_MP0CLK"), (7, "DPM_LINK"),
-                        (8, "DPM_DCEFCLK"), (9, "DPM_XGMI"), (10, "MEM_VDDCI_SCALING"), (11, "MEM_MVDD_SCALING"),
-                        (12, "DS_GFXCLK"), (13, "DS_SOCCLK"), (14, "DS_FCLK"), (15, "DS_LCLK"),
-                        (16, "DS_DCEFCLK"), (17, "DS_UCLK"), (18, "GFX_ULV"), (19, "FW_DSTATE"),
-                        (20, "GFX_PER_CU_CG"), (21, "VCN_PG"), (22, "MM_DPM_PG"), (23, "JPEG_PG"),
-                        (24, "USB_PG"), (25, "DF_CSTATES"), (26, "SMU_LOW_POWER"), (27, "MPT"),
-                        (28, "GFX_IMU"), (29, "DPM_VCLK"), (30, "DPM_DCLK"), (31, "FW_DATA_READ"),
-                        (32, "PPT"), (33, "TDC"), (34, "THERMAL"), (35, "GFX_PER_CU_CG_2"),
-                        (36, "RM"), (37, "DS_DCEFCLK_2"), (38, "ACDC"), (39, "VR0HOT"),
-                        (40, "VR1HOT"), (41, "FW_CTF"), (42, "LED_DISPLAY"), (43, "FAN_CONTROL"),
-                        (44, "GFX_EDC"), (45, "GFXOFF"), (46, "CG"), (47, "DPM_GFX_PACE"),
-                        (48, "SPARE_48"), (49, "SPARE_49"), (50, "SPARE_50"), (51, "SPARE_51"),
-                        (52, "SPARE_52"), (53, "SPARE_53"), (54, "SPARE_54"), (55, "SPARE_55"),
-                        (56, "SPARE_56"), (57, "SPARE_57"), (58, "SPARE_58"), (59, "SPARE_59"),
-                        (60, "SPARE_60"), (61, "SPARE_61"), (62, "SPARE_62"), (63, "SPARE_63"),
-                    ];
                     egui::ScrollArea::vertical()
                         .id_salt("smu_vp_scroll")
                         .auto_shrink([false, false])
                         .max_height(ui.available_height())
                         .show(ui, |ui| {
                         ui.spacing_mut().item_spacing.y = 4.0;
-                        for (bit, name) in smu_feats {
+                        for def in &crate::smu_features::SMU_FEATURE_DEFS {
+                            let (tag, supported) = crate::smu_features::arch_badge(def, arch);
                             ui.horizontal(|ui| {
-                                crate::ui_theme::green_checkbox(ui, &mut self.smu_features[bit], format!("{:02}: {}", bit, name));
+                                crate::ui_theme::green_checkbox(ui, &mut self.smu_features[def.bit], format!("{:02}: {}", def.bit, def.name));
+                                let badge_col = if supported {
+                                    egui::Color32::from_rgb(72, 235, 148)
+                                } else {
+                                    egui::Color32::from_rgb(130, 145, 170)
+                                };
                                 ui.colored_label(
-                                    egui::Color32::from_rgb(130, 145, 170),
-                                    egui::RichText::new(format!("[smu_feat_{:02}]", bit)).monospace().small(),
+                                    badge_col,
+                                    egui::RichText::new(format!("[smu_feat_{:02} | {}]", def.bit, tag)).monospace().small(),
                                 );
                             });
                         }

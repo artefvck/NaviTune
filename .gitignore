@@ -8,5 +8,7 @@
 *.dsl
 *.kext
 .DS_Store
+*.DS_Store
 Thumbs.db
+Cargo.lock
 /dist
