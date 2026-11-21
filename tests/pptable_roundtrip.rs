@@ -1,4 +1,8 @@
 #[allow(dead_code)]
+#[path = "../src/pptable_polaris.rs"]
+mod pptable_polaris;
+
+#[allow(dead_code)]
 #[path = "../src/ppt_arch.rs"]
 mod ppt_arch;
 
@@ -227,4 +231,23 @@ fn test_vega_chip_detection_all_ids() {
     assert_eq!(pptable_vega::VegaChip::from_did_and_rev(0x0000, 0x0B), pptable_vega::VegaChip::Vega20);
     assert_eq!(ppt_arch::PptArch::Vega10.default_table_size(), 512);
     assert_eq!(ppt_arch::PptArch::Vega20.default_table_size(), 1924);
+}
+
+#[test]
+fn test_polaris_roundtrip() {
+    let mut pol = vec![0u8; 384];
+    pol[0..2].copy_from_slice(&384u16.to_le_bytes());
+    pol[2] = 0x07;
+    let hard_off: usize = 0x100;
+    let t = pptable_polaris::AtomPolarisPowerPlayTable::from_bytes_mut(&mut pol).expect("valid Polaris");
+    t.max_od_engine_clock = 145000;
+    t.max_od_memory_clock = 225000;
+    t.power_control_limit = 50;
+    t.hard_limit_table_offset = hard_off as u16;
+    pol[hard_off] = 1;
+    pol[hard_off + 1] = 1;
+    pptable_polaris::AtomPolarisPowerPlayTable::write_hard_limits(&mut pol, 1450, 2250, 1150);
+    let parsed = pptable_polaris::AtomPolarisPowerPlayTable::from_bytes(&pol).expect("valid Polaris");
+    assert_eq!(parsed.read_hard_limits(&pol), Some((1450, 2250, 1150)));
+    assert_eq!(ppt_arch::PptArch::detect(&pol), ppt_arch::PptArch::Polaris);
 }

@@ -428,6 +428,41 @@ impl PowerPlayApp {
             return;
         }
 
+        if let Some(pol) = crate::pptable_polaris::AtomPolarisPowerPlayTable::from_bytes(&b) {
+            let did = self.vbios_buffer.as_deref()
+                .and_then(|vb| crate::vbios::inspect_vbios_info(vb, self.vbios_ppt_offset.unwrap_or(0)))
+                .map(|vi| vi.device_id)
+                .unwrap_or(0);
+            let chip_p = crate::pptable_polaris::PolarisChip::from_did(did);
+            self.oc_gfx_clock = [0, ({ pol.max_od_engine_clock } / 100) as i32];
+            self.oc_mem_clock = [0, ({ pol.max_od_memory_clock } / 100) as i32];
+            self.oc_power_limit = [-50, { pol.power_control_limit } as i32];
+            self.oc_fan_rpm = [0, 0];
+            self.oc_fan_acoustic_rpm = [0, 0];
+            self.power_limit_w = 0;
+            self.tdc_gfx = 0;
+            self.tdc_soc = 0;
+            for i in 0..4 {
+                self.mem_dpm_freq[i] = [0, 1];
+                self.mem_dpm_volt[i] = [0, 0];
+            }
+            if let Some((gfx_hi, mem_hi, vddc_hi)) = pol.read_hard_limits(&b) {
+                self.volt_gfx = [0, vddc_hi];
+                self.volt_soc = [0, 0];
+                self.freq_gfx = [0, gfx_hi];
+                self.freq_soc = [0, 0];
+                self.mem_dpm_freq[3] = [mem_hi, 1];
+            } else {
+                self.volt_gfx = [0, 0];
+                self.volt_soc = [0, 0];
+                self.freq_gfx = [0, 0];
+                self.freq_soc = [0, 0];
+            }
+            self.status_msg = format!("Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B]", label, chip_p.display_name(), frev, crev, trev, b.len());
+            self.raw_buffer = b;
+            return;
+        }
+
         if let Some(v10) = crate::pptable_vega::AtomVega10PowerPlayTable::from_bytes(&b) {
             let did = self.vbios_buffer.as_deref()
                 .and_then(|vb| crate::vbios::inspect_vbios_info(vb, self.vbios_ppt_offset.unwrap_or(0)))
@@ -847,6 +882,19 @@ impl PowerPlayApp {
             v20.od_feature_flags[7] = u8::from(self.fan_acoustic_rpm);
             v20.od_feature_flags[8] = u8::from(self.fan_curve);
             v20.od_feature_flags[9] = u8::from(self.power_limit_feat);
+            return;
+        }
+
+        if let Some(pol) = crate::pptable_polaris::AtomPolarisPowerPlayTable::from_bytes_mut(&mut self.raw_buffer) {
+            pol.max_od_engine_clock = (self.oc_gfx_clock[1].max(0) * 100) as u32;
+            pol.max_od_memory_clock = (self.oc_mem_clock[1].max(0) * 100) as u32;
+            pol.power_control_limit = self.oc_power_limit[1].max(0) as u16;
+            crate::pptable_polaris::AtomPolarisPowerPlayTable::write_hard_limits(
+                &mut self.raw_buffer,
+                self.freq_gfx[1],
+                self.mem_dpm_freq[3][0],
+                self.volt_gfx[1],
+            );
             return;
         }
 

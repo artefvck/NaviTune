@@ -77,6 +77,19 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<(&'static str, V
             ("HardLimit SubTable", "ATOM_Vega10_Hard_Limit_Table", hard_off.min(b.len()), 18, hard_desc),
         ]));
     }
+    if let Some(pol) = crate::pptable_polaris::AtomPolarisPowerPlayTable::from_bytes(b) {
+        let hard_off = { pol.hard_limit_table_offset } as usize;
+        let hard_desc = if let Some((gfx_hi, mem_hi, vddc_hi)) = pol.read_hard_limits(b) {
+            format!("off=0x{:03X} | GFXCLK={}MHz, MCLK={}MHz, VDDC={}mV", hard_off, gfx_hi, mem_hi, vddc_hi)
+        } else {
+            format!("off=0x{:03X} (sub-table out of range)", hard_off)
+        };
+        return Some(("Polaris (0x07)", vec![
+            ("Header", "AtomCommonTableHeader", 0x000, 5, format!("size={}, rev=0x{:02X}.{:02X}.{:02X}", hdr_sz, frev, crev, trev)),
+            ("OverDrive", "max_od_engine / memory / pwr", 0x017, 10, format!("GFX={}MHz, Mem={}MHz, Pwr=+{}%", {pol.max_od_engine_clock}/100, {pol.max_od_memory_clock}/100, {pol.power_control_limit})),
+            ("HardLimit SubTable", "ATOM_Polaris_Hard_Limit_Table", hard_off.min(b.len()), 14, hard_desc),
+        ]));
+    }
     let t = AtomSmcDpmInfoV4_9::from_bytes(b)?;
     Some(("RDNA 2 (V4_9)", vec![
         ("Header", "AtomCommonTableHeader", 0x000, 5, format!("size={}, rev=0x{:02X}.{:02X}.{:02X}", hdr_sz, frev, crev, trev)),

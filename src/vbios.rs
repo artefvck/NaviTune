@@ -152,6 +152,9 @@ pub fn recalc_vbios_checksum(buf: &mut [u8]) {
 
 fn gpu_device_name(did: u16) -> &'static str {
     match did {
+        0x67C0..=0x67DF | 0x6FDF => "AMD Radeon RX 470 / 480 / 570 / 580 / 590 (Polaris 10/20)",
+        0x67E0..=0x67FF => "AMD Radeon RX 460 / 560 / Pro WX 4100 (Polaris 11)",
+        0x6980..=0x699F => "AMD Radeon RX 550 / Pro WX 2100 / 3100 (Polaris 12)",
         0x6860..=0x6864 | 0x6867 | 0x6868 | 0x686C | 0x687F => "AMD Radeon RX Vega 56 / 64 / Frontier / Pro WX (Vega 10)",
         0x66A0..=0x66A3 | 0x66A7 | 0x66AF => "AMD Radeon VII / Pro Vega II / Instinct MI50 (Vega 20)",
         0x7310 | 0x7312 | 0x731F => "AMD Radeon RX 5600 / 5700 XT (Navi 10)",

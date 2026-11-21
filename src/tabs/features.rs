@@ -165,6 +165,12 @@ impl PowerPlayApp {
                                 egui::Color32::from_rgb(95, 200, 145),
                                 egui::RichText::new(t1.detect_chip(did).display_name()).strong(),
                             );
+                        } else if crate::ppt_arch::PptArch::detect(&self.raw_buffer) == crate::ppt_arch::PptArch::Polaris {
+                            let pchip = crate::pptable_polaris::PolarisChip::from_did(did);
+                            ui.colored_label(
+                                egui::Color32::from_rgb(95, 200, 145),
+                                egui::RichText::new(pchip.display_name()).strong(),
+                            );
                         } else if matches!(crate::ppt_arch::PptArch::detect(&self.raw_buffer), crate::ppt_arch::PptArch::Vega10 | crate::ppt_arch::PptArch::Vega20) {
                             let frev_v = self.raw_buffer.get(2).copied().unwrap_or(0);
                             let vchip = crate::pptable_vega::VegaChip::from_did_and_rev(did, frev_v);
