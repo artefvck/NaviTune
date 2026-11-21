@@ -10,6 +10,21 @@ impl PowerPlayApp {
         let is_rdna3 = AtomSmcDpmInfoV4_12::from_bytes(&self.raw_buffer).is_some();
         let is_rdna2 = !is_rdna3 && AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer).is_some();
 
+        let mut issues: Vec<&str> = Vec::new();
+        if !is_rdna3 {
+            if self.oc_gfx_clock[0] > self.oc_gfx_clock[1] { issues.push("GFX Clock Min > Max"); }
+            if self.oc_mem_clock[0] > self.oc_mem_clock[1] { issues.push("Memory Clock Min > Max"); }
+            if self.oc_power_limit[0] > self.oc_power_limit[1] || self.oc_power_limit[1] > 50 { issues.push("Power Limit (%) inverted or > +50%"); }
+            if self.oc_fan_rpm[0] > self.oc_fan_rpm[1] { issues.push("Fan RPM Min > Max"); }
+            if self.oc_fan_acoustic_rpm[0] > self.oc_fan_acoustic_rpm[1] { issues.push("Fan Acoustic RPM Min > Max"); }
+        } else if self.oc_power_limit[1] > 50 {
+            issues.push("Power Limit Max > +50%");
+        }
+        if !issues.is_empty() {
+            ui.colored_label(egui::Color32::from_rgb(245, 185, 65), format!("OverDrive Check: {}", issues.join(" | ")));
+            ui.add_space(4.0);
+        }
+
         two_col_cards(ui, "oc_cols", |ui| {
             draw_card(ui, "OverDrive", |ui| {
                 if is_rdna3 {
