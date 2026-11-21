@@ -7,10 +7,10 @@ impl PowerPlayApp {
     pub fn draw_oc_limits_tab(&mut self, ui: &mut egui::Ui) {
         use crate::card_layout::*;
 
-        let arch = crate::pptable_rdna1::PptArch::detect(&self.raw_buffer);
-        let is_rdna3 = arch == crate::pptable_rdna1::PptArch::Rdna3;
-        let is_rdna2 = arch == crate::pptable_rdna1::PptArch::Rdna2;
-        let is_rdna1 = arch == crate::pptable_rdna1::PptArch::Rdna1;
+        let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
+        let is_rdna3 = arch.is_rdna3();
+        let is_rdna2 = arch.is_rdna2();
+        let is_rdna1 = arch.is_rdna1() || arch.is_vega();
 
         let mut issues: Vec<&str> = Vec::new();
         if !is_rdna3 {

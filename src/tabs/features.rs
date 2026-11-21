@@ -165,7 +165,7 @@ impl PowerPlayApp {
                                 egui::Color32::from_rgb(95, 200, 145),
                                 egui::RichText::new(t1.detect_chip(did).display_name()).strong(),
                             );
-                        } else if matches!(crate::pptable_rdna1::PptArch::detect(&self.raw_buffer), crate::pptable_rdna1::PptArch::Vega10 | crate::pptable_rdna1::PptArch::Vega20) {
+                        } else if matches!(crate::ppt_arch::PptArch::detect(&self.raw_buffer), crate::ppt_arch::PptArch::Vega10 | crate::ppt_arch::PptArch::Vega20) {
                             let frev_v = self.raw_buffer.get(2).copied().unwrap_or(0);
                             let vchip = crate::pptable_vega::VegaChip::from_did_and_rev(did, frev_v);
                             ui.colored_label(
