@@ -7,7 +7,10 @@ impl PowerPlayApp {
     pub fn draw_fan_tab(&mut self, ui: &mut egui::Ui) {
         use crate::card_layout::*;
 
-        let is_rdna3 = AtomSmcDpmInfoV4_12::from_bytes(&self.raw_buffer).is_some();
+        let arch = crate::pptable_rdna1::PptArch::detect(&self.raw_buffer);
+        let is_rdna3 = arch == crate::pptable_rdna1::PptArch::Rdna3;
+        let is_rdna1 = arch == crate::pptable_rdna1::PptArch::Rdna1;
+        let _ = is_rdna1;
         let is_rdna2 = !is_rdna3 && AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer).is_some();
 
         let mut issues: Vec<&'static str> = Vec::new();
