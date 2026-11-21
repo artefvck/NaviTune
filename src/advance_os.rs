@@ -1,5 +1,3 @@
-use crate::PowerPlayApp;
-use crate::card_layout::{draw_card, two_col_cards};
 use eframe::egui;
 
 #[cfg(target_os = "windows")]
