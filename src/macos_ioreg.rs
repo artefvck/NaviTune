@@ -115,35 +115,38 @@ pub fn scan_ioreg_gpus() -> Vec<IoregGpuEntry> {
 
 #[cfg(target_os = "windows")]
 pub fn scan_ioreg_gpus() -> Vec<IoregGpuEntry> {
-    let mut results = Vec::new();
-    let key = r"HKLM\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}";
-    if let Ok(out) = Command::new("reg").args(["query", key, "/s"]).output() {
-        let txt = String::from_utf8_lossy(&out.stdout);
-        let mut cur_sub = String::new();
-        let mut cur_desc = String::new();
-        let mut cur_ppt: Option<Vec<u8>> = None;
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
 
-        let flush_sub = |results: &mut Vec<IoregGpuEntry>, sub: &str, desc: &str, ppt: &Option<Vec<u8>>| {
-            if sub.is_empty() || (!desc.to_ascii_uppercase().contains("AMD") && !desc.to_ascii_uppercase().contains("RADEON")) {
-                return;
-            }
-            let gpu_name = if desc.is_empty() { "AMD Radeon GPU" } else { desc };
-            results.push(IoregGpuEntry {
-                label: format!("{} (Class\\{})", gpu_name, sub),
-                ppt_bytes: ppt.clone(),
-            });
+    let mut results = Vec::new();
+    let base = r"HKLM\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}";
+    for idx in 0..16 {
+        let sub = format!("{:04}", idx);
+        let key = format!(r"{}\{}", base, sub);
+        let Ok(out) = Command::new("reg")
+            .creation_flags(CREATE_NO_WINDOW)
+            .args(["query", &key])
+            .output()
+        else {
+            continue;
         };
+        if !out.status.success() {
+            continue;
+        }
+        let txt = String::from_utf8_lossy(&out.stdout);
+        let mut desc = String::new();
+        let mut is_amd = false;
+        let mut ppt: Option<Vec<u8>> = None;
 
         for line in txt.lines() {
             let t = line.trim();
-            if t.starts_with("HKEY_") {
-                flush_sub(&mut results, &cur_sub, &cur_desc, &cur_ppt);
-                cur_sub = t.rsplit('\\').next().unwrap_or("").to_string();
-                cur_desc.clear();
-                cur_ppt = None;
-            } else if t.starts_with("DriverDesc") && t.contains("REG_SZ") {
+            if t.starts_with("DriverDesc") && t.contains("REG_SZ") {
                 if let Some((_, val)) = t.split_once("REG_SZ") {
-                    cur_desc = val.trim().to_string();
+                    desc = val.trim().to_string();
+                }
+            } else if t.starts_with("MatchingDeviceId") && t.contains("REG_SZ") {
+                if t.to_ascii_uppercase().contains("VEN_1002") {
+                    is_amd = true;
                 }
             } else if t.starts_with("PP_PhmSoftPowerPlayTable") && t.contains("REG_BINARY") {
                 if let Some(hex_str) = t.split_whitespace().last() {
@@ -152,12 +155,20 @@ pub fn scan_ioreg_gpus() -> Vec<IoregGpuEntry> {
                         .filter_map(|i| hex_str.get(i..i + 2).and_then(|h| u8::from_str_radix(h, 16).ok()))
                         .collect();
                     if bytes.len() >= 64 {
-                        cur_ppt = Some(bytes);
+                        ppt = Some(bytes);
                     }
                 }
             }
         }
-        flush_sub(&mut results, &cur_sub, &cur_desc, &cur_ppt);
+
+        let up = desc.to_ascii_uppercase();
+        if is_amd || up.contains("AMD") || up.contains("RADEON") {
+            let gpu_name = if desc.is_empty() { "AMD Radeon GPU" } else { desc.as_str() };
+            results.push(IoregGpuEntry {
+                label: format!("{} (Class\\{})", gpu_name, sub),
+                ppt_bytes: ppt,
+            });
+        }
     }
     results
 }
