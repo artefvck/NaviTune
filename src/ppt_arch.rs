@@ -59,4 +59,14 @@ impl PptArch {
             Self::Vega10 | Self::Unknown => 0,
         }
     }
+
+    pub fn default_table_size(self) -> usize {
+        match self {
+            Self::Vega10 => 512,
+            Self::Vega20 | Self::Rdna1 => 1924,
+            Self::Rdna2 => 2470,
+            Self::Rdna3 => 5424,
+            Self::Unknown => 0,
+        }
+    }
 }

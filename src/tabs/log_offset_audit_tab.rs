@@ -89,11 +89,17 @@ impl PowerPlayApp {
                     ("Fan", "Stop / Start / Target", 0x663, format!("{} / {} / {}", f_stop, f_start, f_tgt), format!("{} / {} / {}", self.fan_stop_temp, self.fan_start_temp, self.fan_target_temp)),
                 ])
             } else if let Some(v10) = crate::pptable_vega::AtomVega10PowerPlayTable::from_bytes(&self.raw_buffer) {
-                ("Vega 10 (0x08)", vec![
+                let fan_off = { v10.fan_table_offset } as usize;
+                let mut v10_rows = vec![
                     ("OC Limits", "Max OD Engine Clock (MHz)", 0x017, format!("{}", { v10.max_od_engine_clock } / 100), format!("{}", self.oc_gfx_clock[1])),
                     ("OC Limits", "Max OD Memory Clock (MHz)", 0x01B, format!("{}", { v10.max_od_memory_clock } / 100), format!("{}", self.oc_mem_clock[1])),
                     ("OC Limits", "Power Control Limit (+%)", 0x01F, format!("{}", { v10.power_control_limit }), format!("{}", self.oc_power_limit[1])),
-                ])
+                ];
+                if let Some((pwm, rpm, tgt, _gfx, _zrpm, stp, strt)) = v10.read_fan_subtable(&self.raw_buffer) {
+                    v10_rows.push(("Fan SubTable", "PWM Min / Max RPM", fan_off + 0x09, format!("{} / {}", pwm, rpm), format!("{} / {}", self.fan_pwm_min, self.fan_max_rpm)));
+                    v10_rows.push(("Fan SubTable", "Stop / Start / Target", fan_off + 0x0F, format!("{} / {} / {}", stp, strt, tgt), format!("{} / {} / {}", self.fan_stop_temp, self.fan_start_temp, self.fan_target_temp)));
+                }
+                ("Vega 10 (0x08)", v10_rows)
             } else if let Some(t) = AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer) {
                 let (od_gfx_min, od_gfx_max) = ({t.od_gfx_min[0]}, {t.od_gfx_max[0]});
                 let (od_mem_min, od_mem_max) = ({t.od_mem_min[0]}, {t.od_mem_max[0]});

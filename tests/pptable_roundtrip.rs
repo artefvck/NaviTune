@@ -195,3 +195,16 @@ fn test_vega10_and_vega20_roundtrip() {
     let plist_v20 = export_formats::format_opencore_plist(&v20, "PciRoot(0x0)/Pci(0x1,0x0)/Pci(0x0,0x0)");
     assert_eq!(import_formats::parse_plist_ppt(plist_v20.as_bytes()).expect("parse v20 plist"), v20);
 }
+
+#[test]
+fn test_vega10_fan_subtable_roundtrip() {
+    let mut v10 = vec![0u8; 512];
+    v10[0..2].copy_from_slice(&512u16.to_le_bytes());
+    v10[2] = 0x08;
+    let fan_off: usize = 0x100;
+    v10[0x35..0x37].copy_from_slice(&(fan_off as u16).to_le_bytes());
+    v10[fan_off] = 11;
+    pptable_vega::AtomVega10PowerPlayTable::write_fan_subtable(&mut v10, 25, 2400, 75, 1650, true, 55, 62);
+    let parsed = pptable_vega::AtomVega10PowerPlayTable::from_bytes(&v10).expect("valid v10");
+    assert_eq!(parsed.read_fan_subtable(&v10), Some((25, 2400, 75, 1650, true, 55, 62)));
+}
