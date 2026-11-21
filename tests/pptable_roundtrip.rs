@@ -207,4 +207,11 @@ fn test_vega10_fan_subtable_roundtrip() {
     pptable_vega::AtomVega10PowerPlayTable::write_fan_subtable(&mut v10, 25, 2400, 75, 1650, true, 55, 62);
     let parsed = pptable_vega::AtomVega10PowerPlayTable::from_bytes(&v10).expect("valid v10");
     assert_eq!(parsed.read_fan_subtable(&v10), Some((25, 2400, 75, 1650, true, 55, 62)));
+    let hard_off: usize = 0x160;
+    pptable_vega::AtomVega10PowerPlayTable::from_bytes_mut(&mut v10).unwrap().hard_limit_table_offset = hard_off as u16;
+    v10[hard_off] = 1;
+    v10[hard_off + 1] = 1;
+    pptable_vega::AtomVega10PowerPlayTable::write_hard_limits(&mut v10, 1200, 1750, 1100, 1150);
+    let parsed2 = pptable_vega::AtomVega10PowerPlayTable::from_bytes(&v10).expect("valid v10");
+    assert_eq!(parsed2.read_hard_limits(&v10), Some((1200, 1750, 1100, 1150)));
 }

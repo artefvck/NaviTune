@@ -138,6 +138,26 @@ impl AtomVega10PowerPlayTable {
             buf[off + 0x2E] = start_t.clamp(0, 255) as u8;
         }
     }
+
+    pub fn read_hard_limits(&self, buf: &[u8]) -> Option<(i32, i32, i32, i32)> {
+        let off = { self.hard_limit_table_offset } as usize;
+        if off == 0 || off + 0x12 > buf.len() || buf[off + 1] == 0 { return None; }
+        let soc_mhz = (u32::from_le_bytes([buf[off + 0x02], buf[off + 0x03], buf[off + 0x04], buf[off + 0x05]]) / 100) as i32;
+        let gfx_mhz = (u32::from_le_bytes([buf[off + 0x06], buf[off + 0x07], buf[off + 0x08], buf[off + 0x09]]) / 100) as i32;
+        let mem_mhz = (u32::from_le_bytes([buf[off + 0x0A], buf[off + 0x0B], buf[off + 0x0C], buf[off + 0x0D]]) / 100) as i32;
+        let vddc_mv = u32::from_le_bytes([buf[off + 0x0E], buf[off + 0x0F], buf[off + 0x10], buf[off + 0x11]]) as i32;
+        Some((soc_mhz, gfx_mhz, mem_mhz, vddc_mv))
+    }
+
+    pub fn write_hard_limits(buf: &mut [u8], soc_mhz: i32, gfx_mhz: i32, mem_mhz: i32, vddc_mv: i32) {
+        let Some(t) = Self::from_bytes(buf) else { return; };
+        let off = { t.hard_limit_table_offset } as usize;
+        if off == 0 || off + 0x12 > buf.len() || buf[off + 1] == 0 { return; }
+        buf[off + 0x02..off + 0x06].copy_from_slice(&((soc_mhz.max(0) as u32) * 100).to_le_bytes());
+        buf[off + 0x06..off + 0x0A].copy_from_slice(&((gfx_mhz.max(0) as u32) * 100).to_le_bytes());
+        buf[off + 0x0A..off + 0x0E].copy_from_slice(&((mem_mhz.max(0) as u32) * 100).to_le_bytes());
+        buf[off + 0x0E..off + 0x12].copy_from_slice(&(vddc_mv.max(0) as u32).to_le_bytes());
+    }
 }
 
 #[repr(C, packed)]

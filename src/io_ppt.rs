@@ -381,8 +381,16 @@ impl PowerPlayApp {
             self.power_limit_w = 0;
             self.tdc_gfx = 0;
             self.tdc_soc = 0;
-            self.volt_gfx = [0, 0];
-            self.volt_soc = [0, 0];
+            if let Some((soc_hi, gfx_hi, mem_hi, vddc_hi)) = v10.read_hard_limits(&b) {
+                self.volt_gfx = [0, vddc_hi];
+                self.volt_soc = [0, 0];
+                self.freq_gfx = [0, gfx_hi];
+                self.freq_soc = [0, soc_hi];
+                self.mem_dpm_freq[3] = [mem_hi, 1];
+            } else {
+                self.volt_gfx = [0, 0];
+                self.volt_soc = [0, 0];
+            }
             self.ulv_gfx = [0, 0];
             self.ulv_soc = [0, 0];
             self.freq_gfx = [0, 0];
@@ -790,6 +798,13 @@ impl PowerPlayApp {
             v10.max_od_engine_clock = (self.oc_gfx_clock[1].max(0) * 100) as u32;
             v10.max_od_memory_clock = (self.oc_mem_clock[1].max(0) * 100) as u32;
             v10.power_control_limit = self.oc_power_limit[1].max(0) as u16;
+            crate::pptable_vega::AtomVega10PowerPlayTable::write_hard_limits(
+                &mut self.raw_buffer,
+                self.freq_soc[1],
+                self.freq_gfx[1],
+                self.mem_dpm_freq[3][0],
+                self.volt_gfx[1],
+            );
             crate::pptable_vega::AtomVega10PowerPlayTable::write_fan_subtable(
                 &mut self.raw_buffer,
                 self.fan_pwm_min,
