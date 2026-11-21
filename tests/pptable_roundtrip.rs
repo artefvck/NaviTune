@@ -84,6 +84,6 @@ fn test_option_rom_8bit_checksum_roundtrip() {
         .fold(0u8, |acc, (_, &v)| acc.wrapping_add(v));
     rom[6] = 0u8.wrapping_sub(sum_without_csum);
 
-    let total_sum: u8 = rom.iter().fold(0u8, |acc, &v)| acc.wrapping_add(v));
+    let total_sum: u8 = rom.iter().fold(0u8, |acc, &v| acc.wrapping_add(v));
     assert_eq!(total_sum, 0, "Patched Option ROM 8-bit checksum sum must equal 0x00");
 }
