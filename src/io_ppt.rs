@@ -48,7 +48,7 @@ impl PowerPlayApp {
             match parsed {
                 Ok(bytes) => {
                     let name = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
-                    self.loaded_file = Some(path);
+                    self.loaded_file = Some(path.clone());
                     self.selected_gpu = usize::MAX;
                     self.apply_ppt_bytes(bytes, &name);
                     crate::ui_theme::log_debug("LOAD", &format!("Loaded {} ({} B) | {}", path.display(), self.raw_buffer.len(), self.status_msg));
