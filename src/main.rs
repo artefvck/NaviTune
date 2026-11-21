@@ -402,7 +402,7 @@ impl eframe::App for PowerPlayApp {
             });
             ui.separator();
 
-            egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+            egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
                 match self.active_tab {
                     Tab::Features => self.draw_features_tab(ui),
                     Tab::OcLimits => self.draw_oc_limits_tab(ui),
