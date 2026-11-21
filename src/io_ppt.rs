@@ -48,7 +48,8 @@ impl PowerPlayApp {
             match parsed {
                 Ok(bytes) => {
                     let name = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
-                    self.loaded_file = Some(path);
+                    crate::ui_theme::log_debug("LOAD", &format!("Loaded {} ({} B) | status: {}", path.display(), self.raw_buffer.len(), self.status_msg));
+            self.loaded_file = Some(path);
             self.selected_gpu = usize::MAX;
                     self.apply_ppt_bytes(bytes, &name);
                 }
@@ -512,7 +513,8 @@ impl PowerPlayApp {
             };
             let write_res = fs::write(&path, bytes);
             match write_res {
-                Ok(_) => self.status_msg = format!("Saved to {}", path.file_name().unwrap_or_default().to_string_lossy()),
+                Ok(_) => crate::ui_theme::log_debug("SAVE", &format!("Exported {} ({} B) | GFX={}..{} MHz, Power={} W, Volt={}..{} mV", path.display(), self.raw_buffer.len(), self.freq_gfx, self.freq_gfx, self.power_limit_w, self.volt_gfx, self.volt_gfx));
+                self.status_msg = format!("Saved to {}", path.file_name().unwrap_or_default().to_string_lossy()),
                 Err(e) => self.show_error("File Save Error", &e.to_string()),
             }
         }

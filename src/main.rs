@@ -34,7 +34,7 @@ fn main() -> eframe::Result<()> {
         options,
         Box::new(|cc| {
             crate::ui_theme::apply_modern_theme(&cc.egui_ctx);
-            crate::ui_theme::log_debug("APP", "NaviTune started");
+            crate::ui_theme::log_debug("APP", &format!("NaviTune v{} started ({}/{})", env!("CARGO_PKG_VERSION"), std::env::consts::OS, std::env::consts::ARCH));
             let mut app = PowerPlayApp::default();
             app.refresh_ioreg_gpus();
             app.selected_gpu = usize::MAX;
@@ -534,6 +534,7 @@ pub fn dec_box(ui: &mut egui::Ui, val: &mut f64, width: f32) {
 
 impl PowerPlayApp {
     pub fn reset_all_values(&mut self) {
+        crate::ui_theme::log_debug("RESET", "Reset all UI state and cleared loaded table");
         let gpus = self.gpus.clone();
         let entries = self.ioreg_entries.clone();
         let live_on = self.live_telemetry_on;
@@ -571,6 +572,7 @@ impl PowerPlayApp {
         self.selected_gpu = idx;
         if let Some(entry) = self.ioreg_entries.get(idx).cloned() {
             if let Some(bytes) = entry.ppt_bytes {
+                crate::ui_theme::log_debug("GPU", &format!("Selected IOReg GPU [{}]: {} ({} B)", idx, entry.label, bytes.len()));
                 self.vbios_buffer = None;
                 self.vbios_ppt_offset = None;
                 self.loaded_file = None;
