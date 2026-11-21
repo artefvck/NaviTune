@@ -59,6 +59,11 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<(&'static str, V
         let fan_off = { v10.fan_table_offset } as usize;
         let therm_off = { v10.thermal_controller_offset } as usize;
         let hard_off = { v10.hard_limit_table_offset } as usize;
+        let hard_desc = if let Some((soc_hi, gfx_hi, mem_hi, vddc_hi)) = v10.read_hard_limits(b) {
+            format!("off=0x{:03X} | SOCCLK={}MHz, GFXCLK={}MHz, MCLK={}MHz, VDDC={}mV", hard_off, soc_hi, gfx_hi, mem_hi, vddc_hi)
+        } else {
+            format!("off=0x{:03X} (sub-table out of range)", hard_off)
+        };
         let fan_desc = if let Some((pwm, rpm, tgt, gfx, zrpm, stp, strt)) = v10.read_fan_subtable(b) {
             format!("off=0x{:03X} | PWM={}%, MaxRPM={}, Tgt={}C, TgtGFX={}MHz, ZeroRPM={} ({}..{}C)", fan_off, pwm, rpm, tgt, gfx, zrpm, stp, strt)
         } else {
@@ -69,6 +74,7 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<(&'static str, V
             ("OverDrive", "max_od_engine / memory / pwr", 0x017, 10, format!("GFX={}MHz, Mem={}MHz, Pwr=+{}%", {v10.max_od_engine_clock}/100, {v10.max_od_memory_clock}/100, {v10.power_control_limit})),
             ("SubTables", "state / fan / thermal / hard_limit", 0x033, 28, format!("State=0x{:03X}, Fan=0x{:03X}, Therm=0x{:03X}, HardLim=0x{:03X}", {v10.state_array_offset}, fan_off, therm_off, hard_off)),
             ("Fan SubTable", "ATOM_Vega10_Fan_Table", fan_off.min(b.len()), 32, fan_desc),
+            ("HardLimit SubTable", "ATOM_Vega10_Hard_Limit_Table", hard_off.min(b.len()), 18, hard_desc),
         ]));
     }
     let t = AtomSmcDpmInfoV4_9::from_bytes(b)?;

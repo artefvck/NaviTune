@@ -11,6 +11,8 @@ NaviTune supports **AMD Vega 10** (`AtomVega10PowerPlayTable`, `table_format_rev
 * `0x017`: `max_od_engine_clock` (`10 kHz` units -> MHz * 100)
 * `0x01B`: `max_od_memory_clock` (`10 kHz` units -> MHz * 100)
 * `0x01F`: `power_control_limit` (+%)
+* `0x03B`: `fan_table_offset` -> `ATOM_Vega10_Fan_Table` (`PWM Min`, `Max RPM`, `Target Temp`, `Target GFX Clock`, V3 `Zero RPM`)
+* `0x04D`: `hard_limit_table_offset` -> `ATOM_Vega10_Hard_Limit_Table` (`SOCCLK`, `GFXCLK`, `MCLK`, `VDDC`)
 
 ### Vega 20 (`AtomVega20PowerPlayTable`, `0x0B`, `1,924` bytes)
 * `0x055` / `0x0A9`: `od_settings_max[0..21]` / `od_settings_min[0..21]`

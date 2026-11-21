@@ -95,6 +95,11 @@ impl PowerPlayApp {
                     ("OC Limits", "Max OD Memory Clock (MHz)", 0x01B, format!("{}", { v10.max_od_memory_clock } / 100), format!("{}", self.oc_mem_clock[1])),
                     ("OC Limits", "Power Control Limit (+%)", 0x01F, format!("{}", { v10.power_control_limit }), format!("{}", self.oc_power_limit[1])),
                 ];
+                let hard_off = { v10.hard_limit_table_offset } as usize;
+                if let Some((soc_hi, gfx_hi, mem_hi, vddc_hi)) = v10.read_hard_limits(&self.raw_buffer) {
+                    v10_rows.push(("HardLimit SubTable", "GFXCLK / MCLK Max (MHz)", hard_off + 0x06, format!("{} / {}", gfx_hi, mem_hi), format!("{} / {}", self.freq_gfx[1], self.mem_dpm_freq[3][0])));
+                    v10_rows.push(("HardLimit SubTable", "SOCCLK Max / VDDC Max", hard_off + 0x02, format!("{}MHz / {}mV", soc_hi, vddc_hi), format!("{}MHz / {}mV", self.freq_soc[1], self.volt_gfx[1])));
+                }
                 if let Some((pwm, rpm, tgt, _gfx, _zrpm, stp, strt)) = v10.read_fan_subtable(&self.raw_buffer) {
                     v10_rows.push(("Fan SubTable", "PWM Min / Max RPM", fan_off + 0x09, format!("{} / {}", pwm, rpm), format!("{} / {}", self.fan_pwm_min, self.fan_max_rpm)));
                     v10_rows.push(("Fan SubTable", "Stop / Start / Target", fan_off + 0x0F, format!("{} / {} / {}", stp, strt, tgt), format!("{} / {} / {}", self.fan_stop_temp, self.fan_start_temp, self.fan_target_temp)));
