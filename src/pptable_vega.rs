@@ -1,3 +1,28 @@
+pub(crate) fn read_gcn_hard_limit_full(buf: &[u8], off: usize, has_soc: bool) -> Option<(i32, i32, i32, i32, i32, i32)> {
+    let need = if has_soc { 0x1A } else { 0x16 };
+    if off == 0 || off + need > buf.len() || buf[off + 1] == 0 { return None; }
+    let base = if has_soc { off + 0x06 } else { off + 0x02 };
+    let soc = if has_soc { (u32::from_le_bytes([buf[off + 0x02], buf[off + 0x03], buf[off + 0x04], buf[off + 0x05]]) / 100) as i32 } else { 0 };
+    let gfx = (u32::from_le_bytes([buf[base], buf[base + 1], buf[base + 2], buf[base + 3]]) / 100) as i32;
+    let mem = (u32::from_le_bytes([buf[base + 4], buf[base + 5], buf[base + 6], buf[base + 7]]) / 100) as i32;
+    let vddc = u32::from_le_bytes([buf[base + 8], buf[base + 9], buf[base + 10], buf[base + 11]]) as i32;
+    let vddci = u32::from_le_bytes([buf[base + 12], buf[base + 13], buf[base + 14], buf[base + 15]]) as i32;
+    let mvdd = u32::from_le_bytes([buf[base + 16], buf[base + 17], buf[base + 18], buf[base + 19]]) as i32;
+    Some((soc, gfx, mem, vddc, vddci, mvdd))
+}
+
+pub(crate) fn write_gcn_hard_limit_full(buf: &mut [u8], off: usize, has_soc: bool, soc: i32, gfx: i32, mem: i32, vddc: i32, vddci: i32, mvdd: i32) {
+    let need = if has_soc { 0x1A } else { 0x16 };
+    if off == 0 || off + need > buf.len() || buf[off + 1] == 0 { return; }
+    let base = if has_soc { off + 0x06 } else { off + 0x02 };
+    if has_soc { buf[off + 0x02..off + 0x06].copy_from_slice(&((soc.max(0) as u32) * 100).to_le_bytes()); }
+    buf[base..base + 4].copy_from_slice(&((gfx.max(0) as u32) * 100).to_le_bytes());
+    buf[base + 4..base + 8].copy_from_slice(&((mem.max(0) as u32) * 100).to_le_bytes());
+    buf[base + 8..base + 12].copy_from_slice(&(vddc.max(0) as u32).to_le_bytes());
+    buf[base + 12..base + 16].copy_from_slice(&(vddci.max(0) as u32).to_le_bytes());
+    buf[base + 16..base + 20].copy_from_slice(&(mvdd.max(0) as u32).to_le_bytes());
+}
+
 pub(crate) fn read_gcn_hard_limit_entry(buf: &[u8], off: usize) -> Option<(i32, i32, i32, i32)> {
     if off == 0 || off + 0x12 > buf.len() || buf[off + 1] == 0 { return None; }
     let soc = (u32::from_le_bytes([buf[off + 0x02], buf[off + 0x03], buf[off + 0x04], buf[off + 0x05]]) / 100) as i32;
@@ -160,12 +185,18 @@ impl AtomVega10PowerPlayTable {
     }
 
     pub fn read_hard_limits(&self, buf: &[u8]) -> Option<(i32, i32, i32, i32)> {
-        read_gcn_hard_limit_entry(buf, { self.hard_limit_table_offset } as usize)
+        let (soc, gfx, mem, vddc, _, _) = read_gcn_hard_limit_full(buf, { self.hard_limit_table_offset } as usize, true)?;
+        Some((soc, gfx, mem, vddc))
     }
 
-    pub fn write_hard_limits(buf: &mut [u8], soc_mhz: i32, gfx_mhz: i32, mem_mhz: i32, vddc_mv: i32) {
+    pub fn read_hard_limit_mem_volt(&self, buf: &[u8]) -> Option<(i32, i32)> {
+        let (_, _, _, _, vddci, mvdd) = read_gcn_hard_limit_full(buf, { self.hard_limit_table_offset } as usize, true)?;
+        Some((vddci, mvdd))
+    }
+
+    pub fn write_hard_limits_full(buf: &mut [u8], soc: i32, gfx: i32, mem: i32, vddc: i32, vddci: i32, mvdd: i32) {
         if let Some(t) = Self::from_bytes(buf) {
-            write_gcn_hard_limit_entry(buf, { t.hard_limit_table_offset } as usize, Some(soc_mhz), gfx_mhz, mem_mhz, vddc_mv);
+            write_gcn_hard_limit_full(buf, { t.hard_limit_table_offset } as usize, true, soc, gfx, mem, vddc, vddci, mvdd);
         }
     }
 }

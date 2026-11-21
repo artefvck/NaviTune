@@ -98,13 +98,18 @@ impl AtomPolarisPowerPlayTable {
     }
 
     pub fn read_hard_limits(&self, buf: &[u8]) -> Option<(i32, i32, i32)> {
-        let (_soc, gfx, mem, vddc) = crate::pptable_vega::read_gcn_hard_limit_entry(buf, { self.hard_limit_table_offset } as usize)?;
+        let (_, gfx, mem, vddc, _, _) = crate::pptable_vega::read_gcn_hard_limit_full(buf, { self.hard_limit_table_offset } as usize, false)?;
         Some((gfx, mem, vddc))
     }
 
-    pub fn write_hard_limits(buf: &mut [u8], gfx_mhz: i32, mem_mhz: i32, vddc_mv: i32) {
+    pub fn read_hard_limit_mem_volt(&self, buf: &[u8]) -> Option<(i32, i32)> {
+        let (_, _, _, _, vddci, mvdd) = crate::pptable_vega::read_gcn_hard_limit_full(buf, { self.hard_limit_table_offset } as usize, false)?;
+        Some((vddci, mvdd))
+    }
+
+    pub fn write_hard_limits_full(buf: &mut [u8], gfx: i32, mem: i32, vddc: i32, vddci: i32, mvdd: i32) {
         if let Some(t) = Self::from_bytes(buf) {
-            crate::pptable_vega::write_gcn_hard_limit_entry(buf, { t.hard_limit_table_offset } as usize, None, gfx_mhz, mem_mhz, vddc_mv);
+            crate::pptable_vega::write_gcn_hard_limit_full(buf, { t.hard_limit_table_offset } as usize, false, 0, gfx, mem, vddc, vddci, mvdd);
         }
     }
 
