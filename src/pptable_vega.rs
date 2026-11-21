@@ -85,9 +85,9 @@ pub struct AtomVega10PowerPlayTable {
 
 const _: () = {
     assert!(size_of::<AtomVega10PowerPlayTable>() == 512);
-    assert!(offset_of!(AtomVega10PowerPlayTable, max_od_engine_clock) == 0x015);
-    assert!(offset_of!(AtomVega10PowerPlayTable, max_od_memory_clock) == 0x019);
-    assert!(offset_of!(AtomVega10PowerPlayTable, power_control_limit) == 0x01D);
+    assert!(offset_of!(AtomVega10PowerPlayTable, max_od_engine_clock) == 0x017);
+    assert!(offset_of!(AtomVega10PowerPlayTable, max_od_memory_clock) == 0x01B);
+    assert!(offset_of!(AtomVega10PowerPlayTable, power_control_limit) == 0x01F);
 };
 
 impl AtomVega10PowerPlayTable {
@@ -184,7 +184,7 @@ pub struct AtomVega20PowerPlayTable {
     pub fan_target_gfxclk: u16,
     pub fan_zero_rpm_enable: u8,
     pub fan_zero_rpm_stop_rpm: u8,
-    pub board_tail_payload: [u8; 197],
+    pub board_tail_payload: [u8; 257],
 }
 
 const _: () = {
@@ -197,8 +197,8 @@ const _: () = {
     assert!(offset_of!(AtomVega20PowerPlayTable, min_voltage_gfx) == 0x159);
     assert!(offset_of!(AtomVega20PowerPlayTable, freq_table_gfx) == 0x165);
     assert!(offset_of!(AtomVega20PowerPlayTable, freq_table_uclk) == 0x1B5);
-    assert!(offset_of!(AtomVega20PowerPlayTable, temp_limit) == 0x691);
-    assert!(offset_of!(AtomVega20PowerPlayTable, fan_pwm_min) == 0x6B1);
+    assert!(offset_of!(AtomVega20PowerPlayTable, temp_limit) == 0x655);
+    assert!(offset_of!(AtomVega20PowerPlayTable, fan_pwm_min) == 0x675);
 };
 
 impl AtomVega20PowerPlayTable {
