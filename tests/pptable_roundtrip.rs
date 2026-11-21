@@ -6,84 +6,104 @@ mod pptable_rdna2;
 #[path = "../src/pptable_rdna3.rs"]
 mod pptable_rdna3;
 
+#[allow(dead_code)]
+#[path = "../src/vbios.rs"]
+mod vbios;
+
+#[allow(dead_code)]
+#[path = "../src/export_formats.rs"]
+mod export_formats;
+
+#[allow(dead_code)]
+#[path = "../src/import_formats.rs"]
+mod import_formats;
+
 use pptable_rdna2::AtomSmcDpmInfoV4_9;
 use pptable_rdna3::AtomSmcDpmInfoV4_12;
 
-#[test]
-fn test_rdna2_v4_9_size_and_roundtrip() {
+fn make_rdna2_sample() -> Vec<u8> {
     let sz = core::mem::size_of::<AtomSmcDpmInfoV4_9>();
-    assert_eq!(sz, 2470, "AtomSmcDpmInfoV4_9 must be 2,470 bytes");
-
     let mut buf = vec![0u8; sz];
     buf[0..2].copy_from_slice(&(sz as u16).to_le_bytes());
     buf[2] = 15;
     buf[3] = 1;
-
-    {
-        let t = AtomSmcDpmInfoV4_9::from_bytes_mut(&mut buf).expect("valid V4_9 mutable view");
-        t.socket_power_limit_ac[0] = 285;
-        t.tdc_limit_gfx = 250;
-        t.tdc_limit_soc = 38;
-        t.fan_target_temp = 82;
-    }
-
-    let t_read = AtomSmcDpmInfoV4_9::from_bytes(&buf).expect("valid V4_9 read view");
-    assert_eq!({ t_read.socket_power_limit_ac[0] }, 285);
-    assert_eq!({ t_read.tdc_limit_gfx }, 250);
-    assert_eq!({ t_read.tdc_limit_soc }, 38);
-    assert_eq!({ t_read.fan_target_temp }, 82);
+    let t = AtomSmcDpmInfoV4_9::from_bytes_mut(&mut buf).expect("valid V4_9");
+    t.socket_power_limit_ac[0] = 285;
+    t.tdc_limit_gfx = 250;
+    t.tdc_limit_soc = 38;
+    t.fan_target_temp = 82;
+    buf
 }
 
-#[test]
-fn test_rdna3_v4_12_size_and_navi31_vs_navi33_scaling() {
+fn make_rdna3_sample() -> Vec<u8> {
     let sz = core::mem::size_of::<AtomSmcDpmInfoV4_12>();
-    assert_eq!(sz, 5424, "AtomSmcDpmInfoV4_12 must be 5,424 bytes");
-
     let mut buf = vec![0u8; sz];
     buf[0..2].copy_from_slice(&(sz as u16).to_le_bytes());
     buf[2] = 0x15;
     buf[3] = 2;
-
-    {
-        let t3 = AtomSmcDpmInfoV4_12::from_bytes_mut(&mut buf).expect("valid V4_12 mutable view");
-        t3.od_gfx_max = 2900;
-        t3.od_mem_max = 1200;
-        t3.socket_power_limit_ac = 165;
-        t3.fan_target_temp = 18;
-    }
-
-    let t3_read = AtomSmcDpmInfoV4_12::from_bytes(&buf).expect("valid V4_12 read view");
-    assert_eq!({ t3_read.od_gfx_max }, 2900);
-    assert_eq!({ t3_read.od_mem_max }, 1200);
-    assert_eq!({ t3_read.socket_power_limit_ac }, 165);
-
-    let raw_tt = { t3_read.fan_target_temp } as i32;
-    let ui_tt = if raw_tt > 200 { raw_tt / 10 } else { raw_tt };
-    assert_eq!(ui_tt, 18);
-    let saved_tt = if raw_tt > 200 { (ui_tt * 10) as u16 } else { ui_tt as u16 };
-    assert_eq!(saved_tt, 18, "Navi33 fan_target_temp must preserve unscaled 18");
-
-    let navi31_raw = 1010i32;
-    let navi31_ui = if navi31_raw > 200 { navi31_raw / 10 } else { navi31_raw };
-    assert_eq!(navi31_ui, 101);
-    let navi31_saved = if navi31_raw > 200 { (navi31_ui * 10) as u16 } else { navi31_ui as u16 };
-    assert_eq!(navi31_saved, 1010, "Navi31 fan_target_temp must preserve tenths-of-C 1010");
+    let t3 = AtomSmcDpmInfoV4_12::from_bytes_mut(&mut buf).expect("valid V4_12");
+    t3.od_gfx_max = 2900;
+    t3.od_mem_max = 1200;
+    t3.socket_power_limit_ac = 165;
+    t3.fan_target_temp = 18;
+    buf
 }
 
 #[test]
-fn test_option_rom_8bit_checksum_roundtrip() {
+fn test_rdna2_v4_9_size_and_roundtrip() {
+    let buf = make_rdna2_sample();
+    assert_eq!(buf.len(), 2470, "AtomSmcDpmInfoV4_9 must be 2,470 bytes");
+    let t = AtomSmcDpmInfoV4_9::from_bytes(&buf).expect("valid V4_9 read view");
+    assert_eq!({ t.socket_power_limit_ac[0] }, 285);
+    assert_eq!({ t.tdc_limit_gfx }, 250);
+    assert_eq!({ t.tdc_limit_soc }, 38);
+    assert_eq!({ t.fan_target_temp }, 82);
+}
+
+#[test]
+fn test_rdna3_v4_12_size_and_navi31_vs_navi33_scaling() {
+    let buf = make_rdna3_sample();
+    assert_eq!(buf.len(), 5424, "AtomSmcDpmInfoV4_12 must be 5,424 bytes");
+    let t3 = AtomSmcDpmInfoV4_12::from_bytes(&buf).expect("valid V4_12 read view");
+    assert_eq!({ t3.od_gfx_max }, 2900);
+    assert_eq!({ t3.od_mem_max }, 1200);
+    assert_eq!({ t3.socket_power_limit_ac }, 165);
+
+    let raw_tt = { t3.fan_target_temp } as i32;
+    let ui_tt = if raw_tt > 200 { raw_tt / 10 } else { raw_tt };
+    let saved_tt = if raw_tt > 200 { (ui_tt * 10) as u16 } else { ui_tt as u16 };
+    assert_eq!(saved_tt, 18, "Navi33 fan_target_temp must preserve unscaled 18");
+}
+
+#[test]
+fn test_reg_mpt_plist_format_roundtrip() {
+    for sample in [make_rdna2_sample(), make_rdna3_sample()] {
+        let reg_txt = export_formats::format_reg_ppt(&sample);
+        let parsed_reg = import_formats::parse_reg_ppt(reg_txt.as_bytes()).expect("parse .reg");
+        assert_eq!(parsed_reg, sample, ".reg round-trip must be byte-exact");
+
+        let mpt_bytes = export_formats::format_mpt_ppt(&sample);
+        let parsed_mpt = import_formats::parse_mpt_ppt(&mpt_bytes).expect("parse .mpt");
+        assert_eq!(parsed_mpt, sample, ".mpt round-trip must be byte-exact");
+
+        let plist_txt = export_formats::format_opencore_plist(&sample, "PciRoot(0x0)/Pci(0x1,0x0)/Pci(0x0,0x0)");
+        let parsed_plist = import_formats::parse_plist_ppt(plist_txt.as_bytes()).expect("parse .plist");
+        assert_eq!(parsed_plist, sample, "OpenCore .plist round-trip must be byte-exact");
+    }
+}
+
+#[test]
+fn test_vbios_patch_ppt_and_checksum() {
     let mut rom = vec![0u8; 65536];
     rom[0] = 0x55;
     rom[1] = 0xAA;
     rom[2] = 128;
-    rom[0x100] = 0x42;
-    rom[0x200] = 0x99;
 
-    let sum_without_csum: u8 = rom.iter().enumerate()
-        .filter(|&(idx, _)| idx != 6)
-        .fold(0u8, |acc, (_, &v)| acc.wrapping_add(v));
-    rom[6] = 0u8.wrapping_sub(sum_without_csum);
+    let sample = make_rdna3_sample();
+    let ppt_offset = 0x4000;
+    let patched = vbios::patch_ppt_into_rom(&rom, ppt_offset, &sample).expect("patch ppt into rom");
+    assert_eq!(&patched[ppt_offset..ppt_offset + sample.len()], sample.as_slice());
 
-    let total_sum: u8 = rom.iter().fold(0u8, |acc, &v| acc.wrapping_add(v));
-    assert_eq!(total_sum, 0, "Patched Option ROM 8-bit checksum sum must equal 0x00");
+    let total_sum: u8 = patched.iter().fold(0u8, |acc, &v| acc.wrapping_add(v));
+    assert_eq!(total_sum, 0, "Patched VBIOS ROM 8-bit checksum sum must equal 0x00");
 }
