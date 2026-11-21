@@ -17,8 +17,10 @@ impl PowerPlayApp {
         let mut issues: Vec<&str> = Vec::new();
         if self.volt_gfx[0] > self.volt_gfx[1] { issues.push("GFX Vmin > Vmax"); }
         if self.volt_soc[0] > self.volt_soc[1] { issues.push("Soc Vmin > Vmax"); }
-        if self.power_limit_w <= 0 || self.power_limit_w > 600 { issues.push("Power Limit (W) out of 1..600 W"); }
-        if self.tdc_gfx <= 0 || self.tdc_soc <= 0 { issues.push("TDC GFX/Soc <= 0 A"); }
+        if !arch.is_gcn_subtable() {
+            if self.power_limit_w <= 0 || self.power_limit_w > 600 { issues.push("Power Limit (W) out of 1..600 W"); }
+            if self.tdc_gfx <= 0 || self.tdc_soc <= 0 { issues.push("TDC GFX/Soc <= 0 A"); }
+        }
         for i in 0..4 {
             if self.mem_dpm_volt[i][0] > self.mem_dpm_volt[i][1] { issues.push("Memory VDDCI > MVDD"); break; }
         }
