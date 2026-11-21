@@ -4,6 +4,81 @@ use rfd::FileDialog;
 use std::fs;
 
 impl PowerPlayApp {
+    #[inline]
+    fn load_smu_mask(&mut self, mask: u64) {
+        for bit in 0..64 {
+            self.smu_features[bit] = (mask & (1u64 << bit)) != 0;
+        }
+    }
+
+    #[inline]
+    fn build_smu_mask(&self) -> u64 {
+        let mut mask = 0u64;
+        for bit in 0..64 {
+            if self.smu_features[bit] {
+                mask |= 1u64 << bit;
+            }
+        }
+        mask
+    }
+
+    #[inline]
+    fn load_od8_flags_10(&mut self, f: &[u8]) {
+        if f.len() < 10 { return; }
+        self.gpu_clock_limit = f[0] != 0;
+        self.gpu_clock_curve = f[1] != 0;
+        self.memory_clock_limit = f[2] != 0;
+        self.zero_rpm = f[3] != 0;
+        self.min_fan_speed = f[4] != 0;
+        self.fan_target_temp_limit = f[5] != 0;
+        self.operating_temp_limit = f[6] != 0;
+        self.fan_acoustic_rpm = f[7] != 0;
+        self.fan_curve = f[8] != 0;
+        self.power_limit_feat = f[9] != 0;
+    }
+
+    #[inline]
+    fn save_od8_flags_10(&self, f: &mut [u8]) {
+        if f.len() < 10 { return; }
+        f[0] = u8::from(self.gpu_clock_limit);
+        f[1] = u8::from(self.gpu_clock_curve);
+        f[2] = u8::from(self.memory_clock_limit);
+        f[3] = u8::from(self.zero_rpm);
+        f[4] = u8::from(self.min_fan_speed);
+        f[5] = u8::from(self.fan_target_temp_limit);
+        f[6] = u8::from(self.operating_temp_limit);
+        f[7] = u8::from(self.fan_acoustic_rpm);
+        f[8] = u8::from(self.fan_curve);
+        f[9] = u8::from(self.power_limit_feat);
+    }
+
+    #[inline]
+    fn load_od8_settings_5(&mut self, od_min: &[u32], od_max: &[u32]) {
+        if od_min.len() < 5 || od_max.len() < 5 { return; }
+        self.oc_gfx_clock = [od_min[0] as i32, od_max[0] as i32];
+        self.oc_mem_clock = [od_min[1] as i32, od_max[1] as i32];
+        self.oc_power_limit = [od_min[2] as i32, od_max[2] as i32];
+        self.oc_fan_rpm = [od_min[3] as i32, od_max[3] as i32];
+        self.oc_fan_acoustic_rpm = [od_min[4] as i32, od_max[4] as i32];
+    }
+
+    #[inline]
+    fn save_od8_settings_5(&self, od_min: &mut [u32], od_max: &mut [u32]) {
+        if od_min.len() < 5 || od_max.len() < 5 { return; }
+        od_min[0] = self.oc_gfx_clock[0].max(0) as u32;
+        od_max[0] = self.oc_gfx_clock[1].max(0) as u32;
+        od_min[1] = self.oc_mem_clock[0].max(0) as u32;
+        od_max[1] = self.oc_mem_clock[1].max(0) as u32;
+        od_min[2] = self.oc_power_limit[0] as u32;
+        od_max[2] = self.oc_power_limit[1] as u32;
+        od_min[3] = self.oc_fan_rpm[0].max(0) as u32;
+        od_max[3] = self.oc_fan_rpm[1].max(0) as u32;
+        od_min[4] = self.oc_fan_acoustic_rpm[0].max(0) as u32;
+        od_max[4] = self.oc_fan_acoustic_rpm[1].max(0) as u32;
+    }
+}
+
+impl PowerPlayApp {
     pub fn load_ppt_file(&mut self) {
         if let Some(path) = FileDialog::new()
             .add_filter("All PowerPlay & UPP Dumps", &["bin", "rom", "reg", "mpt", "plist", "pp_table", "ppt", "dat"])
@@ -301,24 +376,10 @@ impl PowerPlayApp {
             let chip_v = crate::pptable_vega::VegaChip::from_did_and_rev(did, frev);
 
             let f = { v20.od_feature_flags };
-            self.gpu_clock_limit = f[0] != 0;
-            self.gpu_clock_curve = f[1] != 0;
-            self.memory_clock_limit = f[2] != 0;
-            self.zero_rpm = f[3] != 0;
-            self.min_fan_speed = f[4] != 0;
-            self.fan_target_temp_limit = f[5] != 0;
-            self.operating_temp_limit = f[6] != 0;
-            self.fan_acoustic_rpm = f[7] != 0;
-            self.fan_curve = f[8] != 0;
-            self.power_limit_feat = f[9] != 0;
-
+            self.load_od8_flags_10(&f);
             let od_min = { v20.od_settings_min };
             let od_max = { v20.od_settings_max };
-            self.oc_gfx_clock = [od_min[0] as i32, od_max[0] as i32];
-            self.oc_mem_clock = [od_min[1] as i32, od_max[1] as i32];
-            self.oc_power_limit = [od_min[2] as i32, od_max[2] as i32];
-            self.oc_fan_rpm = [od_min[3] as i32, od_max[3] as i32];
-            self.oc_fan_acoustic_rpm = [od_min[4] as i32, od_max[4] as i32];
+            self.load_od8_settings_5(&od_min, &od_max);
 
             let ppt0 = { v20.socket_power_limit_ac[0] } as i32;
             self.power_limit_w = if ppt0 > 0 { ppt0 } else { ({ v20.boost_power_limit }) as i32 };
@@ -775,22 +836,8 @@ impl PowerPlayApp {
             v20.fan_start_temp = self.fan_start_temp.max(0) as u16;
             for i in 0..7 { v20.temp_limit[i] = self.temp_limits[i].max(0) as u16; }
 
-            let mut mask = 0u64;
-            for bit in 0..64 {
-                if self.smu_features[bit] { mask |= 1u64 << bit; }
-            }
-            v20.features_to_run = mask;
-
-            v20.od_feature_flags[0] = u8::from(self.gpu_clock_limit);
-            v20.od_feature_flags[1] = u8::from(self.gpu_clock_curve);
-            v20.od_feature_flags[2] = u8::from(self.memory_clock_limit);
-            v20.od_feature_flags[3] = u8::from(self.zero_rpm);
-            v20.od_feature_flags[4] = u8::from(self.min_fan_speed);
-            v20.od_feature_flags[5] = u8::from(self.fan_target_temp_limit);
-            v20.od_feature_flags[6] = u8::from(self.operating_temp_limit);
-            v20.od_feature_flags[7] = u8::from(self.fan_acoustic_rpm);
-            v20.od_feature_flags[8] = u8::from(self.fan_curve);
-            v20.od_feature_flags[9] = u8::from(self.power_limit_feat);
+            v20.features_to_run = self.build_smu_mask();
+            self.save_od8_flags_10(&mut v20.od_feature_flags);
             return;
         }
 
