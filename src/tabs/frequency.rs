@@ -9,6 +9,8 @@ impl PowerPlayApp {
 
         let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
         let is_rdna3 = arch.is_rdna3();
+        let is_rdna2 = arch.is_rdna2();
+        let is_rdna1 = arch.is_rdna1() || arch.is_vega() || arch.is_gcn_subtable();
         if let Some(hint) = arch.gcn_subtable_hint("freq") {
             ui.colored_label(egui::Color32::from_rgb(235, 190, 95), hint);
             ui.add_space(6.0);
