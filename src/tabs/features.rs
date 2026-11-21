@@ -110,7 +110,7 @@ impl PowerPlayApp {
         }
         if self.loaded_file.is_some() || self.vbios_buffer.is_some() || !self.raw_buffer.is_empty() {
             ui.add_space(6.0);
-            crate::card_layout::draw_card(ui, "VBIOS ROM & Table Header Verification", |ui| {
+            crate::card_layout::draw_card(ui, "VBIOS & Table Header", |ui| {
                 let info = self
                     .vbios_buffer
                     .as_ref()
@@ -120,6 +120,13 @@ impl PowerPlayApp {
                     .num_columns(2)
                     .spacing([14.0, 6.0])
                     .show(ui, |ui| {
+                        ui.label("Loaded Source:");
+                        ui.colored_label(
+                            egui::Color32::from_rgb(165, 195, 235),
+                            egui::RichText::new(&self.status_msg).monospace(),
+                        );
+                        ui.end_row();
+
                         ui.label("Silicon Family:");
                         let did = info.as_ref().map(|vi| vi.device_id).unwrap_or(0);
                         if let Some(t3) = crate::pptable_rdna3::AtomSmcDpmInfoV4_12::from_bytes(&self.raw_buffer) {

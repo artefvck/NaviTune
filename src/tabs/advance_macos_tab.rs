@@ -37,7 +37,7 @@ impl PowerPlayApp {
 
         let sel_lbl = self.gpus.get(self.selected_gpu).cloned().unwrap_or_default();
         two_col_cards(ui, "advance_macos_cols", |ui| {
-            draw_card(ui, "macOS OpenCore Export", |ui| {
+            draw_card(ui, "OpenCore Export", |ui| {
                 ui.label("Export or copy synced PP_PhmSoftPowerPlayTable for OpenCore DeviceProperties:");
                 ui.add_space(8.0);
                 ui.horizontal_wrapped(|ui| {
@@ -123,7 +123,7 @@ impl PowerPlayApp {
                 });
             });
         }, |ui| {
-            draw_card(ui, "macOS Driver & Sleep/Wake Status", |ui| {
+            draw_card(ui, "macOS Status", |ui| {
                 egui::Grid::new("advance_macos_grid").num_columns(3).min_col_width(((ui.available_width() - 32.0) / 3.0).max(110.0)).striped(true).spacing([10.0, 6.0]).show(ui, |ui| {
                     ui.strong("Check"); ui.strong("State"); ui.strong("macOS Status"); ui.end_row();
                     ui.label("VCN_PG (Bit 22)");

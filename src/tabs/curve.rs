@@ -26,88 +26,60 @@ impl PowerPlayApp {
             }
         }
 
-        ui.horizontal(|ui| {
-            if is_rdna3 {
-                ui.colored_label(
-                    egui::Color32::from_rgb(95, 200, 145),
-                    "RDNA 3 Thermal & Curve (SMU 13.0 — 9-Sensor Thermal Limits @ 0x372 Active)",
-                );
-            } else if is_rdna2 {
-                ui.colored_label(
-                    egui::Color32::from_rgb(95, 200, 145),
-                    "RDNA 2 Voltage Curve & Thermal (SMU 11.0 — Quadratic VID, Offset, Thermal & DcBtc)",
-                );
-            } else {
-                ui.weak("Load a PowerPlay table to verify voltage curve & thermal limits.");
-            }
-
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if !self.raw_buffer.is_empty() {
-                    if issues.is_empty() {
-                        ui.colored_label(
-                            egui::Color32::from_rgb(80, 210, 120),
-                            "✔ Curve & Thermal Limits Verified",
-                        );
-                    } else {
-                        ui.colored_label(
-                            egui::Color32::from_rgb(245, 185, 65),
-                            format!("⚠ {}", issues.join(" | ")),
-                        );
-                    }
-                }
-            });
-        });
-        ui.add_space(4.0);
 
         two_col_cards(ui, "crv_cols", |ui| {
-            draw_card(ui, "Static Voltage Curve (VID)", |ui| {
+            draw_card(ui, "Voltage Curve (VID)", |ui| {
                 if is_rdna3 {
                     ui.colored_label(
                         egui::Color32::from_rgb(160, 175, 195),
                         "RDNA 3 (SMU 13.0) uses AVFS per-die fused V/F curves instead of static quadratic (a, b, c) coefficients.",
                     );
                 } else {
-                    kv_header_2(ui, "GFX", "Soc", 62.0);
+                    let w2 = dynamic_box_w(ui, 76.0, 2);
+                    kv_header_2(ui, "GFX", "Soc", 76.0);
                     for (lbl, tag, pair) in [
                         ("Coeff a", "curve_a (0x74E)", &mut self.static_volt_a),
                         ("Coeff b", "curve_b (0x752)", &mut self.static_volt_b),
                         ("Coeff c", "curve_c (0x756)", &mut self.static_volt_c),
                     ] {
                         ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = 6.0;
                             label_with_var(ui, lbl, tag);
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                float_box(ui, &mut pair[1], 62.0);
-                                float_box(ui, &mut pair[0], 62.0);
+                                float_box(ui, &mut pair[1], w2);
+                                float_box(ui, &mut pair[0], w2);
                             });
                         });
                     }
                 }
             });
-            draw_card(ui, "Static Voltage Offset", |ui| {
+            draw_card(ui, "Voltage Offset", |ui| {
                 if is_rdna3 {
                     ui.colored_label(
                         egui::Color32::from_rgb(160, 175, 195),
                         "Use Power -> GFX / Soc Vmin & Vmax (0x3B4..0x3BC) to adjust RDNA 3 voltage bounds.",
                     );
                 } else {
-                    kv_header_2(ui, "GFX", "Soc", 62.0);
+                    let w2 = dynamic_box_w(ui, 76.0, 2);
+                    kv_header_2(ui, "GFX", "Soc", 76.0);
                     for (lbl, tag, pair) in [
                         ("Coeff a", "off_a (0x766)", &mut self.static_off_a),
                         ("Coeff b", "off_b (0x76A)", &mut self.static_off_b),
                         ("Coeff c (V)", "off_c (0x76E)", &mut self.static_off_c),
                     ] {
                         ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = 6.0;
                             label_with_var(ui, lbl, tag);
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                float_box(ui, &mut pair[1], 62.0);
-                                float_box(ui, &mut pair[0], 62.0);
+                                float_box(ui, &mut pair[1], w2);
+                                float_box(ui, &mut pair[0], w2);
                             });
                         });
                     }
                 }
             });
         }, |ui| {
-            draw_card(ui, "Thermal Limits (°C)", |ui| {
+            draw_card(ui, "Thermal Limits", |ui| {
                 let names = [
                     ("Edge", "temp_limit (0x372)"),
                     ("Hotspot", "temp_limit (0x374)"),
@@ -120,19 +92,21 @@ impl PowerPlayApp {
                     ("Liquid1", "temp_limit (0x382)"),
                 ];
                 for (i, (lbl, tag)) in names.iter().enumerate() {
-                    kv_row_1(ui, lbl, tag, &mut self.temp_limits[i], 62.0);
+                    kv_row_1(ui, lbl, tag, &mut self.temp_limits[i], 76.0);
                 }
             });
             if is_rdna2 || !is_rdna3 {
                 draw_card(ui, "DcBtc & DcTol (mV)", |ui| {
-                    kv_header_2(ui, "GFX", "Soc", 62.0);
+                    let w2 = dynamic_box_w(ui, 76.0, 2);
+                    kv_header_2(ui, "GFX", "Soc", 76.0);
                     ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = 6.0;
                         label_with_var(ui, "DcBtc Enable", "dcbtc_en (0x7C6)");
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            ui.allocate_ui_with_layout(egui::vec2(62.0, 20.0), egui::Layout::centered_and_justified(egui::Direction::LeftToRight), |ui| {
+                            ui.allocate_ui_with_layout(egui::vec2(w2, 20.0), egui::Layout::centered_and_justified(egui::Direction::LeftToRight), |ui| {
                                 crate::ui_theme::green_checkbox(ui, &mut self.dcbtc_soc_en, "");
                             });
-                            ui.allocate_ui_with_layout(egui::vec2(62.0, 20.0), egui::Layout::centered_and_justified(egui::Direction::LeftToRight), |ui| {
+                            ui.allocate_ui_with_layout(egui::vec2(w2, 20.0), egui::Layout::centered_and_justified(egui::Direction::LeftToRight), |ui| {
                                 crate::ui_theme::green_checkbox(ui, &mut self.dcbtc_gfx_en, "");
                             });
                         });
@@ -143,16 +117,19 @@ impl PowerPlayApp {
                         ("DcBtc GB", "dcbtc_gb (0x7D2)", &mut self.dcbtc_gb),
                     ] {
                         ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = 6.0;
                             label_with_var(ui, lbl, tag);
                             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                dec_box(ui, &mut pair[1], 62.0);
-                                dec_box(ui, &mut pair[0], 62.0);
+                                dec_box(ui, &mut pair[1], w2);
+                                dec_box(ui, &mut pair[0], w2);
                             });
                         });
                     }
-                    kv_row_2(ui, "DcTol", "dctol (0x7C2)", &mut self.dctol, 62.0);
+                    kv_row_2(ui, "DcTol", "dctol (0x7C2)", &mut self.dctol, 76.0);
                 });
             }
         });
+
     }
 }
+

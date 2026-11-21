@@ -7,7 +7,7 @@ use std::mem::offset_of;
 
 impl PowerPlayApp {
     pub(crate) fn render_more_power_settings_card(&mut self, ui: &mut egui::Ui) {
-        draw_card(ui, "Secondary Power Limits (PPT1..3)", |ui| {
+        draw_card(ui, "Secondary Power (PPT)", |ui| {
             if let Some(t3) = AtomSmcDpmInfoV4_12::from_bytes_mut(&mut self.raw_buffer) {
                 let off1 = offset_of!(AtomSmcDpmInfoV4_12, socket_power_limit_ac_2);
                 egui::Grid::new("card_pwr_grid").spacing([10.0, 6.0]).show(ui, |ui| {

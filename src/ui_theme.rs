@@ -122,6 +122,18 @@ fn load_theme_config() -> Option<(f32, Color32, Color32, Color32, Color32)> {
 }
 
 pub fn apply_modern_theme(ctx: &egui::Context) {
+    apply_agave_fonts(ctx);
+    use egui::{FontFamily, FontId, TextStyle};
+    let mut style = (*ctx.style()).clone();
+    style.text_styles = [
+        (TextStyle::Heading, FontId::new(14.5, FontFamily::Proportional)),
+        (TextStyle::Body, FontId::new(12.5, FontFamily::Proportional)),
+        (TextStyle::Monospace, FontId::new(12.5, FontFamily::Monospace)),
+        (TextStyle::Button, FontId::new(12.5, FontFamily::Proportional)),
+        (TextStyle::Small, FontId::new(11.0, FontFamily::Proportional)),
+    ].into();
+    ctx.set_style(style);
+
     if let Some((alpha, accent, base, text, check)) = load_theme_config() {
         apply_full_theme(ctx, alpha, accent, base, text, check);
     } else {
@@ -165,7 +177,7 @@ pub fn apply_full_theme(
     style.spacing.button_padding = egui::vec2(10.0, 5.0);
     style.spacing.window_margin = Margin::same(12.0);
 
-    let r = Rounding::same(0.8_f32);
+    let r = Rounding::same(6.0_f32);
     let mut v = if light { egui::Visuals::light() } else { egui::Visuals::dark() };
 
     v.override_text_color = Some(text);
@@ -183,13 +195,13 @@ pub fn apply_full_theme(
     };
 
     v.widgets.noninteractive.bg_fill = Color32::from_rgba_unmultiplied(card_rgb.r(), card_rgb.g(), card_rgb.b(), a_card);
-    v.widgets.noninteractive.bg_stroke = Stroke::new(1.5_f32, border_col);
+    v.widgets.noninteractive.bg_stroke = Stroke::new(1.0_f32, border_col);
     v.widgets.noninteractive.fg_stroke = Stroke::new(1.0_f32, text);
     v.widgets.noninteractive.rounding = r;
 
     v.widgets.inactive.bg_fill = Color32::from_rgba_unmultiplied(ctrl_rgb.r(), ctrl_rgb.g(), ctrl_rgb.b(), 220);
     v.widgets.inactive.weak_bg_fill = Color32::from_rgba_unmultiplied(ctrl_rgb.r(), ctrl_rgb.g(), ctrl_rgb.b(), 220);
-    v.widgets.inactive.bg_stroke = Stroke::new(1.5_f32, border_col);
+    v.widgets.inactive.bg_stroke = Stroke::new(1.0_f32, border_col);
     v.widgets.inactive.fg_stroke = Stroke::new(1.0_f32, text);
     v.widgets.inactive.rounding = r;
 
@@ -209,7 +221,7 @@ pub fn apply_full_theme(
     v.selection.stroke = Stroke::new(1.5_f32, accent);
     v.hyperlink_color = accent;
     v.window_rounding = r;
-    v.window_stroke = Stroke::new(1.5_f32, border_col);
+    v.window_stroke = Stroke::new(1.0_f32, border_col);
     v.window_shadow = Shadow {
         offset: egui::vec2(0.0, 4.0),
         blur: 14.0,
@@ -226,21 +238,21 @@ pub fn card_title_color(ui: &egui::Ui) -> Color32 {
 }
 
 pub fn card_frame(ui: &egui::Ui) -> egui::Frame {
-    let card_r = Rounding::same(1.0_f32);
+    let card_r = Rounding::same(10.0_f32);
     let alpha = ui.ctx().data(|d| d.get_temp::<f32>(egui::Id::new("tahoe_glass_alpha")).unwrap_or(0.96));
     let base = ui.ctx().data(|d| d.get_temp::<Color32>(egui::Id::new("tahoe_base_color")).unwrap_or(DEFAULT_GLASS_BASE));
     let light = is_light_base(base);
     let card_rgb = if light { Color32::WHITE } else { shift_surface(base, 12) };
     let border_col = if light {
-        Color32::from_rgba_unmultiplied(190, 195, 205, 210)
+        Color32::from_rgba_unmultiplied(190, 195, 205, 130)
     } else {
-        Color32::from_rgba_unmultiplied(110, 122, 138, 125)
+        Color32::from_rgba_unmultiplied(255, 255, 255, 22)
     };
     let fill_a = (alpha.clamp(0.35, 1.0) * 225.0) as u8;
 
     egui::Frame::none()
         .fill(Color32::from_rgba_unmultiplied(card_rgb.r(), card_rgb.g(), card_rgb.b(), fill_a))
-        .stroke(Stroke::new(1.5_f32, border_col))
+        .stroke(Stroke::new(1.0_f32, border_col))
         .rounding(card_r)
         .inner_margin(Margin::same(12.0))
         .shadow(Shadow {
@@ -329,4 +341,20 @@ pub fn save_window_size(ctx: &egui::Context, size: egui::Vec2) {
     let mut lines: Vec<String> = existing.lines().filter(|l| !l.starts_with("size=")).map(String::from).collect();
     lines.push(format!("size={},{}", cur[0], cur[1]));
     let _ = std::fs::write(path, lines.join("\n") + "\n");
+}
+
+
+pub fn apply_agave_fonts(ctx: &egui::Context) {
+    let mut fonts = egui::FontDefinitions::default();
+    fonts.font_data.insert(
+        "agave_propo".to_owned(),
+        egui::FontData::from_static(include_bytes!("../assets/fonts/AgaveNerdFontPropo-Regular.ttf")).into(),
+    );
+    fonts.font_data.insert(
+        "agave_mono".to_owned(),
+        egui::FontData::from_static(include_bytes!("../assets/fonts/AgaveNerdFontMono-Regular.ttf")).into(),
+    );
+    fonts.families.entry(egui::FontFamily::Proportional).or_default().insert(0, "agave_propo".to_owned());
+    fonts.families.entry(egui::FontFamily::Monospace).or_default().insert(0, "agave_mono".to_owned());
+    ctx.set_fonts(fonts);
 }

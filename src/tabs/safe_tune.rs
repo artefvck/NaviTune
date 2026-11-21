@@ -7,7 +7,7 @@ impl PowerPlayApp {
     pub fn draw_safe_tune_tab(&mut self, ui: &mut egui::Ui) {
         if self.raw_buffer.is_empty() {
             ui.centered_and_justified(|ui| {
-                ui.label("Load a PowerPlay table (.bin, .rom, .reg, .mpt, pp_table) first to run Safe Tune diagnostics.");
+                ui.label("No table loaded");
             });
             return;
         }

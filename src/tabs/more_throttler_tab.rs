@@ -10,7 +10,7 @@ const TEMP_LABELS: [&str; 9] = [
 
 impl PowerPlayApp {
     pub(crate) fn render_more_throttler_card(&mut self, ui: &mut egui::Ui) {
-        draw_card(ui, "Thermal Throttler Limits", |ui| {
+        draw_card(ui, "Thermal Throttler", |ui| {
             if self.raw_buffer.is_empty() { ui.label("Load a PPTable first."); return; }
             let mut changed = false;
             for (idx, lbl) in TEMP_LABELS.iter().enumerate() {

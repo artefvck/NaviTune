@@ -11,7 +11,7 @@ impl PowerPlayApp {
         let (clk_en, pwr_en, fan_en) = (self.gpu_clock_limit, self.power_limit_feat, self.fan_curve);
 
         two_col_cards(ui, "advance_windows_cols", |ui| {
-            draw_card(ui, "Windows Registry / MPT Export", |ui| {
+            draw_card(ui, "Windows MPT Export", |ui| {
                 ui.label("Export or copy synced PP_PhmSoftPowerPlayTable for Windows Registry / MorePowerTool:");
                 ui.add_space(8.0);
                 ui.horizontal_wrapped(|ui| {
@@ -48,7 +48,7 @@ impl PowerPlayApp {
                 });
             });
         }, |ui| {
-            draw_card(ui, "Windows Driver & Registry Status", |ui| {
+            draw_card(ui, "Windows Status", |ui| {
                 egui::Grid::new("advance_windows_grid").num_columns(3).min_col_width(((ui.available_width() - 32.0) / 3.0).max(110.0)).striped(true).spacing([10.0, 6.0]).show(ui, |ui| {
                     ui.strong("Check"); ui.strong("State"); ui.strong("Windows Status"); ui.end_row();
                     ui.label("DPM_GFXCLK");

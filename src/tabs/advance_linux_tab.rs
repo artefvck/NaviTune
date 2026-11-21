@@ -9,7 +9,7 @@ impl PowerPlayApp {
         let sel_lbl = self.gpus.get(self.selected_gpu).cloned().unwrap_or_default();
 
         two_col_cards(ui, "advance_linux_cols", |ui| {
-            draw_card(ui, "Linux amdgpu sysfs / upp Export", |ui| {
+            draw_card(ui, "Linux sysfs Export", |ui| {
                 ui.label("Export pp_table binary or copy sysfs command for /sys/class/drm/card0/device/pp_table:");
                 ui.add_space(8.0);
                 ui.horizontal_wrapped(|ui| {
@@ -44,7 +44,7 @@ impl PowerPlayApp {
                 });
             });
         }, |ui| {
-            draw_card(ui, "Linux amdgpu & Kernel Status", |ui| {
+            draw_card(ui, "Linux Status", |ui| {
                 egui::Grid::new("advance_linux_grid").num_columns(3).min_col_width(((ui.available_width() - 32.0) / 3.0).max(110.0)).striped(true).spacing([10.0, 6.0]).show(ui, |ui| {
                     ui.strong("Check"); ui.strong("State"); ui.strong("Linux Status"); ui.end_row();
                     ui.label("DPM_GFXCLK");

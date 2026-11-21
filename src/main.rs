@@ -203,6 +203,53 @@ impl eframe::App for PowerPlayApp {
         }
         self.render_more_viewports(ctx);
 
+        egui::TopBottomPanel::bottom("verified_status_footer")
+            .exact_height(24.0)
+            .show(ctx, |ui| {
+                let is_rdna3 = crate::pptable_rdna3::AtomSmcDpmInfoV4_12::from_bytes(&self.raw_buffer).is_some();
+                let is_rdna2 = !is_rdna3 && crate::pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer).is_some();
+                let mut issues: Vec<&str> = Vec::new();
+                if !self.raw_buffer.is_empty() {
+                    if self.oc_gfx_clock > self.oc_gfx_clock || self.oc_mem_clock > self.oc_mem_clock || self.oc_power_limit > self.oc_power_limit {
+                        issues.push("Inverted OD bounds");
+                    }
+                    if self.freq_gfx > self.freq_gfx || self.freq_soc > self.freq_soc || self.freq_fclk > self.freq_fclk {
+                        issues.push("Min clock > Max clock");
+                    }
+                    if self.volt_gfx > self.volt_gfx || self.volt_soc > self.volt_soc {
+                        issues.push("Vmin > Vmax");
+                    }
+                    if self.temp_limits.iter().any(|&t| !(0..=130).contains(&t)) {
+                        issues.push("Thermal limit out of 0..130°C");
+                    }
+                }
+                ui.horizontal(|ui| {
+                    if is_rdna3 {
+                        ui.colored_label(egui::Color32::from_rgb(95, 200, 145), egui::RichText::new("RDNA 3 · SMU 13.0").small());
+                    } else if is_rdna2 {
+                        ui.colored_label(egui::Color32::from_rgb(95, 200, 145), egui::RichText::new("RDNA 2 · SMU 11.0").small());
+                    } else {
+                        ui.label(egui::RichText::new("No table loaded").small().weak());
+                    }
+                    if ui.ctx().input(|i| i.pointer.hover_pos().is_some()) {
+                        let hov = ui.ctx().data(|d| d.get_temp::<String>(egui::Id::new("hovered_field_banner")).unwrap_or_default());
+                        if !hov.is_empty() {
+                            ui.separator();
+                            ui.colored_label(egui::Color32::from_rgb(165, 195, 235), egui::RichText::new(hov).small().monospace());
+                        }
+                    }
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if !self.raw_buffer.is_empty() {
+                            if issues.is_empty() {
+                                ui.colored_label(egui::Color32::from_rgb(80, 210, 120), egui::RichText::new("✔ Verified").small());
+                            } else {
+                                ui.colored_label(egui::Color32::from_rgb(245, 185, 65), egui::RichText::new(format!("⚠ {}", issues.join(" · "))).small());
+                            }
+                        }
+                    });
+                });
+            });
+
         egui::TopBottomPanel::bottom("bottom_action_bar")
             .exact_height(38.0)
             .show(ctx, |ui| {
@@ -211,14 +258,12 @@ impl eframe::App for PowerPlayApp {
                     if ui.button("Load").clicked() {
                         self.load_ppt_file();
                     }
-                    if ui.add(egui::Button::new("Save").fill(egui::Color32::from_rgb(200, 42, 65))).clicked() {
+                    if ui.add_sized([68.0, 25.0], egui::Button::new(egui::RichText::new("Save").strong().color(egui::Color32::WHITE)).fill(egui::Color32::from_rgb(205, 48, 72))).clicked() {
                         self.save_ppt_file();
                     }
-                    if ui.button("Reset All").clicked() {
+                    if ui.add_sized([82.0, 25.0], egui::Button::new("Reset All")).clicked() {
                         self.reset_all_values();
                     }
-                    ui.separator();
-                    ui.colored_label(egui::Color32::from_rgb(165, 175, 195), &self.status_msg);
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.button("Exit").clicked() {
                             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
@@ -245,8 +290,11 @@ impl eframe::App for PowerPlayApp {
                 if let Some(idx) = picked_gpu {
                     self.select_ioreg_gpu(idx);
                 }
-                if ui.button("Refresh").clicked() {
-                    self.refresh_ioreg_gpus();
+                let id_open = egui::Id::new("tahoe_theme_open");
+                let mut theme_open = ctx.data(|d| d.get_temp::<bool>(id_open).unwrap_or(false));
+                if ui.add_sized([76.0, 22.0], egui::Button::new("Theme").selected(theme_open)).clicked() {
+                    theme_open = !theme_open;
+                    ctx.data_mut(|d| d.insert_temp(id_open, theme_open));
                 }
                 });
                 ui.add_space(4.0);
@@ -289,13 +337,10 @@ impl eframe::App for PowerPlayApp {
                         ui.colored_label(egui::Color32::from_rgb(140, 150, 170), "Click Live Telemetry to monitor real-time GFX/MEM clocks, temp, power & fan.");
                     }
                 });
-                ui.horizontal_wrapped(|ui| {
-                    let id_open = egui::Id::new("tahoe_theme_open");
-                    let mut theme_open = ctx.data(|d| d.get_temp::<bool>(id_open).unwrap_or(false));
-                    if ui.toggle_value(&mut theme_open, "Theme").changed() {
-                        ctx.data_mut(|d| d.insert_temp(id_open, theme_open));
-                    }
-                    if theme_open {
+                let theme_open = ctx.data(|d| d.get_temp::<bool>(egui::Id::new("tahoe_theme_open")).unwrap_or(false));
+                if theme_open {
+                    ui.add_space(4.0);
+                    ui.horizontal_wrapped(|ui| {
                         let id_a = egui::Id::new("tahoe_glass_alpha");
                         let id_acc = egui::Id::new("tahoe_accent_color");
                         let id_base = egui::Id::new("tahoe_base_color");
@@ -335,8 +380,8 @@ impl eframe::App for PowerPlayApp {
                         if changed {
                             crate::ui_theme::apply_full_theme(ctx, alpha, accent, base, text, check);
                         }
-                    }
-                });
+                    });
+                }
             });
             ui.add_space(6.0);
             ui.horizontal(|ui| {
@@ -389,7 +434,7 @@ fn draw_tracked_drag<Num: egui::emath::Numeric + PartialEq + Copy + Send + Sync 
     let gen = ui.ctx().data(|d| d.get_temp::<u64>(egui::Id::new("ppt_baseline_gen")).unwrap_or(0));
     if !loaded {
         let mut empty = String::new();
-        ui.add_sized([width, 20.0], egui::TextEdit::singleline(&mut empty).interactive(false));
+        ui.add_sized([width, 20.0], egui::TextEdit::singleline(&mut empty).font(egui::TextStyle::Monospace).interactive(false));
         return;
     }
 
@@ -405,7 +450,17 @@ fn draw_tracked_drag<Num: egui::emath::Numeric + PartialEq + Copy + Send + Sync 
 
     let modified = is_modified(*val, base_val);
     ui.scope(|ui| {
-        if modified {
+        ui.style_mut().override_font_id = Some(egui::FontId::monospace(12.5));
+        if !modified {
+            let vis = ui.visuals_mut();
+            vis.widgets.inactive.bg_fill = egui::Color32::from_rgba_unmultiplied(128, 134, 144, 34);
+            vis.widgets.inactive.weak_bg_fill = egui::Color32::from_rgba_unmultiplied(128, 134, 144, 34);
+            vis.widgets.inactive.bg_stroke = egui::Stroke::new(1.0_f32, egui::Color32::from_rgba_unmultiplied(135, 142, 154, 75));
+            vis.widgets.inactive.fg_stroke = egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(162, 170, 184));
+            vis.widgets.hovered.bg_fill = egui::Color32::from_rgba_unmultiplied(128, 134, 144, 52);
+            vis.widgets.hovered.weak_bg_fill = egui::Color32::from_rgba_unmultiplied(128, 134, 144, 52);
+            vis.widgets.hovered.bg_stroke = egui::Stroke::new(1.0_f32, egui::Color32::from_rgba_unmultiplied(165, 174, 190, 120));
+        } else {
             let vis = ui.visuals_mut();
             vis.widgets.inactive.bg_fill = egui::Color32::from_rgba_unmultiplied(185, 35, 52, 55);
             vis.widgets.inactive.weak_bg_fill = egui::Color32::from_rgba_unmultiplied(185, 35, 52, 55);
@@ -419,28 +474,41 @@ fn draw_tracked_drag<Num: egui::emath::Numeric + PartialEq + Copy + Send + Sync 
         if let Some(dec) = fixed_decimals {
             dv = dv.fixed_decimals(dec);
         }
+        let card_title = ui.ctx().data(|d| d.get_temp::<String>(egui::Id::new("cur_card_title")).unwrap_or_default());
+        let (field_lbl, field_tag) = ui.ctx().data(|d| d.get_temp::<(String, String)>(egui::Id::new("cur_field_info")).unwrap_or_default());
         let resp = ui.add_sized([width, 20.0], dv);
         if resp.changed() {
             ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("ppt_dirty"), true));
         }
-        if modified {
-            resp.on_hover_text("Modified from loaded factory default");
+        if resp.hovered() || resp.dragged() {
+            let info_text = if field_tag.is_empty() {
+                format!("{} › {}", card_title, field_lbl)
+            } else {
+                format!("{} › {} ({})", card_title, field_lbl, field_tag)
+            };
+            ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("hovered_field_banner"), info_text.clone()));
+            let tip = if modified {
+                format!("{}\nFactory default: {:.4}", info_text, base_val.to_f64())
+            } else {
+                info_text
+            };
+            resp.on_hover_text(tip);
         }
     });
 }
 
 pub fn num_box(ui: &mut egui::Ui, val: &mut i32, width: f32) {
-    let w = (ui.available_width() * 0.24).max(width);
+    let w = width;
     draw_tracked_drag(ui, val, w, 1.0, None, |cur, base| cur != base);
 }
 
 pub fn float_box(ui: &mut egui::Ui, val: &mut f64, width: f32) {
-    let w = (ui.available_width() * 0.28).max(width);
+    let w = width;
     draw_tracked_drag(ui, val, w, 0.001, Some(6), |cur, base| (cur - base).abs() > 1e-7);
 }
 
 pub fn dec_box(ui: &mut egui::Ui, val: &mut f64, width: f32) {
-    let w = (ui.available_width() * 0.24).max(width);
+    let w = width;
     draw_tracked_drag(ui, val, w, 1.0, Some(0), |cur, base| (cur - base).abs() > 0.5);
 }
 

@@ -12,8 +12,8 @@ impl PowerPlayApp {
         ui.add_space(4.0);
 
         if self.raw_buffer.is_empty() {
-            crate::card_layout::draw_card(ui, "OS Optimization Presets", |ui| {
-                ui.label("Load a PowerPlay table (.bin, .rom, .reg, .mpt, or ioreg) first.");
+            crate::card_layout::draw_card(ui, "OS Presets", |ui| {
+                ui.label("No table loaded");
             });
             return;
         }

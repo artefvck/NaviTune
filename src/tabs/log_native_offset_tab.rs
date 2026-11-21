@@ -56,22 +56,107 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<(&'static str, V
 
 impl PowerPlayApp {
     pub(crate) fn draw_debug_native_offset(&self, ui: &mut egui::Ui) {
-        if self.raw_buffer.is_empty() { ui.label("Load a PowerPlay table first."); return; }
+        if self.raw_buffer.is_empty() {
+            ui.weak("No table loaded");
+            return;
+        }
         let b = &self.raw_buffer;
-        let mut lines = vec![format!("=== NATIVE RUST OFFSET DEBUG ({} bytes) ===\n", b.len())];
-        let arch = if let Some((a, keys)) = collect_native_struct_entries(b) {
-            for (_s, name, offset, len, val) in keys {
-                let hex: String = b[offset..(offset + len).min(b.len())].iter().take(8).map(|x| format!("{:02X}", x)).collect::<Vec<_>>().join(" ");
-                lines.push(format!("  @ 0x{:03X} ({:4}) | {:<28} | {:<23} -> {}", offset, offset, name, hex, val));
-            }
-            a
-        } else { lines.push("  [Unsupported buffer size]".into()); "Unknown" };
-        let report = lines.join("\n");
+        let filter_id = egui::Id::new("offset_map_filter");
+        let mut filter = ui.ctx().data(|d| d.get_temp::<String>(filter_id).unwrap_or_default());
+
+        let Some((arch, entries)) = collect_native_struct_entries(b) else {
+            ui.colored_label(egui::Color32::from_rgb(245, 185, 65), format!("Unsupported table size ({} B)", b.len()));
+            return;
+        };
+
+        let mut report_lines = vec![format!("# PPTable Offset Map — {} ({} B)", arch, b.len())];
+        for (sec, name, offset, len, val) in &entries {
+            let hex: String = b[*offset..(*offset + *len).min(b.len())]
+                .iter()
+                .take(8)
+                .map(|x| format!("{:02X}", x))
+                .collect::<Vec<_>>()
+                .join(" ");
+            report_lines.push(format!("0x{:03X} | {:<10} | {:<26} | {:<23} | {}", offset, sec, name, hex, val));
+        }
+        let report = report_lines.join("\n");
+
         ui.horizontal(|ui| {
-            if ui.button("Copy Native Offset Debug").clicked() { ui.ctx().copy_text(report.clone()); }
-            ui.colored_label(egui::Color32::from_rgb(150, 165, 190), format!("{} bytes | {}", b.len(), arch));
+            ui.colored_label(egui::Color32::from_rgb(95, 200, 145), format!("{} · {} B", arch, b.len()));
+            ui.separator();
+            ui.add(
+                egui::TextEdit::singleline(&mut filter)
+                    .hint_text("Filter section, field, or 0x offset...")
+                    .desired_width(220.0),
+            );
+            ui.ctx().data_mut(|d| d.insert_temp(filter_id, filter.clone()));
+            if !filter.is_empty() && ui.small_button("✕").clicked() {
+                ui.ctx().data_mut(|d| d.insert_temp(filter_id, String::new()));
+            }
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.button("Copy Map").clicked() {
+                    ui.ctx().copy_text(report);
+                }
+            });
         });
-        ui.add_space(4.0);
-        egui::ScrollArea::both().id_salt("native_offset_full_scroll").auto_shrink([false, false]).max_height(ui.available_height()).show(ui, |ui| { ui.monospace(report); });
+        ui.add_space(6.0);
+
+        let q = filter.trim().to_lowercase();
+        egui::ScrollArea::both()
+            .id_salt("native_offset_full_scroll")
+            .auto_shrink([false, false])
+            .max_height(ui.available_height())
+            .show(ui, |ui| {
+                egui::Grid::new("native_offset_map_grid")
+                    .striped(true)
+                    .spacing([14.0, 6.0])
+                    .show(ui, |ui| {
+                        for hdr in ["Section", "Offset", "Field", "Raw Hex", "Value"] {
+                            ui.label(
+                                egui::RichText::new(hdr)
+                                    .size(11.5)
+                                    .strong()
+                                    .color(egui::Color32::from_rgb(160, 182, 214)),
+                            );
+                        }
+                        ui.end_row();
+
+                        for (sec, name, offset, len, val) in entries {
+                            let off_str = format!("0x{:03X}", offset);
+                            if !q.is_empty()
+                                && !sec.to_lowercase().contains(&q)
+                                && !name.to_lowercase().contains(&q)
+                                && !off_str.to_lowercase().contains(&q)
+                                && !val.to_lowercase().contains(&q)
+                            {
+                                continue;
+                            }
+                            let hex: String = b[offset..(offset + len).min(b.len())]
+                                .iter()
+                                .take(8)
+                                .map(|x| format!("{:02X}", x))
+                                .collect::<Vec<_>>()
+                                .join(" ");
+
+                            let sec_col = match sec {
+                                "Header" | "SMU" => egui::Color32::from_rgb(145, 175, 225),
+                                "OD8" | "Clocks" => egui::Color32::from_rgb(95, 200, 145),
+                                "Power" | "Voltage" => egui::Color32::from_rgb(245, 185, 75),
+                                "Thermal" | "Fan" => egui::Color32::from_rgb(235, 115, 125),
+                                _ => egui::Color32::from_rgb(185, 155, 230),
+                            };
+
+                            ui.colored_label(sec_col, egui::RichText::new(sec).strong());
+                            ui.monospace(off_str);
+                            ui.monospace(name);
+                            ui.colored_label(
+                                egui::Color32::from_rgb(155, 168, 188),
+                                egui::RichText::new(hex).monospace(),
+                            );
+                            ui.monospace(val);
+                            ui.end_row();
+                        }
+                    });
+            });
     }
 }

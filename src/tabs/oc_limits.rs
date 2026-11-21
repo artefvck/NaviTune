@@ -35,55 +35,6 @@ impl PowerPlayApp {
             }
         }
 
-        ui.horizontal(|ui| {
-            if is_rdna3 {
-                ui.colored_label(
-                    egui::Color32::from_rgb(95, 200, 145),
-                    "RDNA 3 OverDrive (SMU 13.0 @ 0x0DF — Max Ceilings Active)",
-                );
-            } else if is_rdna2 {
-                ui.colored_label(
-                    egui::Color32::from_rgb(95, 200, 145),
-                    "RDNA 2 OverDrive 8 (SMU 11.0 @ 0x0C2 — Min/Max & Power Modes Active)",
-                );
-            } else {
-                ui.weak("Load a PowerPlay table to verify OverDrive limits.");
-            }
-
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if !self.raw_buffer.is_empty() {
-                    if issues.is_empty() {
-                        ui.colored_label(
-                            egui::Color32::from_rgb(80, 210, 120),
-                            "✔ OverDrive Values Verified",
-                        );
-                    } else {
-                        if ui.button("Fix Inverted Bounds").clicked() {
-                            if self.oc_gfx_clock[0] > self.oc_gfx_clock[1] {
-                                self.oc_gfx_clock[0] = self.oc_gfx_clock[1];
-                            }
-                            if self.oc_mem_clock[0] > self.oc_mem_clock[1] {
-                                self.oc_mem_clock[0] = self.oc_mem_clock[1];
-                            }
-                            if self.oc_power_limit[0] > self.oc_power_limit[1] {
-                                self.oc_power_limit[0] = self.oc_power_limit[1];
-                            }
-                            if self.oc_fan_rpm[0] > self.oc_fan_rpm[1] {
-                                self.oc_fan_rpm[0] = self.oc_fan_rpm[1];
-                            }
-                            if self.oc_fan_acoustic_rpm[0] > self.oc_fan_acoustic_rpm[1] {
-                                self.oc_fan_acoustic_rpm[0] = self.oc_fan_acoustic_rpm[1];
-                            }
-                        }
-                        ui.colored_label(
-                            egui::Color32::from_rgb(245, 185, 65),
-                            format!("⚠ {}", issues.join(" | ")),
-                        );
-                    }
-                }
-            });
-        });
-        ui.add_space(4.0);
 
         two_col_cards(ui, "oc_cols", |ui| {
             draw_card(ui, "OverDrive", |ui| {
@@ -122,5 +73,7 @@ impl PowerPlayApp {
                 kv_row_2(ui, "Rage", "ac_rage (0x2FE)", &mut self.ac_rage, 66.0);
             });
         });
+
     }
 }
+
