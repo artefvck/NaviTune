@@ -8,21 +8,10 @@ impl PowerPlayApp {
 
         let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
         let is_rdna3 = arch.is_rdna3();
-        if arch == crate::ppt_arch::PptArch::Polaris {
-            ui.colored_label(egui::Color32::from_rgb(235, 190, 95), "Polaris (SMU 8.0, rev 0x07): GFX Vmax edits HardLimit VDDC (hard_limit_table_offset); use OC Limits for Power Control (+%).",);
+        if let Some(hint) = arch.gcn_subtable_hint("power") {
+            ui.colored_label(egui::Color32::from_rgb(235, 190, 95), hint);
             ui.add_space(6.0);
         }
-        if arch == crate::ppt_arch::PptArch::Vega10 {
-            ui.colored_label(
-                egui::Color32::from_rgb(235, 190, 95),
-                "Vega 10 (SMU 9.0, rev 0x08): GFX Vmax edits HardLimit VDDC (hard_limit_table_offset); use OC Limits for Power Control (+%).",
-            );
-            ui.add_space(6.0);
-        }
-        let is_rdna1 = arch.is_rdna1() || arch.is_vega();
-        
-
-
         let mut issues: Vec<&str> = Vec::new();
         if self.volt_gfx[0] > self.volt_gfx[1] { issues.push("GFX Vmin > Vmax"); }
         if self.volt_soc[0] > self.volt_soc[1] { issues.push("Soc Vmin > Vmax"); }

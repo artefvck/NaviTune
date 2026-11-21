@@ -9,20 +9,10 @@ impl PowerPlayApp {
 
         let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
         let is_rdna3 = arch.is_rdna3();
-        if arch == crate::ppt_arch::PptArch::Polaris {
-            ui.colored_label(egui::Color32::from_rgb(235, 190, 95), "Polaris (SMU 8.0, rev 0x07): GFXCLK Max and Memory DPM 3 edit HardLimit sub-table bounds in-place.",);
+        if let Some(hint) = arch.gcn_subtable_hint("freq") {
+            ui.colored_label(egui::Color32::from_rgb(235, 190, 95), hint);
             ui.add_space(6.0);
         }
-        if arch == crate::ppt_arch::PptArch::Vega10 {
-            ui.colored_label(
-                egui::Color32::from_rgb(235, 190, 95),
-                "Vega 10 (SMU 9.0, rev 0x08): GFXCLK Max, SOCCLK Max, and Memory DPM 3 edit HardLimit sub-table bounds in-place.",
-            );
-            ui.add_space(6.0);
-        }
-        let is_rdna1 = arch.is_rdna1() || arch.is_vega();
-        let is_rdna2 = arch.is_rdna2();
-
         let mut issues: Vec<&'static str> = Vec::new();
         if self.freq_gfx[0] > self.freq_gfx[1] {
             issues.push("GFX Min > Max");

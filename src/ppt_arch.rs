@@ -60,6 +60,18 @@ impl PptArch {
         matches!(self, Self::Polaris | Self::Vega10)
     }
 
+    pub fn gcn_subtable_hint(self, tab: &str) -> Option<&'static str> {
+        match (self, tab) {
+            (Self::Polaris, "power") => Some("Polaris (SMU 8.0, rev 0x07): GFX Vmax edits HardLimit VDDC (hard_limit_table_offset); use OC Limits for Power Control (+%)."),
+            (Self::Polaris, "freq") => Some("Polaris (SMU 8.0, rev 0x07): GFXCLK Max and Memory DPM 3 edit HardLimit sub-table bounds in-place."),
+            (Self::Polaris, "fan") => Some("Polaris (SMU 8.0, rev 0x07): PWM Min, Max RPM, Target Temp, Target GFX Clock, and V3 Zero RPM edit Fan sub-table in-place."),
+            (Self::Vega10, "power") => Some("Vega 10 (SMU 9.0, rev 0x08): GFX Vmax edits HardLimit VDDC (hard_limit_table_offset); use OC Limits for Power Control (+%)."),
+            (Self::Vega10, "freq") => Some("Vega 10 (SMU 9.0, rev 0x08): GFXCLK Max, SOCCLK Max, and Memory DPM 3 edit HardLimit sub-table bounds in-place."),
+            (Self::Vega10, "fan") => Some("Vega 10 (SMU 9.0, rev 0x08): PWM Min, Max RPM, Target Temp, Target GFX Clock, and V3 Zero RPM edit Fan sub-table in-place."),
+            _ => None,
+        }
+    }
+
     pub fn max_temp_entries(self) -> usize {
         match self {
             Self::Vega20 | Self::Rdna1 => 7,

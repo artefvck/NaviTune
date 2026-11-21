@@ -9,20 +9,10 @@ impl PowerPlayApp {
 
         let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
         let is_rdna3 = arch.is_rdna3();
-        if arch == crate::ppt_arch::PptArch::Polaris {
-            ui.colored_label(egui::Color32::from_rgb(235, 190, 95), "Polaris (SMU 8.0, rev 0x07): PWM Min, Max RPM, Target Temp, Target GFX Clock, and V3 Zero RPM edit Fan sub-table in-place.",);
+        if let Some(hint) = arch.gcn_subtable_hint("fan") {
+            ui.colored_label(egui::Color32::from_rgb(235, 190, 95), hint);
             ui.add_space(6.0);
         }
-        if arch == crate::ppt_arch::PptArch::Vega10 {
-            ui.colored_label(
-                egui::Color32::from_rgb(235, 190, 95),
-                "Vega 10 (SMU 9.0, rev 0x08): PWM Min, Max RPM, Target Temp, Target GFX Clock, and V3 Zero RPM edit Fan sub-table in-place.",
-            );
-            ui.add_space(6.0);
-        }
-        let is_rdna1 = arch.is_rdna1() || arch.is_vega();
-        let is_rdna2 = !is_rdna3 && AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer).is_some();
-
         let mut issues: Vec<&'static str> = Vec::new();
         if self.fan_pwm_min < 0 || self.fan_pwm_min > 100 {
             issues.push("PWM Min out of 0..100%");
