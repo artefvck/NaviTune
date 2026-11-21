@@ -24,7 +24,7 @@ impl PowerPlayApp {
                 let (pcie_l0, pcie_l1) = ({t3.pcie_lane_count[0]}, {t3.pcie_lane_count[2]});
                 let (lclk0, lclk1) = ({t3.lclk_freq[0]}, {t3.lclk_freq[2]});
                 let (f_pwm, f_max) = ({t3.fan_pwm_min}, {t3.fan_max_rpm});
-                let (f_stop, f_start, f_tgt) = ({t3.fan_stop_temp}, {t3.fan_start_temp}, if {t3.fan_target_temp} > 200 { {t3.fan_target_temp} / 10 } else { {t3.fan_target_temp} });
+                let (f_stop, f_start, f_tgt) = ({t3.fan_stop_temp}, {t3.fan_start_temp}, { let tt = t3.fan_target_temp; if tt > 200 { tt / 10 } else { tt } });
                 ("RDNA 3 · SMU 13.0", vec![
                     ("OC Limits", "OD8 GFX Max (MHz)", off3("od_gfx"), format!("{}", od_g), format!("{}", self.oc_gfx_clock[1])),
                     ("OC Limits", "OD8 Mem Max (MHz)", off3("od_mem"), format!("{}", od_m), format!("{}", self.oc_mem_clock[1])),
