@@ -384,7 +384,7 @@ impl eframe::App for PowerPlayApp {
                 }
             });
             ui.add_space(6.0);
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
                 for (tab, label) in [
                     (Tab::Features, "Features"),
                     (Tab::OcLimits, "OC Limits"),
@@ -402,7 +402,7 @@ impl eframe::App for PowerPlayApp {
             });
             ui.separator();
 
-            egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
+            egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
                 match self.active_tab {
                     Tab::Features => self.draw_features_tab(ui),
                     Tab::OcLimits => self.draw_oc_limits_tab(ui),
