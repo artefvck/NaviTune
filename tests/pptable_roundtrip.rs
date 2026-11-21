@@ -41,7 +41,7 @@ fn test_rdna3_v4_12_size_and_navi31_vs_navi33_scaling() {
 
     let mut buf = vec![0u8; sz];
     buf[0..2].copy_from_slice(&(sz as u16).to_le_bytes());
-    buf[2] = 18;
+    buf[2] = 0x15;
     buf[3] = 2;
 
     {
