@@ -17,7 +17,7 @@ pub enum NaviRDNA1Chip {
 }
 
 impl NaviRDNA1Chip {
-    pub fn display_name(self) -> &str {
+    pub fn display_name(self) -> &'static str {
         match self {
             Self::Navi10 => "Navi 10 (RX 5600 / 5700 XT / Pro W5700)",
             Self::Navi12 => "Navi 12 (Radeon Pro V520 / 5600M)",
