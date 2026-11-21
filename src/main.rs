@@ -275,7 +275,7 @@ impl eframe::App for PowerPlayApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             crate::ui_theme::card_frame(ui).inner_margin(6.0).show(ui, |ui| {
                 ui.horizontal(|ui| {
-                let current_text = self.gpus.get(self.selected_gpu).cloned().unwrap_or_else(|| "Select GPU Path...".into());
+                let current_text = self.gpus.get(self.selected_gpu).cloned().unwrap_or_else(|| if self.loaded_file.is_some() && !self.status_msg.is_empty() { self.status_msg.clone() } else { "Select GPU Path...".into() });
                 let mut picked_gpu: Option<usize> = None;
                 egui::ComboBox::from_id_salt("gpu_selector")
                     .width((ui.available_width() - 92.0).max(140.0))
