@@ -1,5 +1,5 @@
 use crate::advance_os::*;
-use crate::card_layout::{draw_card, two_col_cards};
+use crate::card_layout::draw_card;
 use crate::PowerPlayApp;
 use eframe::egui;
 
@@ -10,7 +10,30 @@ impl PowerPlayApp {
         let od8_ok = self.gpu_clock_limit && self.power_limit_feat && self.fan_curve;
         let (clk_en, pwr_en, fan_en) = (self.gpu_clock_limit, self.power_limit_feat, self.fan_curve);
 
-        two_col_cards(ui, "advance_windows_cols", |ui| {
+                    draw_card(ui, "Windows Status", |ui| {
+                egui::Grid::new("advance_windows_grid").num_columns(3).min_col_width(((ui.available_width() - 32.0) / 3.0).max(110.0)).striped(true).spacing([10.0, 6.0]).show(ui, |ui| {
+                    ui.strong("Check"); ui.strong("State"); ui.strong("Windows Status"); ui.end_row();
+                    ui.label("DPM_GFXCLK");
+                    ui.monospace(if dpm_gfx { "Enabled (1)" } else { "Disabled (0)" });
+                    ui.colored_label(
+                        if dpm_gfx { egui::Color32::from_rgb(80, 210, 120) } else { egui::Color32::from_rgb(245, 75, 95) },
+                        if dpm_gfx { "OK" } else { "DISABLED" },
+                    );
+                    ui.end_row();
+                    ui.label("WattMan OD8");
+                    ui.monospace(format!("CLK={} PWR={} FAN={}", clk_en as u8, pwr_en as u8, fan_en as u8));
+                    ui.colored_label(
+                        if od8_ok { egui::Color32::from_rgb(80, 210, 120) } else { egui::Color32::from_rgb(245, 185, 65) },
+                        if od8_ok { "UNLOCKED" } else { "PARTIAL" },
+                    );
+                    ui.end_row();
+                    ui.label("PPT / TDC / Vmax");
+                    ui.monospace(format!("{}W / {}A / {}mV", pwr_w, tdc_g, vg1));
+                    let ok = pwr_w > 0 && tdc_g > 0 && vg1 <= 1250; ui.colored_label(if ok { egui::Color32::from_rgb(80, 210, 120) } else { egui::Color32::from_rgb(245, 185, 65) }, if ok { "OK" } else { "CHECK" });
+                    ui.end_row();
+                });
+            });
+        
             draw_card(ui, "Windows MPT Export", |ui| {
                 ui.label("Export or copy synced PP_PhmSoftPowerPlayTable for Windows Registry / MorePowerTool:");
                 ui.add_space(8.0);
@@ -47,31 +70,7 @@ impl PowerPlayApp {
                     }
                 });
             });
-        }, |ui| {
-            draw_card(ui, "Windows Status", |ui| {
-                egui::Grid::new("advance_windows_grid").num_columns(3).min_col_width(((ui.available_width() - 32.0) / 3.0).max(110.0)).striped(true).spacing([10.0, 6.0]).show(ui, |ui| {
-                    ui.strong("Check"); ui.strong("State"); ui.strong("Windows Status"); ui.end_row();
-                    ui.label("DPM_GFXCLK");
-                    ui.monospace(if dpm_gfx { "Enabled (1)" } else { "Disabled (0)" });
-                    ui.colored_label(
-                        if dpm_gfx { egui::Color32::from_rgb(80, 210, 120) } else { egui::Color32::from_rgb(245, 75, 95) },
-                        if dpm_gfx { "OK" } else { "DISABLED" },
-                    );
-                    ui.end_row();
-                    ui.label("WattMan OD8");
-                    ui.monospace(format!("CLK={} PWR={} FAN={}", clk_en as u8, pwr_en as u8, fan_en as u8));
-                    ui.colored_label(
-                        if od8_ok { egui::Color32::from_rgb(80, 210, 120) } else { egui::Color32::from_rgb(245, 185, 65) },
-                        if od8_ok { "UNLOCKED" } else { "PARTIAL" },
-                    );
-                    ui.end_row();
-                    ui.label("PPT / TDC / Vmax");
-                    ui.monospace(format!("{}W / {}A / {}mV", pwr_w, tdc_g, vg1));
-                    let ok = pwr_w > 0 && tdc_g > 0 && vg1 <= 1250; ui.colored_label(if ok { egui::Color32::from_rgb(80, 210, 120) } else { egui::Color32::from_rgb(245, 185, 65) }, if ok { "OK" } else { "CHECK" });
-                    ui.end_row();
-                });
-            });
-        });
+        
     }
 
 }

@@ -1,5 +1,5 @@
 use crate::advance_os::*;
-use crate::card_layout::{draw_card, two_col_cards};
+use crate::card_layout::draw_card;
 use crate::PowerPlayApp;
 use eframe::egui;
 
@@ -36,7 +36,40 @@ impl PowerPlayApp {
         let (vg0, vg1) = (self.volt_gfx[0], self.volt_gfx[1]);
 
         let sel_lbl = self.gpus.get(self.selected_gpu).cloned().unwrap_or_default();
-        two_col_cards(ui, "advance_macos_cols", |ui| {
+                    draw_card(ui, "macOS Status", |ui| {
+                egui::Grid::new("advance_macos_grid").num_columns(3).min_col_width(((ui.available_width() - 32.0) / 3.0).max(110.0)).striped(true).spacing([10.0, 6.0]).show(ui, |ui| {
+                    ui.strong("Check"); ui.strong("State"); ui.strong("macOS Status"); ui.end_row();
+                    ui.label("VCN_PG (Bit 22)");
+                    ui.monospace(if vcn_pg { "Enabled (1)" } else { "Disabled (0)" });
+                    ui.colored_label(
+                        if !vcn_pg { egui::Color32::from_rgb(80, 210, 120) } else { egui::Color32::from_rgb(245, 185, 65) },
+                        if !vcn_pg { "OPTIMAL" } else { "WARN" },
+                    );
+                    ui.end_row();
+                    ui.label("GFXOFF / BACO");
+                    ui.monospace(format!("{} / {}", gfxoff as u8, baco as u8));
+                    ui.colored_label(egui::Color32::from_rgb(80, 210, 120), if gfxoff && baco { "OK" } else { "WARN" });
+                    ui.end_row();
+                    ui.label("Fan Hysteresis");
+                    ui.monospace(format!("{}°C / {}°C ({}%)", fan_stop, fan_start, fan_pwm));
+                    ui.colored_label(egui::Color32::from_rgb(80, 210, 120), if fan_stop < fan_start { "OK" } else { "FIX" });
+                    ui.end_row();
+                    ui.label("GFX Voltage");
+                    ui.monospace(format!("{}..{} mV", vg0, vg1));
+                    let v_ok = vg0 > 0 && vg0 <= vg1 && vg1 <= 1250;
+                    ui.colored_label(
+                        if v_ok { egui::Color32::from_rgb(80, 210, 120) } else { egui::Color32::from_rgb(245, 185, 65) },
+                        if v_ok { "OK" } else { "CHECK" },
+                    );
+                    ui.end_row();
+                    let acpi_path = detect_live_acpi_gpu_path(&sel_lbl);
+                    ui.label("Live ACPI Path");
+                    ui.monospace(&acpi_path);
+                    ui.colored_label(egui::Color32::from_rgb(80, 210, 120), "DETECTED");
+                    ui.end_row();
+                });
+            });
+        
             draw_card(ui, "OpenCore Export", |ui| {
                 ui.label("Export or copy synced PP_PhmSoftPowerPlayTable for OpenCore DeviceProperties:");
                 ui.add_space(8.0);
@@ -122,41 +155,7 @@ impl PowerPlayApp {
                     }
                 });
             });
-        }, |ui| {
-            draw_card(ui, "macOS Status", |ui| {
-                egui::Grid::new("advance_macos_grid").num_columns(3).min_col_width(((ui.available_width() - 32.0) / 3.0).max(110.0)).striped(true).spacing([10.0, 6.0]).show(ui, |ui| {
-                    ui.strong("Check"); ui.strong("State"); ui.strong("macOS Status"); ui.end_row();
-                    ui.label("VCN_PG (Bit 22)");
-                    ui.monospace(if vcn_pg { "Enabled (1)" } else { "Disabled (0)" });
-                    ui.colored_label(
-                        if !vcn_pg { egui::Color32::from_rgb(80, 210, 120) } else { egui::Color32::from_rgb(245, 185, 65) },
-                        if !vcn_pg { "OPTIMAL" } else { "WARN" },
-                    );
-                    ui.end_row();
-                    ui.label("GFXOFF / BACO");
-                    ui.monospace(format!("{} / {}", gfxoff as u8, baco as u8));
-                    ui.colored_label(egui::Color32::from_rgb(80, 210, 120), if gfxoff && baco { "OK" } else { "WARN" });
-                    ui.end_row();
-                    ui.label("Fan Hysteresis");
-                    ui.monospace(format!("{}°C / {}°C ({}%)", fan_stop, fan_start, fan_pwm));
-                    ui.colored_label(egui::Color32::from_rgb(80, 210, 120), if fan_stop < fan_start { "OK" } else { "FIX" });
-                    ui.end_row();
-                    ui.label("GFX Voltage");
-                    ui.monospace(format!("{}..{} mV", vg0, vg1));
-                    let v_ok = vg0 > 0 && vg0 <= vg1 && vg1 <= 1250;
-                    ui.colored_label(
-                        if v_ok { egui::Color32::from_rgb(80, 210, 120) } else { egui::Color32::from_rgb(245, 185, 65) },
-                        if v_ok { "OK" } else { "CHECK" },
-                    );
-                    ui.end_row();
-                    let acpi_path = detect_live_acpi_gpu_path(&sel_lbl);
-                    ui.label("Live ACPI Path");
-                    ui.monospace(&acpi_path);
-                    ui.colored_label(egui::Color32::from_rgb(80, 210, 120), "DETECTED");
-                    ui.end_row();
-                });
-            });
-        });
+        
     }
 
 }
