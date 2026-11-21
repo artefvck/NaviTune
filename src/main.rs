@@ -7,6 +7,7 @@ mod import_formats;
 mod io_ppt;
 mod macos_ioreg;
 mod more_popups;
+mod pptable_vega;
 mod pptable_rdna1;
 mod pptable_rdna2;
 mod pptable_rdna3;

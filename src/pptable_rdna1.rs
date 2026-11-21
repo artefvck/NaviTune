@@ -10,6 +10,8 @@ pub struct AtomCommonTableHeaderR1 {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PptArch {
+    Vega10,
+    Vega20,
     Rdna1,
     Rdna2,
     Rdna3,
@@ -24,6 +26,10 @@ impl PptArch {
             Self::Rdna2
         } else if AtomSmcDpmInfoV4_5::from_bytes(buf).is_some() {
             Self::Rdna1
+        } else if crate::pptable_vega::AtomVega20PowerPlayTable::from_bytes(buf).is_some() {
+            Self::Vega20
+        } else if crate::pptable_vega::AtomVega10PowerPlayTable::from_bytes(buf).is_some() {
+            Self::Vega10
         } else {
             Self::Unknown
         }
@@ -31,6 +37,8 @@ impl PptArch {
 
     pub fn label(self) -> &'static str {
         match self {
+            Self::Vega10 => "Vega 10",
+            Self::Vega20 => "Vega 20",
             Self::Rdna1 => "RDNA 1",
             Self::Rdna2 => "RDNA 2",
             Self::Rdna3 => "RDNA 3",
