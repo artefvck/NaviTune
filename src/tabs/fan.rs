@@ -60,12 +60,26 @@ impl PowerPlayApp {
         }, |ui| {
             draw_card(ui, "Zero RPM", |ui| {
                 ui.horizontal(|ui| {
-                    crate::ui_theme::green_checkbox(ui, &mut self.fan_zero_rpm_enable, "Enable Zero RPM");
-                    ui.colored_label(
-                        egui::Color32::from_rgb(130, 145, 170),
-                        egui::RichText::new("[0x726 / 0x87C]").monospace().small(),
-                    );
+                    let resp = crate::ui_theme::green_checkbox(ui, &mut self.fan_zero_rpm_enable, "Enable Zero RPM");
+                    if resp.hovered() || resp.clicked() {
+                        let state = if self.fan_zero_rpm_enable { "Enabled" } else { "Disabled" };
+                        let info = format!("Zero RPM › Enable Zero RPM (0x726 / 0x87C) · {}", state);
+                        ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("hovered_field_banner"), info.clone()));
+                        resp.on_hover_text(info);
+                    }
                 });
+                if self.fan_zero_rpm_enable && !self.zero_rpm {
+                    ui.horizontal_wrapped(|ui| {
+                        ui.colored_label(
+                            egui::Color32::from_rgb(245, 185, 65),
+                            egui::RichText::new("⚠ OD8 Zero RPM feature flag is off").small(),
+                        );
+                        if ui.small_button("Enable in Features").clicked() {
+                            self.zero_rpm = true;
+                            ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("ppt_dirty"), true));
+                        }
+                    });
+                }
                 ui.add_space(4.0);
                 kv_row_1(ui, "Stop Temp (°C)", "fan_stop_temp (0x728 / 0x81E)", &mut self.fan_stop_temp, 62.0);
                 kv_row_1(ui, "Start Temp (°C)", "fan_start_temp (0x72A / 0x838)", &mut self.fan_start_temp, 62.0);
