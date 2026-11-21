@@ -10,7 +10,7 @@ impl PowerPlayApp {
         let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
         let is_rdna3 = arch.is_rdna3();
         let is_rdna2 = arch.is_rdna2();
-        let is_rdna1 = arch.is_rdna1() || arch.is_vega();
+        let is_rdna1 = arch.is_rdna1() || arch.is_vega() || arch.is_gcn_subtable();
 
         let mut issues: Vec<&str> = Vec::new();
         if !is_rdna3 {
