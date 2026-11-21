@@ -478,11 +478,18 @@ fn draw_tracked_drag<Num: egui::emath::Numeric + PartialEq + Copy + Send + Sync 
         }
         let card_title = ui.ctx().data(|d| d.get_temp::<String>(egui::Id::new("cur_card_title")).unwrap_or_default());
         let (field_lbl, field_tag) = ui.ctx().data(|d| d.get_temp::<(String, String)>(egui::Id::new("cur_field_info")).unwrap_or_default());
-        let unit_suffix = if field_lbl.contains("(°C)") || field_tag.contains("temp") {
+        let (col_u0, col_u1) = ui.ctx().data(|d| d.get_temp::<(String, String)>(egui::Id::new("cur_col_units")).unwrap_or_default());
+        let box_idx = ui.ctx().data(|d| d.get_temp::<usize>(egui::Id::new("cur_box_idx")).unwrap_or(0));
+        let col_u = if box_idx == 1 { col_u1.as_str() } else { col_u0.as_str() };
+        let unit_suffix: &str = if !col_u.is_empty() || (box_idx == 1 && !col_u0.is_empty()) {
+            col_u
+        } else if field_tag.starts_with("pcie_") || field_tag.contains("ctrl") || field_tag.starts_with("fan_mode") || field_tag.starts_with("fan_hyst") {
+            ""
+        } else if field_lbl.contains("(°C)") || card_title.contains("(°C)") || field_tag.contains("temp") || field_tag.contains("tvmin") {
             " °C"
-        } else if field_lbl.contains("(MHz)") || field_tag.contains("freq") || field_tag.contains("lclk") || field_tag.contains("od_gfx") || field_tag.contains("od_mem") {
+        } else if field_lbl.contains("(MHz)") || card_title.contains("(MHz)") || field_tag.contains("freq") || field_tag.contains("lclk") || field_tag.contains("od_gfx") || field_tag.contains("od_mem") || field_tag.contains("gfx_clock") || field_tag.contains("fclk_boost") {
             " MHz"
-        } else if field_lbl.contains("(mV)") || field_tag.contains("volt") || field_tag.contains("ulv") || field_tag.contains("dcbtc") {
+        } else if field_lbl.contains("(mV)") || card_title.contains("(mV)") || field_tag.contains("volt") || field_tag.contains("ulv") || field_tag.contains("dcbtc") || field_tag.contains("dctol") {
             " mV"
         } else if field_lbl.contains("(W)") || field_tag.contains("power_limit") {
             " W"

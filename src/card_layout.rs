@@ -42,7 +42,11 @@ pub fn two_col_cards(
 pub fn draw_card<R>(ui: &mut egui::Ui, title: &str, add_contents: impl FnOnce(&mut egui::Ui) -> R) {
     let outer_w = ui.available_width();
     let inner_w = (outer_w - 30.0).max(180.0);
-    ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("cur_card_title"), title.to_string()));
+    ui.ctx().data_mut(|d| {
+        d.insert_temp(egui::Id::new("cur_card_title"), title.to_string());
+        d.insert_temp(egui::Id::new("cur_col_units"), (String::new(), String::new()));
+        d.insert_temp(egui::Id::new("cur_box_idx"), 0usize);
+    });
     crate::ui_theme::card_frame(ui).show(ui, |ui| {
         ui.set_width(inner_w);
         ui.set_max_width(inner_w);
@@ -70,6 +74,7 @@ pub fn kv_row_1(ui: &mut egui::Ui, label: &str, var_tag: &str, val: &mut i32, bo
     ui.horizontal(|ui| {
         label_with_var(ui, label, var_tag);
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("cur_box_idx"), 0usize));
             crate::num_box(ui, val, w);
         });
     });
@@ -81,13 +86,31 @@ pub fn kv_row_2(ui: &mut egui::Ui, label: &str, var_tag: &str, pair: &mut [i32; 
         ui.spacing_mut().item_spacing.x = 6.0;
         label_with_var(ui, label, var_tag);
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("cur_box_idx"), 1usize));
             crate::num_box(ui, &mut pair[1], w);
+            ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("cur_box_idx"), 0usize));
             crate::num_box(ui, &mut pair[0], w);
         });
     });
 }
 
+fn extract_unit_from_text(s: &str) -> &'static str {
+    if s.contains("(°C)") { " °C" }
+    else if s.contains("(MHz)") { " MHz" }
+    else if s.contains("(mV)") { " mV" }
+    else if s.contains("(W)") { " W" }
+    else if s.contains("(A)") { " A" }
+    else if s.contains("(RPM)") { " RPM" }
+    else if s.contains("(%)") { " %" }
+    else { "" }
+}
+
 pub fn kv_header_2(ui: &mut egui::Ui, h1: &str, h2: &str, box_w: f32) {
+    let u1 = extract_unit_from_text(h1);
+    let u2 = extract_unit_from_text(h2);
+    if !u1.is_empty() || !u2.is_empty() || h2 == "Div" {
+        ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("cur_col_units"), (u1.to_string(), u2.to_string())));
+    }
     let w = dynamic_box_w(ui, box_w, 2);
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 6.0;
