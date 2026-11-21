@@ -1,4 +1,8 @@
 #[allow(dead_code)]
+#[path = "../src/ppt_arch.rs"]
+mod ppt_arch;
+
+#[allow(dead_code)]
 #[path = "../src/pptable_vega.rs"]
 mod pptable_vega;
 
