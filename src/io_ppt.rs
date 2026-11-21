@@ -346,6 +346,10 @@ impl PowerPlayApp {
             self.fan_zero_rpm_enable = v20.fan_zero_rpm_enable != 0;
             self.fan_stop_temp = { v20.fan_stop_temp } as i32;
             self.fan_start_temp = { v20.fan_start_temp } as i32;
+            let mask = { v20.features_to_run };
+            for bit in 0..64 {
+                self.smu_features[bit] = (mask & (1u64 << bit)) != 0;
+            }
             let tl = { v20.temp_limit };
             for i in 0..7 { self.temp_limits[i] = tl[i] as i32; }
 
@@ -671,19 +675,52 @@ impl PowerPlayApp {
             v20.max_voltage_gfx = (self.volt_gfx[1].max(0) * 4) as u16;
             v20.min_voltage_soc = (self.volt_soc[0].max(0) * 4) as u16;
             v20.max_voltage_soc = (self.volt_soc[1].max(0) * 4) as u16;
+
             v20.od_settings_min[0] = self.oc_gfx_clock[0].max(0) as u32;
             v20.od_settings_max[0] = self.oc_gfx_clock[1].max(0) as u32;
             v20.od_settings_min[1] = self.oc_mem_clock[0].max(0) as u32;
             v20.od_settings_max[1] = self.oc_mem_clock[1].max(0) as u32;
             v20.od_settings_min[2] = self.oc_power_limit[0] as u32;
             v20.od_settings_max[2] = self.oc_power_limit[1].max(0) as u32;
+            v20.od_settings_min[3] = self.oc_fan_rpm[0].max(0) as u32;
+            v20.od_settings_max[3] = self.oc_fan_rpm[1].max(0) as u32;
+            v20.od_settings_min[4] = self.oc_fan_acoustic_rpm[0].max(0) as u32;
+            v20.od_settings_max[4] = self.oc_fan_acoustic_rpm[1].max(0) as u32;
+
+            v20.freq_table_gfx[0] = self.freq_gfx[0].max(0) as u16;
+            v20.freq_table_gfx[15] = self.freq_gfx[1].max(0) as u16;
+            v20.freq_table_socclk[0] = self.freq_soc[0].max(0) as u16;
+            v20.freq_table_socclk[7] = self.freq_soc[1].max(0) as u16;
+            for i in 0..4 { v20.freq_table_uclk[i] = self.mem_dpm_freq[i][0].max(0) as u16; }
+            v20.vddci_max = (self.mem_dpm_volt[3][0].max(0) * 4) as u16;
+            v20.mvdd_max = (self.mem_dpm_volt[3][1].max(0) * 4) as u16;
+
             v20.fan_pwm_min = self.fan_pwm_min.max(0) as u16;
+            v20.fan_acoustic_limit_rpm = self.fan_acoustic_limit.max(0) as u16;
+            v20.fan_throttling_rpm = self.fan_throttling_rpm.max(0) as u16;
             v20.fan_maximum_rpm = self.fan_max_rpm.max(0) as u16;
             v20.fan_target_temperature = self.fan_target_temp.max(0) as u16;
             v20.fan_zero_rpm_enable = u8::from(self.fan_zero_rpm_enable);
             v20.fan_stop_temp = self.fan_stop_temp.max(0) as u16;
             v20.fan_start_temp = self.fan_start_temp.max(0) as u16;
-            for i in 0..4 { v20.freq_table_uclk[i] = self.mem_dpm_freq[i][0].max(0) as u16; }
+            for i in 0..7 { v20.temp_limit[i] = self.temp_limits[i].max(0) as u16; }
+
+            let mut mask = 0u64;
+            for bit in 0..64 {
+                if self.smu_features[bit] { mask |= 1u64 << bit; }
+            }
+            v20.features_to_run = mask;
+
+            v20.od_feature_flags[0] = u8::from(self.gpu_clock_limit);
+            v20.od_feature_flags[1] = u8::from(self.gpu_clock_curve);
+            v20.od_feature_flags[2] = u8::from(self.memory_clock_limit);
+            v20.od_feature_flags[3] = u8::from(self.zero_rpm);
+            v20.od_feature_flags[4] = u8::from(self.min_fan_speed);
+            v20.od_feature_flags[5] = u8::from(self.fan_target_temp_limit);
+            v20.od_feature_flags[6] = u8::from(self.operating_temp_limit);
+            v20.od_feature_flags[7] = u8::from(self.fan_acoustic_rpm);
+            v20.od_feature_flags[8] = u8::from(self.fan_curve);
+            v20.od_feature_flags[9] = u8::from(self.power_limit_feat);
             return;
         }
 
