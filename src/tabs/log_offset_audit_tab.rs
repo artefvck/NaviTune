@@ -67,6 +67,33 @@ impl PowerPlayApp {
                     ("Fan", "PWM Min / Max RPM", 0x68B, format!("{} / {}", f_pwm, f_max), format!("{} / {}", self.fan_pwm_min, self.fan_max_rpm)),
                     ("Fan", "Stop / Start / Target", 0x679, format!("{} / {} / {}", f_stop, f_start, f_tgt), format!("{} / {} / {}", self.fan_stop_temp, self.fan_start_temp, self.fan_target_temp)),
                 ])
+            } else if let Some(v20) = crate::pptable_vega::AtomVega20PowerPlayTable::from_bytes(&self.raw_buffer) {
+                let (od_min, od_max) = ({ v20.od_settings_min }, { v20.od_settings_max });
+                let pwr_w = { v20.socket_power_limit_ac[0] };
+                let (tdc_g, tdc_s) = ({ v20.tdc_limit_gfx }, { v20.tdc_limit_soc });
+                let (vg_min, vg_max) = ({ v20.min_voltage_gfx } / 4, { v20.max_voltage_gfx } / 4);
+                let (vs_min, vs_max) = ({ v20.min_voltage_soc } / 4, { v20.max_voltage_soc } / 4);
+                let (ft_gfx, ft_uclk) = ({ v20.freq_table_gfx }, { v20.freq_table_uclk });
+                let (f_pwm, f_max) = ({ v20.fan_pwm_min }, { v20.fan_maximum_rpm });
+                let (f_stop, f_start, f_tgt) = ({ v20.fan_stop_temp }, { v20.fan_start_temp }, { v20.fan_target_temperature });
+                ("Vega 20 (0x0B)", vec![
+                    ("OC Limits", "OD GFX Clock (Min/Max)", 0x055, format!("{} .. {}", od_min[0], od_max[0]), format!("{} .. {}", self.oc_gfx_clock[0], self.oc_gfx_clock[1])),
+                    ("OC Limits", "OD Mem Clock (Min/Max)", 0x059, format!("{} .. {}", od_min[1], od_max[1]), format!("{} .. {}", self.oc_mem_clock[0], self.oc_mem_clock[1])),
+                    ("Power", "PPT0 Limit (W)", 0x11D, format!("{}", pwr_w), format!("{}", self.power_limit_w)),
+                    ("Power", "TDC GFX / Soc (A)", 0x13D, format!("{} / {}", tdc_g, tdc_s), format!("{} / {}", self.tdc_gfx, self.tdc_soc)),
+                    ("Power", "GFX Voltage (mV)", 0x159, format!("{} .. {}", vg_min, vg_max), format!("{} .. {}", self.volt_gfx[0], self.volt_gfx[1])),
+                    ("Power", "Soc Voltage (mV)", 0x15B, format!("{} .. {}", vs_min, vs_max), format!("{} .. {}", self.volt_soc[0], self.volt_soc[1])),
+                    ("Frequency", "GFXCLK Min / Max (MHz)", 0x165, format!("{} .. {}", ft_gfx[0], ft_gfx[15]), format!("{} .. {}", self.freq_gfx[0], self.freq_gfx[1])),
+                    ("Frequency", "UCLK DPM 0..3 (MHz)", 0x1B5, format!("{}/{}/{}/{}", ft_uclk[0], ft_uclk[1], ft_uclk[2], ft_uclk[3]), format!("{}/{}/{}/{}", self.mem_dpm_freq[0][0], self.mem_dpm_freq[1][0], self.mem_dpm_freq[2][0], self.mem_dpm_freq[3][0])),
+                    ("Fan", "PWM Min / Max RPM", 0x675, format!("{} / {}", f_pwm, f_max), format!("{} / {}", self.fan_pwm_min, self.fan_max_rpm)),
+                    ("Fan", "Stop / Start / Target", 0x663, format!("{} / {} / {}", f_stop, f_start, f_tgt), format!("{} / {} / {}", self.fan_stop_temp, self.fan_start_temp, self.fan_target_temp)),
+                ])
+            } else if let Some(v10) = crate::pptable_vega::AtomVega10PowerPlayTable::from_bytes(&self.raw_buffer) {
+                ("Vega 10 (0x08)", vec![
+                    ("OC Limits", "Max OD Engine Clock (MHz)", 0x017, format!("{}", { v10.max_od_engine_clock } / 100), format!("{}", self.oc_gfx_clock[1])),
+                    ("OC Limits", "Max OD Memory Clock (MHz)", 0x01B, format!("{}", { v10.max_od_memory_clock } / 100), format!("{}", self.oc_mem_clock[1])),
+                    ("OC Limits", "Power Control Limit (+%)", 0x01F, format!("{}", { v10.power_control_limit }), format!("{}", self.oc_power_limit[1])),
+                ])
             } else if let Some(t) = AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer) {
                 let (od_gfx_min, od_gfx_max) = ({t.od_gfx_min[0]}, {t.od_gfx_max[0]});
                 let (od_mem_min, od_mem_max) = ({t.od_mem_min[0]}, {t.od_mem_max[0]});

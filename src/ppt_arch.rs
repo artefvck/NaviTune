@@ -51,4 +51,12 @@ impl PptArch {
     pub fn is_vega(self) -> bool {
         matches!(self, Self::Vega10 | Self::Vega20)
     }
+
+    pub fn max_temp_entries(self) -> usize {
+        match self {
+            Self::Vega20 | Self::Rdna1 => 7,
+            Self::Rdna2 | Self::Rdna3 => 9,
+            Self::Vega10 | Self::Unknown => 0,
+        }
+    }
 }
