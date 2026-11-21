@@ -367,6 +367,38 @@ impl PowerPlayApp {
             self.oc_gfx_clock = [0, ({ v10.max_od_engine_clock } / 100) as i32];
             self.oc_mem_clock = [0, ({ v10.max_od_memory_clock } / 100) as i32];
             self.oc_power_limit = [-50, { v10.power_control_limit } as i32];
+            self.oc_fan_rpm = [0, 0];
+            self.oc_fan_acoustic_rpm = [0, 0];
+            self.power_limit_w = 0;
+            self.tdc_gfx = 0;
+            self.tdc_soc = 0;
+            self.volt_gfx = [0, 0];
+            self.volt_soc = [0, 0];
+            self.ulv_gfx = [0, 0];
+            self.ulv_soc = [0, 0];
+            self.freq_gfx = [0, 0];
+            self.freq_soc = [0, 0];
+            self.freq_fclk = [0, 0];
+            self.freq_vclk = [0, 0];
+            self.freq_dclk = [0, 0];
+            self.freq_dcefclk = [0, 0];
+            self.freq_dispclk = [0, 0];
+            self.freq_pixclk = [0, 0];
+            self.freq_phyclk = [0, 0];
+            for i in 0..4 {
+                self.mem_dpm_freq[i] = [0, 1];
+                self.mem_dpm_volt[i] = [0, 0];
+            }
+            self.fan_pwm_min = 0;
+            self.fan_acoustic_limit = 0;
+            self.fan_throttling_rpm = 0;
+            self.fan_max_rpm = 0;
+            self.fan_target_temp = 0;
+            self.fan_target_gfx_clock = 0;
+            self.fan_zero_rpm_enable = false;
+            self.fan_stop_temp = 0;
+            self.fan_start_temp = 0;
+            for i in 0..9 { self.temp_limits[i] = 0; }
             self.status_msg = format!("Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B]", label, chip_v.display_name(), frev, crev, trev, b.len());
             self.raw_buffer = b;
             return;

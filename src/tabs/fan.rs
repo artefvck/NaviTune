@@ -9,6 +9,13 @@ impl PowerPlayApp {
 
         let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
         let is_rdna3 = arch.is_rdna3();
+        if arch == crate::ppt_arch::PptArch::Vega10 {
+            ui.colored_label(
+                egui::Color32::from_rgb(235, 190, 95),
+                "Vega 10 (SMU 9.0, rev 0x08) uses offset-indexed sub-tables; edit OverDrive GFX, Memory, and Power limits in OC Limits.",
+            );
+            ui.add_space(6.0);
+        }
         let is_rdna1 = arch.is_rdna1() || arch.is_vega();
         let is_rdna2 = !is_rdna3 && AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer).is_some();
 
