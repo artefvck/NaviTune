@@ -278,7 +278,7 @@ impl eframe::App for PowerPlayApp {
                 let current_text = self.gpus.get(self.selected_gpu).cloned().unwrap_or_else(|| "Select GPU Path...".into());
                 let mut picked_gpu: Option<usize> = None;
                 egui::ComboBox::from_id_salt("gpu_selector")
-                    .width(ui.available_width() - 86.0)
+                    .width((ui.available_width() - 92.0).max(140.0))
                     .selected_text(current_text)
                     .show_ui(ui, |ui| {
                         for (i, gpu) in self.gpus.iter().enumerate() {

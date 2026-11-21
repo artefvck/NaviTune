@@ -1,13 +1,7 @@
 use eframe::egui;
 
-pub fn dynamic_box_w(ui: &egui::Ui, min_w: f32, cols: usize) -> f32 {
-    let avail = ui.available_width();
-    let target = if cols <= 1 {
-        avail * 0.24
-    } else {
-        (avail * 0.44) / (cols as f32)
-    };
-    target.clamp(min_w.max(72.0), 116.0)
+pub fn dynamic_box_w(_ui: &egui::Ui, min_w: f32, _cols: usize) -> f32 {
+    min_w.max(78.0)
 }
 
 pub fn two_col_cards(
@@ -16,8 +10,9 @@ pub fn two_col_cards(
     left: impl FnOnce(&mut egui::Ui),
     right: impl FnOnce(&mut egui::Ui),
 ) {
-    let gap = 12.0;
-    let col_w = ((ui.available_width() - gap) * 0.5).floor().max(240.0);
+    let gap = 10.0;
+    let usable_w = (ui.available_width() - 10.0).max(320.0);
+    let col_w = ((usable_w - gap) * 0.5).floor();
     egui::Grid::new(id)
         .num_columns(2)
         .spacing([gap, 0.0])
@@ -38,7 +33,7 @@ pub fn two_col_cards(
 
 pub fn draw_card<R>(ui: &mut egui::Ui, title: &str, add_contents: impl FnOnce(&mut egui::Ui) -> R) {
     let outer_w = ui.available_width();
-    let inner_w = (outer_w - 28.0).max(180.0);
+    let inner_w = (outer_w - 32.0).max(140.0);
     ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("cur_card_title"), title.to_string()));
     crate::ui_theme::card_frame(ui).show(ui, |ui| {
         ui.set_width(inner_w);
