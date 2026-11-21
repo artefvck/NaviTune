@@ -8,6 +8,7 @@ mod io_ppt;
 mod macos_ioreg;
 mod more_popups;
 mod ppt_arch;
+mod pptable_polaris;
 mod pptable_vega;
 mod pptable_rdna1;
 mod pptable_rdna2;

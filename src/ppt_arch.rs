@@ -1,5 +1,6 @@
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PptArch {
+    Polaris,
     Vega10,
     Vega20,
     Rdna1,
@@ -20,6 +21,8 @@ impl PptArch {
             Self::Vega20
         } else if crate::pptable_vega::AtomVega10PowerPlayTable::from_bytes(buf).is_some() {
             Self::Vega10
+        } else if crate::pptable_polaris::AtomPolarisPowerPlayTable::from_bytes(buf).is_some() {
+            Self::Polaris
         } else {
             Self::Unknown
         }
@@ -27,6 +30,7 @@ impl PptArch {
 
     pub fn label(self) -> &'static str {
         match self {
+            Self::Polaris => "Polaris",
             Self::Vega10 => "Vega 10",
             Self::Vega20 => "Vega 20",
             Self::Rdna1 => "RDNA 1",
@@ -62,6 +66,7 @@ impl PptArch {
 
     pub fn default_table_size(self) -> usize {
         match self {
+            Self::Polaris => 384,
             Self::Vega10 => 512,
             Self::Vega20 | Self::Rdna1 => 1924,
             Self::Rdna2 => 2470,
