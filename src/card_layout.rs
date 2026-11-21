@@ -1,7 +1,7 @@
 use eframe::egui;
 
 pub fn dynamic_box_w(_ui: &egui::Ui, min_w: f32, _cols: usize) -> f32 {
-    min_w.max(76.0)
+    min_w.max(86.0)
 }
 
 pub fn two_col_cards(
