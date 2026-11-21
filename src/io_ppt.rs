@@ -452,6 +452,7 @@ impl PowerPlayApp {
                 self.freq_gfx = [0, gfx_hi];
                 self.freq_soc = [0, 0];
                 self.mem_dpm_freq[3] = [mem_hi, 1];
+                if let Some((vddci_hi, mvdd_hi)) = pol.read_hard_limit_mem_volt(&b) { self.mem_dpm_volt[3] = [vddci_hi, mvdd_hi]; }
             } else {
                 self.volt_gfx = [0, 0];
                 self.volt_soc = [0, 0];
@@ -492,6 +493,7 @@ impl PowerPlayApp {
                 self.freq_gfx = [0, gfx_hi];
                 self.freq_soc = [0, soc_hi];
                 self.mem_dpm_freq[3] = [mem_hi, 1];
+                if let Some((vddci_hi, mvdd_hi)) = v10.read_hard_limit_mem_volt(&b) { self.mem_dpm_volt[3] = [vddci_hi, mvdd_hi]; }
             } else {
                 self.volt_gfx = [0, 0];
                 self.volt_soc = [0, 0];
@@ -908,11 +910,13 @@ impl PowerPlayApp {
                 self.fan_stop_temp,
                 self.fan_start_temp,
             );
-            crate::pptable_polaris::AtomPolarisPowerPlayTable::write_hard_limits(
+            crate::pptable_polaris::AtomPolarisPowerPlayTable::write_hard_limits_full(
                 &mut self.raw_buffer,
                 self.freq_gfx[1],
                 self.mem_dpm_freq[3][0],
                 self.volt_gfx[1],
+                self.mem_dpm_volt[3][0],
+                self.mem_dpm_volt[3][1],
             );
             return;
         }
@@ -921,12 +925,14 @@ impl PowerPlayApp {
             v10.max_od_engine_clock = (self.oc_gfx_clock[1].max(0) * 100) as u32;
             v10.max_od_memory_clock = (self.oc_mem_clock[1].max(0) * 100) as u32;
             v10.power_control_limit = self.oc_power_limit[1].max(0) as u16;
-            crate::pptable_vega::AtomVega10PowerPlayTable::write_hard_limits(
+            crate::pptable_vega::AtomVega10PowerPlayTable::write_hard_limits_full(
                 &mut self.raw_buffer,
                 self.freq_soc[1],
                 self.freq_gfx[1],
                 self.mem_dpm_freq[3][0],
                 self.volt_gfx[1],
+                self.mem_dpm_volt[3][0],
+                self.mem_dpm_volt[3][1],
             );
             crate::pptable_vega::AtomVega10PowerPlayTable::write_fan_subtable(
                 &mut self.raw_buffer,
