@@ -183,11 +183,11 @@ impl PowerPlayApp {
         }
 
         if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(&b) {
+            let did = self.vbios_buffer.as_deref()
+                .and_then(|vb| crate::vbios::inspect_vbios_info(vb, self.vbios_ppt_offset.unwrap_or(0)))
+                .map(|vi| vi.device_id)
+                .unwrap_or(0);
             let chip1 = t1.detect_chip(did);
-            self.vbios_buffer = saved_vbios;
-            self.vbios_ppt_offset = saved_voff;
-            self.loaded_file = saved_file;
-            self.selected_gpu = saved_gpu;
 
             let f = { t1.od_feature_flags };
             self.gpu_clock_limit = f[0] != 0;
