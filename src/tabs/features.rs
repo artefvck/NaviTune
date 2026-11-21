@@ -28,7 +28,6 @@ impl PowerPlayApp {
                 for (flag, lbl, tag) in left_items {
                     cols[0].horizontal(|ui| {
                         let resp = crate::ui_theme::green_checkbox(ui, flag, lbl);
-                        ui.colored_label(egui::Color32::from_rgb(130, 145, 170), egui::RichText::new(format!("[{}]", tag)).monospace().small());
                         if resp.hovered() || resp.clicked() {
                             let state = if *flag { "Enabled" } else { "Disabled" };
                             let info = format!("OverDrive Features › {} ({}) · {}", lbl, tag, state);
@@ -50,7 +49,6 @@ impl PowerPlayApp {
                 for (flag, lbl, tag) in right_items {
                     cols[1].horizontal(|ui| {
                         let resp = crate::ui_theme::green_checkbox(ui, flag, lbl);
-                        ui.colored_label(egui::Color32::from_rgb(130, 145, 170), egui::RichText::new(format!("[{}]", tag)).monospace().small());
                         if resp.hovered() || resp.clicked() {
                             let state = if *flag { "Enabled" } else { "Disabled" };
                             let info = format!("OverDrive Features › {} ({}) · {}", lbl, tag, state);
