@@ -343,6 +343,9 @@ impl PowerPlayApp {
             self.fan_throttling_rpm = { v20.fan_throttling_rpm } as i32;
             self.fan_max_rpm = { v20.fan_maximum_rpm } as i32;
             self.fan_target_temp = { v20.fan_target_temperature } as i32;
+            self.fan_target_gfx_clock = { v20.fan_target_gfxclk } as i32;
+            self.ulv_gfx = [{ v20.min_voltage_ulv_gfx } as i32 / 4, 0];
+            self.ulv_soc = [{ v20.min_voltage_ulv_soc } as i32 / 4, 0];
             self.fan_zero_rpm_enable = v20.fan_zero_rpm_enable != 0;
             self.fan_stop_temp = { v20.fan_stop_temp } as i32;
             self.fan_start_temp = { v20.fan_start_temp } as i32;
@@ -732,6 +735,9 @@ impl PowerPlayApp {
             v20.fan_throttling_rpm = self.fan_throttling_rpm.max(0) as u16;
             v20.fan_maximum_rpm = self.fan_max_rpm.max(0) as u16;
             v20.fan_target_temperature = self.fan_target_temp.max(0) as u16;
+            v20.fan_target_gfxclk = self.fan_target_gfx_clock.max(0) as u16;
+            v20.min_voltage_ulv_gfx = (self.ulv_gfx[0].max(0) * 4) as u16;
+            v20.min_voltage_ulv_soc = (self.ulv_soc[0].max(0) * 4) as u16;
             v20.fan_zero_rpm_enable = u8::from(self.fan_zero_rpm_enable);
             v20.fan_stop_temp = self.fan_stop_temp.max(0) as u16;
             v20.fan_start_temp = self.fan_start_temp.max(0) as u16;
