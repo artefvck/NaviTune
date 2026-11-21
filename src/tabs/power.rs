@@ -8,8 +8,7 @@ impl PowerPlayApp {
         use crate::card_layout::*;
 
         let is_rdna3 = AtomSmcDpmInfoV4_12::from_bytes(&self.raw_buffer).is_some();
-        let is_rdna2 = !is_rdna3 && AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer).is_some();
-
+        
         let mut issues: Vec<&'static str> = Vec::new();
         if self.volt_gfx > self.volt_gfx {
             issues.push("GFX Vmin > Vmax");
@@ -33,7 +32,7 @@ impl PowerPlayApp {
 
         two_col_cards(ui, "pwr_cols", |ui| {
             draw_card(ui, "Core Voltage (mV)", |ui| {
-                kv_header_2(ui, "Min", "Max", 62.0);
+                kv_header_2(ui, "Vmin", "Vmax", 62.0);
                 kv_row_2(ui, "GFX", "vmin/vmax_gfx (0x3A6 / 0x3B4)", &mut self.volt_gfx, 62.0);
                 kv_row_2(ui, "Soc", "vmin/vmax_soc (0x3AA / 0x3B8)", &mut self.volt_soc, 62.0);
             });
@@ -43,9 +42,14 @@ impl PowerPlayApp {
                 kv_row_1(ui, "TDC Soc (A)", "tdc_limit_soc (0x350 / 0x368)", &mut self.tdc_soc, 62.0);
             });
             draw_card(ui, "ULV Voltage (mV)", |ui| {
-                kv_header_2(ui, "Vmin", "Offset", 62.0);
-                kv_row_2(ui, "GFX", "ulv_voltage_vmin_gfx (0x380 / 0x3C4)", &mut self.ulv_gfx, 62.0);
-                kv_row_2(ui, "Soc", "ulv_voltage_vmin_soc (0x382 / 0x3C6)", &mut self.ulv_soc, 62.0);
+                if is_rdna3 {
+                    kv_row_1(ui, "GFX Vmin", "ulv_voltage_vmin_gfx (0x3C4)", &mut self.ulv_gfx[0], 62.0);
+                    kv_row_1(ui, "Soc Vmin", "ulv_voltage_vmin_soc (0x3C6)", &mut self.ulv_soc[0], 62.0);
+                } else {
+                    kv_header_2(ui, "Vmin", "Vmax", 62.0);
+                    kv_row_2(ui, "GFX", "ulv_voltage_vmin_gfx (0x380)", &mut self.ulv_gfx, 62.0);
+                    kv_row_2(ui, "Soc", "ulv_voltage_vmin_soc (0x382)", &mut self.ulv_soc, 62.0);
+                }
             });
         }, |ui| {
             draw_card(ui, "Memory Voltage (mV)", |ui| {
@@ -54,7 +58,7 @@ impl PowerPlayApp {
                     kv_row_2(ui, &format!("DPM {}", i), &format!("vddci/mvdd_{} (0x66A / 0x7D4)", i), &mut self.mem_dpm_volt[i], 62.0);
                 }
             });
-            if is_rdna2 || !is_rdna3 {
+            if !is_rdna3 {
                 draw_card(ui, "Thermal Vmin", |ui| {
                     kv_header_2(ui, "TVmin (°C)", "Hyst (°C)", 62.0);
                     kv_row_2(ui, "GFX", "tvmin/hyst_gfx (0x3B2)", &mut self.tvmin_gfx, 62.0);
