@@ -48,14 +48,14 @@ fn test_rdna3_v4_12_size_and_navi31_vs_navi33_scaling() {
         let t3 = AtomSmcDpmInfoV4_12::from_bytes_mut(&mut buf).expect("valid V4_12 mutable view");
         t3.od_gfx_max = 2900;
         t3.od_mem_max = 1200;
-        t3.socket_power_limit_ac[0] = 165;
+        t3.socket_power_limit_ac = 165;
         t3.fan_target_temp = 18;
     }
 
     let t3_read = AtomSmcDpmInfoV4_12::from_bytes(&buf).expect("valid V4_12 read view");
     assert_eq!({ t3_read.od_gfx_max }, 2900);
     assert_eq!({ t3_read.od_mem_max }, 1200);
-    assert_eq!({ t3_read.socket_power_limit_ac[0] }, 165);
+    assert_eq!({ t3_read.socket_power_limit_ac }, 165);
 
     let raw_tt = { t3_read.fan_target_temp } as i32;
     let ui_tt = if raw_tt > 200 { raw_tt / 10 } else { raw_tt };
