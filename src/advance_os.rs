@@ -368,7 +368,7 @@ pub(crate) fn export_macos_injector_kext(ppt_bytes: &[u8], kext_dir: &std::path:
 			<key>IOMatchCategory</key>
 			<string>RadeonPowerPlayInjector</string>
 			<key>IOPCIMatch</key>
-			<string>0x73ff1002 0x73ef1002 0x73df1002 0x73e01002 0x73e11002 0x73e31002 0x73bf1002 0x73af1002 0x743f1002</string>
+			<string>0x73ff1002 0x73ef1002 0x73df1002 0x73e01002 0x73e11002 0x73e31002 0x73bf1002 0x73af1002 0x743f1002 0x744c1002 0x74701002 0x747e1002 0x74801002 0x74831002</string>
 			<key>IOPCITunnelCompatible</key>
 			<true/>
 			<key>IOProbeScore</key>
@@ -461,6 +461,7 @@ pub(crate) fn compile_dsl_to_aml(dsl_text: &str, out_aml_path: &std::path::Path)
 }
 
 pub(crate) fn format_opencore_acpi_dsl(ppt_bytes: &[u8], acpi_path: &str, dis_pc: bool, dis_ulps: bool) -> String {
+    let arch_lbl = if ppt_bytes.len() >= 5000 { "RDNA 3" } else { "RDNA 2" };
     let ext_path = if let Some(rest) = acpi_path.strip_prefix("_SB.") {
         format!("_SB_.{}", rest)
     } else {
@@ -481,7 +482,7 @@ pub(crate) fn format_opencore_acpi_dsl(ppt_bytes: &[u8], acpi_path: &str, dis_pc
     }
 
     format!(
-        r#"// OpenCore ACPI SSDT Patch for AMD RDNA 2 Soft PowerPlay Table ({len} bytes)
+        r#"// OpenCore ACPI SSDT Patch for AMD {arch} Soft PowerPlay Table ({len} bytes)
 // Compile with: iasl -tc SSDT-sPPT.dsl
 // Detected Live ACPI GPU Path: {scope_path}
 
@@ -519,7 +520,8 @@ DefinitionBlock ("", "SSDT", 2, "XPPT", "AMDPPT", 0x00001000)
         u8::from(dis_pc), u8::from(dis_ulps), len = ppt_bytes.len(),
         rows = hex_rows,
         ext_path = ext_path,
-        scope_path = acpi_path
+        scope_path = acpi_path,
+        arch = arch_lbl
     )
 }
 
