@@ -27,6 +27,14 @@ impl PowerPlayApp {
                         if od8_ok { "UNLOCKED" } else { "PARTIAL" },
                     );
                     ui.end_row();
+                    ui.label("Registry Override");
+                    let reg_active = self.ioreg_entries.get(self.selected_gpu).and_then(|e| e.ppt_bytes.as_ref()).map(|b| !b.is_empty()).unwrap_or(false) && cfg!(target_os = "windows");
+                    ui.monospace(if reg_active { format!("PP_PhmSoftPowerPlayTable ({} B)", self.raw_buffer.len()) } else { "Factory (No Override)".to_string() });
+                    ui.colored_label(
+                        if reg_active { egui::Color32::from_rgb(245, 185, 65) } else { egui::Color32::from_rgb(80, 210, 120) },
+                        if reg_active { "PATCHED" } else { "FACTORY" },
+                    );
+                    ui.end_row();
                     ui.label("PPT / TDC / Vmax");
                     ui.monospace(format!("{}W / {}A / {}mV", pwr_w, tdc_g, vg1));
                     let ok = pwr_w > 0 && tdc_g > 0 && vg1 <= 1250; ui.colored_label(if ok { egui::Color32::from_rgb(80, 210, 120) } else { egui::Color32::from_rgb(245, 185, 65) }, if ok { "OK" } else { "CHECK" });
@@ -43,6 +51,7 @@ impl PowerPlayApp {
                         let sel_lbl = self.gpus.get(self.selected_gpu).cloned().unwrap_or_default();
                         match write_ppt_to_windows_registry(&self.raw_buffer, &sel_lbl) {
                             Ok(msg) => {
+                                crate::ui_theme::log_debug("WIN_REG", &msg);
                                 self.status_msg = msg;
                                 self.refresh_ioreg_gpus();
                             }
@@ -53,6 +62,7 @@ impl PowerPlayApp {
                         let sel_lbl = self.gpus.get(self.selected_gpu).cloned().unwrap_or_default();
                         match delete_ppt_from_windows_registry(&sel_lbl) {
                             Ok(msg) => {
+                                crate::ui_theme::log_debug("WIN_REG", &msg);
                                 self.status_msg = msg;
                                 self.refresh_ioreg_gpus();
                             }
