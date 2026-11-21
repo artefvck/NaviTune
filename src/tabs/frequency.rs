@@ -68,7 +68,7 @@ impl PowerPlayApp {
         }, |ui| {
             draw_card(ui, "Memory DPM", |ui| {
                 if is_rdna3 || is_rdna1 {
-                    let off = if is_rdna3 { "0x63C" } else { "0x14F" };
+                    let off = if is_rdna3 { "0x63C" } else if arch == crate::ppt_arch::PptArch::Vega20 { "0x1B5" } else { "0x14F" };
                     for i in 0..4 {
                         kv_row_1(ui, &format!("DPM {} (MHz)", i), &format!("freq_uclk[{}] ({})", i, off), &mut self.mem_dpm_freq[i][0], 62.0);
                     }

@@ -32,16 +32,42 @@ impl PowerPlayApp {
             ui.add_space(4.0);
         }
 
+        let (vg_tag, vs_tag, ppt_tag, tdcg_tag, tdcs_tag, memv_tag) = match arch {
+            crate::ppt_arch::PptArch::Vega20 => (
+                "vmin/vmax_gfx (0x159 / 0x15D)",
+                "vmin/vmax_soc (0x15B / 0x15F)",
+                "socket_power_limit_ac (0x11D)",
+                "tdc_limit_gfx (0x13D)",
+                "tdc_limit_soc (0x13F)",
+                "vddci_max / mvdd_max (0x145 / 0x147)",
+            ),
+            crate::ppt_arch::PptArch::Rdna1 => (
+                "vmin/vmax_gfx (0x0F3 / 0x0F7)",
+                "vmin/vmax_soc (0x0F5 / 0x0F9)",
+                "socket_power_limit_ac (0x0B7)",
+                "tdc_limit_gfx (0x0D7)",
+                "tdc_limit_soc (0x0D9)",
+                memv_tag,
+            ),
+            _ => (
+                "vmin/vmax_gfx (0x3A6 / 0x3B4)",
+                "vmin/vmax_soc (0x3AA / 0x3B8)",
+                "socket_power_limit_ac (0x32E / 0x350)",
+                "tdc_limit_gfx (0x34E / 0x366)",
+                "tdc_limit_soc (0x350 / 0x368)",
+                "vddci_max / mvdd_max (0x0DF / 0x0E1)",
+            ),
+        };
         two_col_cards(ui, "pwr_cols", |ui| {
             draw_card(ui, "Core Voltage (mV)", |ui| {
                 kv_header_2(ui, "Vmin", "Vmax", 62.0);
-                kv_row_2(ui, "GFX", "vmin/vmax_gfx (0x3A6 / 0x3B4)", &mut self.volt_gfx, 62.0);
-                kv_row_2(ui, "Soc", "vmin/vmax_soc (0x3AA / 0x3B8)", &mut self.volt_soc, 62.0);
+                kv_row_2(ui, "GFX", vg_tag, &mut self.volt_gfx, 62.0);
+                kv_row_2(ui, "Soc", vs_tag, &mut self.volt_soc, 62.0);
             });
             draw_card(ui, "Power & Current", |ui| {
-                kv_row_1(ui, "Power Limit (W)", "socket_power_limit_ac (0x32E / 0x350)", &mut self.power_limit_w, 62.0);
-                kv_row_1(ui, "TDC GFX (A)", "tdc_limit_gfx (0x34E / 0x366)", &mut self.tdc_gfx, 62.0);
-                kv_row_1(ui, "TDC Soc (A)", "tdc_limit_soc (0x350 / 0x368)", &mut self.tdc_soc, 62.0);
+                kv_row_1(ui, "Power Limit (W)", ppt_tag, &mut self.power_limit_w, 62.0);
+                kv_row_1(ui, "TDC GFX (A)", tdcg_tag, &mut self.tdc_gfx, 62.0);
+                kv_row_1(ui, "TDC Soc (A)", tdcs_tag, &mut self.tdc_soc, 62.0);
             });
             draw_card(ui, "ULV Voltage (mV)", |ui| {
                 if is_rdna3 {
