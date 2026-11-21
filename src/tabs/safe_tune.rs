@@ -25,10 +25,10 @@ impl PowerPlayApp {
         ) = if let Some(t3) = AtomSmcDpmInfoV4_12::from_bytes(&self.raw_buffer) {
             let chip3 = t3.detect_chip(did);
             match chip3 {
-                NaviRDNA3Chip::Navi31PlumBonito => (chip3.display_name(), true, 1200, 1200, 260, 365, 460, 90, 1300, 105, 1400, 2200, 16),
-                NaviRDNA3Chip::Navi32WheatNas => (chip3.display_name(), true, 1200, 1200, 200, 275, 340, 75, 1350, 105, 1400, 2000, 16),
-                NaviRDNA3Chip::Navi33Hotbeige => (chip3.display_name(), true, 1200, 1200, 140, 200, 240, 60, 1150, 105, 1400, 1800, 8),
-                NaviRDNA3Chip::UnknownRdna3 => (chip3.display_name(), true, 1200, 1200, 140, 365, 460, 90, 1300, 105, 1400, 1800, 16),
+                NaviRDNA3Chip::Navi31PlumBonito => (chip3.display_name(), true, 1200, 1325, 260, 365, 460, 90, 1300, 105, 1400, 2200, 16),
+                NaviRDNA3Chip::Navi32WheatNas => (chip3.display_name(), true, 1200, 1325, 200, 275, 340, 75, 1350, 105, 1400, 2000, 16),
+                NaviRDNA3Chip::Navi33Hotbeige => (chip3.display_name(), true, 1200, 1325, 140, 200, 240, 60, 1150, 105, 1400, 1800, 8),
+                NaviRDNA3Chip::UnknownRdna3 => (chip3.display_name(), true, 1200, 1325, 140, 365, 460, 90, 1300, 105, 1400, 1800, 16),
             }
         } else {
             let chip2 = AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer)
@@ -71,7 +71,7 @@ impl PowerPlayApp {
         checks.push(("Memory", "VDDCI / MVDD DPM 0..3", format!("DPM3: {} / {} mV", self.mem_dpm_volt[3][0], self.mem_dpm_volt[3][1]), "VDDCI <= MVDD <= 1365 mV".to_string(), mem_v_sev, "Factory DPM3 is 800..850 mV VDDCI / 1350 mV MVDD; keep MVDD <= 1365 mV on air."));
 
         let hotspot_lim = self.temp_limits[1];
-        let fan_sev = if self.fan_stop_temp >= self.fan_start_temp || self.fan_start_temp >= self.fan_target_temp || hotspot_lim > 115 { 2 } else if self.fan_target_temp > max_fan_tgt || self.fan_pwm_min < 10 || hotspot_lim > 110 { 1 } else { 0 };
+        let fan_sev = if self.fan_stop_temp >= self.fan_start_temp || (self.fan_target_temp >= 45 && self.fan_start_temp >= self.fan_target_temp) || hotspot_lim > 115 { 2 } else if self.fan_target_temp > max_fan_tgt || self.fan_pwm_min < 10 || hotspot_lim > 110 { 1 } else { 0 };
         checks.push(("Thermal", "Fan & Hotspot Limits", format!("Stop {}° / Start {}° / Tgt {}° | Hotspot {}°C", self.fan_stop_temp, self.fan_start_temp, self.fan_target_temp, hotspot_lim), format!("Stop < Start < Tgt <= {}° | Hotspot <= 110°C", max_fan_tgt), fan_sev, "Ensures smooth Zero-RPM hysteresis and safe Junction/Hotspot throttling margin."));
 
         let od_pwr_sev = if self.oc_power_limit[0] > self.oc_power_limit[1] || self.oc_power_limit[1] > 30 { 2 } else if self.oc_power_limit[0] < -10 || self.oc_power_limit[1] > 20 { 1 } else { 0 };
@@ -80,7 +80,8 @@ impl PowerPlayApp {
         let fclk_sev = if self.freq_fclk[0] > self.freq_fclk[1] || self.freq_soc[0] > self.freq_soc[1] { 2 } else if self.freq_fclk[1] < min_fclk || self.freq_soc[1] < min_soc { 1 } else { 0 };
         checks.push(("Fabric", "FCLK & SoC Max Coupling", format!("FCLK {} MHz | SoC {} MHz", self.freq_fclk[1], self.freq_soc[1]), format!("FCLK >= {} MHz | SoC >= {} MHz", min_fclk, min_soc), fclk_sev, "Factory RDNA 2 runs ~1800 MHz FCLK; factory RDNA 3 runs ~1500 MHz FCLK / 2400+ MHz SoC."));
 
-        let pcie_sev = if self.pcie_gen_speed[1] > 4 || self.pcie_lane_count[1] > expected_lanes { 2 } else if self.pcie_gen_speed[1] < 4 || self.pcie_lane_count[1] < expected_lanes { 1 } else { 0 };
+        let min_gen = if is_rdna3 { 3 } else { 4 };
+        let pcie_sev = if self.pcie_gen_speed[1] > 4 || self.pcie_lane_count[1] > expected_lanes { 2 } else if self.pcie_gen_speed[1] < min_gen || self.pcie_lane_count[1] < expected_lanes { 1 } else { 0 };
         checks.push(("PCIe Bus", "Link Gen & Lane Width", format!("Gen {} x{} lanes", self.pcie_gen_speed[1], self.pcie_lane_count[1]), format!("Gen 4 x{} lanes (Silicon Native)", expected_lanes), pcie_sev, "Navi 21/22/31/32 use PCIe 4.0 x16; Navi 23/33 use x8; Navi 24 uses x4."));
 
         let prot_ok = if is_rdna3 {
