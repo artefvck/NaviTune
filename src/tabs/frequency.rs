@@ -41,24 +41,31 @@ impl PowerPlayApp {
 
         two_col_cards(ui, "freq_cols", |ui| {
             draw_card(ui, "Clock Limits", |ui| {
-                kv_header_2(ui, "Min", "Max", 62.0);
-                kv_row_2(ui, "GFX", "freq_gfx (0x52E / 0x5EC)", &mut self.freq_gfx, 62.0);
-                kv_row_2(ui, "Soc", "freq_soc (0x56E / 0x60E)", &mut self.freq_soc, 62.0);
-                kv_row_2(ui, "FCLK", "freq_fclk (0x5D6 / 0x62C)", &mut self.freq_fclk, 62.0);
-                if is_rdna2 || !is_rdna3 {
-                    ui.add_space(4.0);
-                    for (lbl, tag, pair) in [
-                        ("VCLK", "freq_vclk", &mut self.freq_vclk),
-                        ("DCLK", "freq_dclk", &mut self.freq_dclk),
-                        ("DCEFCLK", "freq_dcef", &mut self.freq_dcefclk),
-                        ("DISPCLK", "freq_disp", &mut self.freq_dispclk),
-                        ("PIXCLK", "freq_pix", &mut self.freq_pixclk),
-                        ("PHYCLK", "freq_phy", &mut self.freq_phyclk),
-                        ("DTBCLK", "freq_dtb", &mut self.freq_dtbclk),
-                    ] {
-                        kv_row_2(ui, lbl, tag, pair, 62.0);
+                if arch.is_gcn_subtable() {
+                    kv_row_1(ui, "GFXCLK Max (HardLimit)", "hard_limit_table_offset GFXCLK (MHz)", &mut self.freq_gfx[1], 62.0);
+                    if arch == crate::ppt_arch::PptArch::Vega10 {
+                        kv_row_1(ui, "SOCCLK Max (HardLimit)", "hard_limit_table_offset SOCCLK (MHz)", &mut self.freq_soc[1], 62.0);
                     }
-                    kv_row_1(ui, "FCLK Boost", "fclk_boost", &mut self.fclk_boost_freq, 62.0);
+                } else {
+                    kv_header_2(ui, "Min", "Max", 62.0);
+                    kv_row_2(ui, "GFX", "freq_gfx (0x52E / 0x5EC)", &mut self.freq_gfx, 62.0);
+                    kv_row_2(ui, "Soc", "freq_soc (0x56E / 0x60E)", &mut self.freq_soc, 62.0);
+                    kv_row_2(ui, "FCLK", "freq_fclk (0x5D6 / 0x62C)", &mut self.freq_fclk, 62.0);
+                    if is_rdna2 || !is_rdna3 {
+                        ui.add_space(4.0);
+                        for (lbl, tag, pair) in [
+                            ("VCLK", "freq_vclk", &mut self.freq_vclk),
+                            ("DCLK", "freq_dclk", &mut self.freq_dclk),
+                            ("DCEFCLK", "freq_dcef", &mut self.freq_dcefclk),
+                            ("DISPCLK", "freq_disp", &mut self.freq_dispclk),
+                            ("PIXCLK", "freq_pix", &mut self.freq_pixclk),
+                            ("PHYCLK", "freq_phy", &mut self.freq_phyclk),
+                            ("DTBCLK", "freq_dtb", &mut self.freq_dtbclk),
+                        ] {
+                            kv_row_2(ui, lbl, tag, pair, 62.0);
+                        }
+                        kv_row_1(ui, "FCLK Boost", "fclk_boost", &mut self.fclk_boost_freq, 62.0);
+                    }
                 }
             });
         }, |ui| {
