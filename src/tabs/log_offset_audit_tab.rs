@@ -20,11 +20,11 @@ impl PowerPlayApp {
                 let fs1 = {t3.freq_soc_max};
                 let (ff0, ff1) = ({t3.freq_fclk_min}, {t3.freq_fclk_max});
                 let uclk3 = {t3.freq_uclk[3]};
-                let (pcie_g0, pcie_g1) = ({t3.pcie_gen_speed[0]}, {t3.pcie_gen_speed[1]});
-                let (pcie_l0, pcie_l1) = ({t3.pcie_lane_count[0]}, {t3.pcie_lane_count[1]});
-                let (lclk0, lclk1) = ({t3.lclk_freq[0]}, {t3.lclk_freq[1]});
+                let (pcie_g0, pcie_g1) = ({t3.pcie_gen_speed[0]}, {t3.pcie_gen_speed[2]});
+                let (pcie_l0, pcie_l1) = ({t3.pcie_lane_count[0]}, {t3.pcie_lane_count[2]});
+                let (lclk0, lclk1) = ({t3.lclk_freq[0]}, {t3.lclk_freq[2]});
                 let (f_pwm, f_max) = ({t3.fan_pwm_min}, {t3.fan_max_rpm});
-                let (f_stop, f_start, f_tgt) = ({t3.fan_stop_temp}, {t3.fan_start_temp}, {t3.fan_target_temp});
+                let (f_stop, f_start, f_tgt) = ({t3.fan_stop_temp}, {t3.fan_start_temp}, {t3.fan_target_temp} / 10);
                 ("RDNA 3 · SMU 13.0", vec![
                     ("OC Limits", "OD8 GFX Max (MHz)", off3("od_gfx"), format!("{}", od_g), format!("{}", self.oc_gfx_clock[1])),
                     ("OC Limits", "OD8 Mem Max (MHz)", off3("od_mem"), format!("{}", od_m), format!("{}", self.oc_mem_clock[1])),
@@ -41,7 +41,7 @@ impl PowerPlayApp {
                     ("Frequency", "Soc Max (MHz)", off3("freq_soc"), format!("{}", fs1), format!("{}", self.freq_soc[1])),
                     ("Frequency", "FCLK Min / Max (MHz)", off3("freq_fclk"), format!("{} / {}", ff0, ff1), format!("{} / {}", self.freq_fclk[0], self.freq_fclk[1])),
                     ("Frequency", "Mem DPM3 UCLK (MHz)", off3("mem_dpm_freq"), format!("{}", uclk3), format!("{}", self.mem_dpm_freq[3][0])),
-                    ("Frequency", "PCIe Gen & Lanes", off3("pcie_gen"), format!("Gen {}/{} x{}/{}", pcie_g0, pcie_g1, pcie_l0, pcie_l1), format!("Gen {}/{} x{}/{}", self.pcie_gen_speed[0], self.pcie_gen_speed[1], self.pcie_lane_count[0], self.pcie_lane_count[1])),
+                    ("Frequency", "PCIe Gen & Lanes", 0x810usize, format!("Gen {}/{} x{}/{}", pcie_g0, pcie_g1, pcie_l0, pcie_l1), format!("Gen {}/{} x{}/{}", self.pcie_gen_speed[0], self.pcie_gen_speed[1], self.pcie_lane_count[0], self.pcie_lane_count[1])),
                     ("Frequency", "LCLK Min / Max (MHz)", off3("lclk"), format!("{} / {}", lclk0, lclk1), format!("{} / {}", self.lclk_mhz[0], self.lclk_mhz[1])),
                     ("Fan", "PWM Min / Max RPM", off3("fan_pwm_min"), format!("{} / {}", f_pwm, f_max), format!("{} / {}", self.fan_pwm_min, self.fan_max_rpm)),
                     ("Fan", "Stop / Start / Target", off3("fan_stop_temp"), format!("{} / {} / {}", f_stop, f_start, f_tgt), format!("{} / {} / {}", self.fan_stop_temp, self.fan_start_temp, self.fan_target_temp)),
