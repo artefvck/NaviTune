@@ -160,6 +160,11 @@ impl PowerPlayApp {
                                 egui::Color32::from_rgb(95, 200, 145),
                                 egui::RichText::new(t3.detect_chip(did).display_name()).strong(),
                             );
+                        } else if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(&self.raw_buffer) {
+                            ui.colored_label(
+                                egui::Color32::from_rgb(95, 200, 145),
+                                egui::RichText::new(t1.detect_chip(did).display_name()).strong(),
+                            );
                         } else if let Some(t) = crate::pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer) {
                             let chip = t.detect_chip(&self.raw_buffer);
                             ui.colored_label(

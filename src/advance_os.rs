@@ -459,7 +459,7 @@ pub(crate) fn compile_dsl_to_aml(dsl_text: &str, out_aml_path: &std::path::Path)
 }
 
 pub(crate) fn format_opencore_acpi_dsl(ppt_bytes: &[u8], acpi_path: &str, dis_pc: bool, dis_ulps: bool) -> String {
-    let arch_lbl = if ppt_bytes.len() >= 5000 { "RDNA 3" } else { "RDNA 2" };
+    let arch_lbl = if ppt_bytes.len() >= 5000 { "RDNA 3" } else if ppt_bytes.len() < 2200 { "RDNA 1" } else { "RDNA 2" };
     let ext_path = if let Some(rest) = acpi_path.strip_prefix("_SB.") {
         format!("_SB_.{}", rest)
     } else {

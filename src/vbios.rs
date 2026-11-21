@@ -152,6 +152,9 @@ pub fn recalc_vbios_checksum(buf: &mut [u8]) {
 
 fn gpu_device_name(did: u16) -> &'static str {
     match did {
+        0x7310 | 0x7312 | 0x731F => "AMD Radeon RX 5600 / 5700 XT (Navi 10)",
+        0x7340 | 0x7341 | 0x7347 | 0x734F => "AMD Radeon RX 5300 / 5500 XT / Pro W5500 (Navi 14)",
+        0x7360 | 0x7362 => "AMD Radeon Pro V520 / RX 5600M (Navi 12)",
         0x73BF => "Navi 21 (RX 6800/6900)",
         0x73AF => "Navi 21 XTXH (RX 6900 XT)",
         0x73DF => "Navi 22 (RX 6700/6750 XT)",
