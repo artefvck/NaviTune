@@ -26,7 +26,7 @@ impl PowerPlayApp {
             let chip3 = t3.detect_chip(did);
             match chip3 {
                 NaviRDNA3Chip::Navi31PlumBonito => (chip3.display_name(), true, 1200, 1200, 260, 365, 460, 90, 1300, 105, 1400, 2200, 16),
-                NaviRDNA3Chip::Navi32WheatNas => (chip3.display_name(), true, 1200, 1200, 200, 275, 340, 75, 1250, 105, 1400, 2000, 16),
+                NaviRDNA3Chip::Navi32WheatNas => (chip3.display_name(), true, 1200, 1200, 200, 275, 340, 75, 1350, 105, 1400, 2000, 16),
                 NaviRDNA3Chip::Navi33Hotbeige => (chip3.display_name(), true, 1200, 1200, 140, 200, 240, 60, 1150, 105, 1400, 1800, 8),
                 NaviRDNA3Chip::UnknownRdna3 => (chip3.display_name(), true, 1200, 1200, 140, 365, 460, 90, 1300, 105, 1400, 1800, 16),
             }
