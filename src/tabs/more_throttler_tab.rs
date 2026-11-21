@@ -13,7 +13,8 @@ impl PowerPlayApp {
         draw_card(ui, "Thermal Throttler", |ui| {
             if self.raw_buffer.is_empty() { ui.label("Load a PPTable first."); return; }
             let mut changed = false;
-            for (idx, lbl) in TEMP_LABELS.iter().enumerate() {
+            let max_temps = if crate::pptable_rdna1::PptArch::detect(&self.raw_buffer) == crate::pptable_rdna1::PptArch::Rdna1 { 7 } else { TEMP_LABELS.len() };
+            for (idx, lbl) in TEMP_LABELS.iter().take(max_temps).enumerate() {
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 8.0;
                     changed |= ui.add_sized([86.0, 20.0], egui::DragValue::new(&mut self.temp_limits[idx]).range(0..=150).suffix(" °C")).changed();
