@@ -203,13 +203,80 @@ impl PowerPlayApp {
             self.timing_tuning = f[10] != 0;
             self.power_mode = f[11] != 0;
 
+            let mask = { t1.features_to_run };
+            for bit in 0..64 {
+                self.smu_features[bit] = (mask & (1u64 << bit)) != 0;
+            }
+
             self.oc_gfx_clock = [{ t1.od_settings_min[0] } as i32, { t1.od_settings_max[0] } as i32];
             self.oc_mem_clock = [{ t1.od_settings_min[1] } as i32, { t1.od_settings_max[1] } as i32];
             self.oc_power_limit = [{ t1.od_settings_min[2] } as i32, { t1.od_settings_max[2] } as i32];
             self.oc_fan_rpm = [{ t1.od_settings_min[3] } as i32, { t1.od_settings_max[3] } as i32];
             self.oc_fan_acoustic_rpm = [{ t1.od_settings_min[4] } as i32, { t1.od_settings_max[4] } as i32];
-            self.fan_target_temp = { t1.od_settings_max[5] } as i32;
-            self.power_limit_w = { t1.boost_power_limit } as i32;
+
+            let ppt0 = { t1.socket_power_limit_ac[0] } as i32;
+            self.power_limit_w = if ppt0 > 0 { ppt0 } else { { t1.boost_power_limit } as i32 };
+            self.tdc_gfx = { t1.tdc_limit_gfx } as i32;
+            self.tdc_soc = { t1.tdc_limit_soc } as i32;
+
+            self.volt_gfx = [{ t1.min_voltage_gfx } as i32 / 4, { t1.max_voltage_gfx } as i32 / 4];
+            self.volt_soc = [{ t1.min_voltage_soc } as i32 / 4, { t1.max_voltage_soc } as i32 / 4];
+            self.ulv_gfx = [{ t1.min_voltage_ulv_gfx } as i32 / 4, 0];
+            self.ulv_soc = [{ t1.min_voltage_ulv_soc } as i32 / 4, 0];
+
+            let desc = { t1.dpm_descriptor };
+            let gfx_n = (desc[0] as usize).clamp(1, 16);
+            let soc_n = (desc[1] as usize).clamp(1, 8);
+            let fclk_n = (desc[3] as usize).clamp(1, 8);
+            let dclk_n = (desc[4] as usize).clamp(1, 8);
+            let vclk_n = (desc[5] as usize).clamp(1, 8);
+            let dcef_n = (desc[6] as usize).clamp(1, 8);
+            let disp_n = (desc[7] as usize).clamp(1, 8);
+            let pix_n = (desc[8] as usize).clamp(1, 8);
+            let phy_n = (desc[9] as usize).clamp(1, 8);
+
+            let ft_gfx = { t1.freq_table_gfx };
+            let ft_soc = { t1.freq_table_socclk };
+            let ft_uclk = { t1.freq_table_uclk };
+            let ft_fclk = { t1.freq_table_fclk };
+            let ft_vclk = { t1.freq_table_vclk };
+            let ft_dclk = { t1.freq_table_dclk };
+            let ft_dcef = { t1.freq_table_dcefclk };
+            let ft_disp = { t1.freq_table_dispclk };
+            let ft_pix = { t1.freq_table_pixclk };
+            let ft_phy = { t1.freq_table_phyclk };
+
+            self.freq_gfx = [ft_gfx[0] as i32, ft_gfx[gfx_n - 1] as i32];
+            self.freq_soc = [ft_soc[0] as i32, ft_soc[soc_n - 1] as i32];
+            self.freq_fclk = [ft_fclk[0] as i32, ft_fclk[fclk_n - 1] as i32];
+            self.freq_vclk = [ft_vclk[0] as i32, ft_vclk[vclk_n - 1] as i32];
+            self.freq_dclk = [ft_dclk[0] as i32, ft_dclk[dclk_n - 1] as i32];
+            self.freq_dcefclk = [ft_dcef[0] as i32, ft_dcef[dcef_n - 1] as i32];
+            self.freq_dispclk = [ft_disp[0] as i32, ft_disp[disp_n - 1] as i32];
+            self.freq_pixclk = [ft_pix[0] as i32, ft_pix[pix_n - 1] as i32];
+            self.freq_phyclk = [ft_phy[0] as i32, ft_phy[phy_n - 1] as i32];
+
+            let vddci_hi = { t1.vddci_max } as i32 / 4;
+            let mvdd_hi = { t1.mvdd_max } as i32 / 4;
+            for i in 0..4 {
+                self.mem_dpm_freq[i] = [ft_uclk[i] as i32, 1];
+                self.mem_dpm_volt[i] = [vddci_hi, mvdd_hi];
+            }
+
+            self.fan_pwm_min = { t1.fan_pwm_min } as i32;
+            self.fan_acoustic_limit = { t1.fan_acoustic_limit_rpm } as i32;
+            self.fan_throttling_rpm = { t1.fan_throttling_rpm } as i32;
+            self.fan_max_rpm = { t1.fan_maximum_rpm } as i32;
+            self.fan_target_temp = { t1.fan_target_temperature } as i32;
+            self.fan_target_gfx_clock = { t1.fan_target_gfxclk } as i32;
+            self.fan_zero_rpm_enable = t1.fan_zero_rpm_enable != 0;
+            self.fan_stop_temp = { t1.fan_stop_temp } as i32;
+            self.fan_start_temp = { t1.fan_start_temp } as i32;
+
+            let tl = { t1.temp_limit };
+            for i in 0..7 {
+                self.temp_limits[i] = tl[i] as i32;
+            }
 
             let vbios_tag = if let Some(voff) = self.vbios_ppt_offset {
                 format!(" | VBIOS PowerPlayInfo @ 0x{:04X}", voff)
@@ -422,6 +489,17 @@ impl PowerPlayApp {
         }
         if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes_mut(&mut self.raw_buffer) {
             t1.boost_power_limit = self.power_limit_w.max(0) as u16;
+            t1.socket_power_limit_ac[0] = self.power_limit_w.max(0) as u16;
+            t1.tdc_limit_gfx = self.tdc_gfx.max(0) as u16;
+            t1.tdc_limit_soc = self.tdc_soc.max(0) as u16;
+
+            t1.min_voltage_gfx = (self.volt_gfx[0].max(0) * 4) as u16;
+            t1.max_voltage_gfx = (self.volt_gfx[1].max(0) * 4) as u16;
+            t1.min_voltage_soc = (self.volt_soc[0].max(0) * 4) as u16;
+            t1.max_voltage_soc = (self.volt_soc[1].max(0) * 4) as u16;
+            t1.min_voltage_ulv_gfx = (self.ulv_gfx[0].max(0) * 4) as u16;
+            t1.min_voltage_ulv_soc = (self.ulv_soc[0].max(0) * 4) as u16;
+
             t1.od_settings_min[0] = self.oc_gfx_clock[0].max(0) as u32;
             t1.od_settings_max[0] = self.oc_gfx_clock[1].max(0) as u32;
             t1.od_settings_min[1] = self.oc_mem_clock[0].max(0) as u32;
@@ -433,6 +511,64 @@ impl PowerPlayApp {
             t1.od_settings_min[4] = self.oc_fan_acoustic_rpm[0].max(0) as u32;
             t1.od_settings_max[4] = self.oc_fan_acoustic_rpm[1].max(0) as u32;
             t1.od_settings_max[5] = self.fan_target_temp.max(0) as u32;
+
+            let desc = { t1.dpm_descriptor };
+            let gfx_n = (desc[0] as usize).clamp(1, 16);
+            let soc_n = (desc[1] as usize).clamp(1, 8);
+            let fclk_n = (desc[3] as usize).clamp(1, 8);
+            let dclk_n = (desc[4] as usize).clamp(1, 8);
+            let vclk_n = (desc[5] as usize).clamp(1, 8);
+            let dcef_n = (desc[6] as usize).clamp(1, 8);
+            let disp_n = (desc[7] as usize).clamp(1, 8);
+            let pix_n = (desc[8] as usize).clamp(1, 8);
+            let phy_n = (desc[9] as usize).clamp(1, 8);
+
+            t1.freq_table_gfx[0] = self.freq_gfx[0].max(0) as u16;
+            t1.freq_table_gfx[gfx_n - 1] = self.freq_gfx[1].max(0) as u16;
+            t1.freq_table_socclk[0] = self.freq_soc[0].max(0) as u16;
+            t1.freq_table_socclk[soc_n - 1] = self.freq_soc[1].max(0) as u16;
+            t1.freq_table_fclk[0] = self.freq_fclk[0].max(0) as u16;
+            t1.freq_table_fclk[fclk_n - 1] = self.freq_fclk[1].max(0) as u16;
+            t1.freq_table_vclk[0] = self.freq_vclk[0].max(0) as u16;
+            t1.freq_table_vclk[vclk_n - 1] = self.freq_vclk[1].max(0) as u16;
+            t1.freq_table_dclk[0] = self.freq_dclk[0].max(0) as u16;
+            t1.freq_table_dclk[dclk_n - 1] = self.freq_dclk[1].max(0) as u16;
+            t1.freq_table_dcefclk[0] = self.freq_dcefclk[0].max(0) as u16;
+            t1.freq_table_dcefclk[dcef_n - 1] = self.freq_dcefclk[1].max(0) as u16;
+            t1.freq_table_dispclk[0] = self.freq_dispclk[0].max(0) as u16;
+            t1.freq_table_dispclk[disp_n - 1] = self.freq_dispclk[1].max(0) as u16;
+            t1.freq_table_pixclk[0] = self.freq_pixclk[0].max(0) as u16;
+            t1.freq_table_pixclk[pix_n - 1] = self.freq_pixclk[1].max(0) as u16;
+            t1.freq_table_phyclk[0] = self.freq_phyclk[0].max(0) as u16;
+            t1.freq_table_phyclk[phy_n - 1] = self.freq_phyclk[1].max(0) as u16;
+
+            for i in 0..4 {
+                t1.freq_table_uclk[i] = self.mem_dpm_freq[i][0].max(0) as u16;
+            }
+            t1.vddci_max = (self.mem_dpm_volt[3][0].max(0) * 4) as u16;
+            t1.mvdd_max = (self.mem_dpm_volt[3][1].max(0) * 4) as u16;
+
+            t1.fan_pwm_min = self.fan_pwm_min.max(0) as u16;
+            t1.fan_acoustic_limit_rpm = self.fan_acoustic_limit.max(0) as u16;
+            t1.fan_throttling_rpm = self.fan_throttling_rpm.max(0) as u16;
+            t1.fan_maximum_rpm = self.fan_max_rpm.max(0) as u16;
+            t1.fan_target_temperature = self.fan_target_temp.max(0) as u16;
+            t1.fan_target_gfxclk = self.fan_target_gfx_clock.max(0) as u16;
+            t1.fan_zero_rpm_enable = u8::from(self.fan_zero_rpm_enable);
+            t1.fan_stop_temp = self.fan_stop_temp.max(0) as u16;
+            t1.fan_start_temp = self.fan_start_temp.max(0) as u16;
+
+            for i in 0..7 {
+                t1.temp_limit[i] = self.temp_limits[i].max(0) as u16;
+            }
+
+            let mut mask = 0u64;
+            for bit in 0..64 {
+                if self.smu_features[bit] {
+                    mask |= 1u64 << bit;
+                }
+            }
+            t1.features_to_run = mask;
 
             t1.od_feature_flags[0] = u8::from(self.gpu_clock_limit);
             t1.od_feature_flags[1] = u8::from(self.gpu_clock_curve);
