@@ -10,23 +10,6 @@ impl PowerPlayApp {
         let is_rdna3 = AtomSmcDpmInfoV4_12::from_bytes(&self.raw_buffer).is_some();
         let is_rdna2 = !is_rdna3 && AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer).is_some();
 
-        let mut issues: Vec<&'static str> = Vec::new();
-        for &t in self.temp_limits.iter() {
-            if !(0..=130).contains(&t) {
-                issues.push("Thermal limit out of 0..130°C range");
-                break;
-            }
-        }
-        if is_rdna2 {
-            if self.static_off_c[0].abs() > 0.25 || self.static_off_c[1].abs() > 0.25 {
-                issues.push("Static Voltage Offset (c) exceeds ±250 mV");
-            }
-            if self.dcbtc_min[0] > self.dcbtc_max[0] || self.dcbtc_min[1] > self.dcbtc_max[1] {
-                issues.push("DcBtc Min > Max");
-            }
-        }
-
-
         two_col_cards(ui, "crv_cols", |ui| {
             draw_card(ui, "Voltage Curve (VID)", |ui| {
                 if is_rdna3 {
@@ -44,11 +27,15 @@ impl PowerPlayApp {
                     ] {
                         ui.horizontal(|ui| {
                             ui.spacing_mut().item_spacing.x = 6.0;
-                            label_with_var(ui, lbl, tag);
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                float_box(ui, &mut pair[1], w2);
-                                float_box(ui, &mut pair[0], w2);
+                            ui.ctx().data_mut(|d| {
+                                d.insert_temp(egui::Id::new("cur_field_info"), (lbl.to_string(), tag.to_string()));
+                                d.insert_temp(egui::Id::new("cur_box_idx"), 0usize);
                             });
+                            float_box(ui, &mut pair[0], w2);
+                            ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("cur_box_idx"), 1usize));
+                            float_box(ui, &mut pair[1], w2);
+                            ui.add_space(2.0);
+                            label_with_var(ui, lbl, tag);
                         });
                     }
                 }
@@ -69,11 +56,15 @@ impl PowerPlayApp {
                     ] {
                         ui.horizontal(|ui| {
                             ui.spacing_mut().item_spacing.x = 6.0;
-                            label_with_var(ui, lbl, tag);
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                float_box(ui, &mut pair[1], w2);
-                                float_box(ui, &mut pair[0], w2);
+                            ui.ctx().data_mut(|d| {
+                                d.insert_temp(egui::Id::new("cur_field_info"), (lbl.to_string(), tag.to_string()));
+                                d.insert_temp(egui::Id::new("cur_box_idx"), 0usize);
                             });
+                            float_box(ui, &mut pair[0], w2);
+                            ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("cur_box_idx"), 1usize));
+                            float_box(ui, &mut pair[1], w2);
+                            ui.add_space(2.0);
+                            label_with_var(ui, lbl, tag);
                         });
                     }
                 }
@@ -101,15 +92,14 @@ impl PowerPlayApp {
                     kv_header_2(ui, "GFX", "Soc", 76.0);
                     ui.horizontal(|ui| {
                         ui.spacing_mut().item_spacing.x = 6.0;
-                        label_with_var(ui, "DcBtc Enable", "dcbtc_en (0x7C6)");
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            ui.allocate_ui_with_layout(egui::vec2(w2, 20.0), egui::Layout::centered_and_justified(egui::Direction::LeftToRight), |ui| {
-                                crate::ui_theme::green_checkbox(ui, &mut self.dcbtc_soc_en, "");
-                            });
-                            ui.allocate_ui_with_layout(egui::vec2(w2, 20.0), egui::Layout::centered_and_justified(egui::Direction::LeftToRight), |ui| {
-                                crate::ui_theme::green_checkbox(ui, &mut self.dcbtc_gfx_en, "");
-                            });
+                        ui.allocate_ui_with_layout(egui::vec2(w2, 20.0), egui::Layout::centered_and_justified(egui::Direction::LeftToRight), |ui| {
+                            crate::ui_theme::green_checkbox(ui, &mut self.dcbtc_gfx_en, "");
                         });
+                        ui.allocate_ui_with_layout(egui::vec2(w2, 20.0), egui::Layout::centered_and_justified(egui::Direction::LeftToRight), |ui| {
+                            crate::ui_theme::green_checkbox(ui, &mut self.dcbtc_soc_en, "");
+                        });
+                        ui.add_space(2.0);
+                        label_with_var(ui, "DcBtc Enable", "dcbtc_en (0x7C6)");
                     });
                     for (lbl, tag, pair) in [
                         ("DcBtc Min", "dcbtc_min (0x7CA)", &mut self.dcbtc_min),
@@ -118,18 +108,20 @@ impl PowerPlayApp {
                     ] {
                         ui.horizontal(|ui| {
                             ui.spacing_mut().item_spacing.x = 6.0;
-                            label_with_var(ui, lbl, tag);
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                dec_box(ui, &mut pair[1], w2);
-                                dec_box(ui, &mut pair[0], w2);
+                            ui.ctx().data_mut(|d| {
+                                d.insert_temp(egui::Id::new("cur_field_info"), (lbl.to_string(), tag.to_string()));
+                                d.insert_temp(egui::Id::new("cur_box_idx"), 0usize);
                             });
+                            dec_box(ui, &mut pair[0], w2);
+                            ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("cur_box_idx"), 1usize));
+                            dec_box(ui, &mut pair[1], w2);
+                            ui.add_space(2.0);
+                            label_with_var(ui, lbl, tag);
                         });
                     }
                     kv_row_2(ui, "DcTol", "dctol (0x7C2)", &mut self.dctol, 76.0);
                 });
             }
         });
-
     }
 }
-
