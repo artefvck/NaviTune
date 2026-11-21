@@ -29,6 +29,22 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<(&'static str, V
             ("Fan", "stop / start / target / zero", off3("fan_stop_temp"), 4, format!("Stop={}°C, Start={}°C, Target={}°C, MaxRPM={}, ZeroRPM={}", {t3.fan_stop_temp}, {t3.fan_start_temp}, { let tt = t3.fan_target_temp; if tt > 200 { tt / 10 } else { tt } }, {t3.fan_max_rpm}, {t3.fan_zero_rpm_enable})),
         ]));
     }
+    if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(b) {
+        let od_max = { t1.od_settings_max };
+        let od_flags = { t1.od_feature_flags };
+        let ppt_ac = { t1.socket_power_limit_ac };
+        let ft_gfx = { t1.freq_table_gfx };
+        let ft_uclk = { t1.freq_table_uclk };
+        return Some(("RDNA 1 (V4_5)", vec![
+            ("Header", "AtomCommonTableHeader", 0x000, 5, format!("size={}, rev=0x{:02X}.{:02X}.{:02X}", hdr_sz, frev, crev, trev)),
+            ("OD8", "od_feature_flags[0..12]", 0x09B, 12, format!("{:?}", &od_flags[..12])),
+            ("OD8", "od_settings_max[0..5]", 0x02F, 20, format!("GFX={}, Mem={}, Pwr=+{}%, Fan={}", od_max[0], od_max[1], od_max[2], od_max[3])),
+            ("Power", "socket_power_limit_ac / tdc", 0x0B7, 12, format!("PPT0={}W, TDC_GFX={}A, TDC_Soc={}A", ppt_ac[0], {t1.tdc_limit_gfx}, {t1.tdc_limit_soc})),
+            ("Voltage", "GFX / Soc Vmin..Vmax", 0x0F3, 8, format!("GFX={}..{}mV, Soc={}..{}mV", {t1.min_voltage_gfx}/4, {t1.max_voltage_gfx}/4, {t1.min_voltage_soc}/4, {t1.max_voltage_soc}/4)),
+            ("Clocks", "freq_table_gfx / uclk", 0x0FF, 88, format!("GFX={}..{}MHz, UCLK_DPM3={}MHz", ft_gfx[0], ft_gfx[15], ft_uclk[3])),
+            ("Fan", "stop / start / target / zero", 0x679, 32, format!("Stop={}C, Start={}C, Target={}C, MaxRPM={}, ZeroRPM={}", {t1.fan_stop_temp}, {t1.fan_start_temp}, {t1.fan_target_temperature}, {t1.fan_maximum_rpm}, t1.fan_zero_rpm_enable)),
+        ]));
+    }
     let t = AtomSmcDpmInfoV4_9::from_bytes(b)?;
     Some(("RDNA 2 (V4_9)", vec![
         ("Header", "AtomCommonTableHeader", 0x000, 5, format!("size={}, rev=0x{:02X}.{:02X}.{:02X}", hdr_sz, frev, crev, trev)),

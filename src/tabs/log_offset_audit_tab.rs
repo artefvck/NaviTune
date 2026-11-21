@@ -46,6 +46,27 @@ impl PowerPlayApp {
                     ("Fan", "PWM Min / Max RPM", off3("fan_pwm_min"), format!("{} / {}", f_pwm, f_max), format!("{} / {}", self.fan_pwm_min, self.fan_max_rpm)),
                     ("Fan", "Stop / Start / Target", off3("fan_stop_temp"), format!("{} / {} / {}", f_stop, f_start, f_tgt), format!("{} / {} / {}", self.fan_stop_temp, self.fan_start_temp, self.fan_target_temp)),
                 ])
+            } else if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(&self.raw_buffer) {
+                let (od_min, od_max) = ({ t1.od_settings_min }, { t1.od_settings_max });
+                let pwr_w = { t1.socket_power_limit_ac[0] };
+                let (tdc_g, tdc_s) = ({ t1.tdc_limit_gfx }, { t1.tdc_limit_soc });
+                let (vg_min, vg_max) = ({ t1.min_voltage_gfx } / 4, { t1.max_voltage_gfx } / 4);
+                let (vs_min, vs_max) = ({ t1.min_voltage_soc } / 4, { t1.max_voltage_soc } / 4);
+                let (ft_gfx, ft_uclk) = ({ t1.freq_table_gfx }, { t1.freq_table_uclk });
+                let (f_pwm, f_max) = ({ t1.fan_pwm_min }, { t1.fan_maximum_rpm });
+                let (f_stop, f_start, f_tgt) = ({ t1.fan_stop_temp }, { t1.fan_start_temp }, { t1.fan_target_temperature });
+                ("RDNA 1 (V4_5)", vec![
+                    ("OC Limits", "OD GFX Clock (Min/Max)", 0x02F, format!("{} .. {}", od_min[0], od_max[0]), format!("{} .. {}", self.oc_gfx_clock[0], self.oc_gfx_clock[1])),
+                    ("OC Limits", "OD Mem Clock (Min/Max)", 0x033, format!("{} .. {}", od_min[1], od_max[1]), format!("{} .. {}", self.oc_mem_clock[0], self.oc_mem_clock[1])),
+                    ("Power", "PPT0 Limit (W)", 0x0B7, format!("{}", pwr_w), format!("{}", self.power_limit_w)),
+                    ("Power", "TDC GFX / Soc (A)", 0x0D7, format!("{} / {}", tdc_g, tdc_s), format!("{} / {}", self.tdc_gfx, self.tdc_soc)),
+                    ("Power", "GFX Voltage (mV)", 0x0F3, format!("{} .. {}", vg_min, vg_max), format!("{} .. {}", self.volt_gfx[0], self.volt_gfx[1])),
+                    ("Power", "Soc Voltage (mV)", 0x0F5, format!("{} .. {}", vs_min, vs_max), format!("{} .. {}", self.volt_soc[0], self.volt_soc[1])),
+                    ("Frequency", "GFXCLK Min / Max (MHz)", 0x0FF, format!("{} .. {}", ft_gfx[0], ft_gfx[15]), format!("{} .. {}", self.freq_gfx[0], self.freq_gfx[1])),
+                    ("Frequency", "UCLK DPM 0..3 (MHz)", 0x14F, format!("{}/{}/{}/{}", ft_uclk[0], ft_uclk[1], ft_uclk[2], ft_uclk[3]), format!("{}/{}/{}/{}", self.mem_dpm_freq[0][0], self.mem_dpm_freq[1][0], self.mem_dpm_freq[2][0], self.mem_dpm_freq[3][0])),
+                    ("Fan", "PWM Min / Max RPM", 0x68B, format!("{} / {}", f_pwm, f_max), format!("{} / {}", self.fan_pwm_min, self.fan_max_rpm)),
+                    ("Fan", "Stop / Start / Target", 0x679, format!("{} / {} / {}", f_stop, f_start, f_tgt), format!("{} / {} / {}", self.fan_stop_temp, self.fan_start_temp, self.fan_target_temp)),
+                ])
             } else if let Some(t) = AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer) {
                 let (od_gfx_min, od_gfx_max) = ({t.od_gfx_min[0]}, {t.od_gfx_max[0]});
                 let (od_mem_min, od_mem_max) = ({t.od_mem_min[0]}, {t.od_mem_max[0]});
