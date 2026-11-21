@@ -81,8 +81,8 @@ pub fn kv_row_2(ui: &mut egui::Ui, label: &str, var_tag: &str, pair: &mut [i32; 
         ui.spacing_mut().item_spacing.x = 6.0;
         label_with_var(ui, label, var_tag);
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            crate::num_box(ui, &mut pair, w);
-            crate::num_box(ui, &mut pair, w);
+            crate::num_box(ui, &mut pair[1], w);
+            crate::num_box(ui, &mut pair[0], w);
         });
     });
 }
