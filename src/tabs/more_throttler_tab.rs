@@ -13,7 +13,7 @@ impl PowerPlayApp {
         draw_card(ui, "Thermal Throttler", |ui| {
             if self.raw_buffer.is_empty() { ui.label("Load a PPTable first."); return; }
             let mut changed = false;
-            let max_temps = if crate::ppt_arch::PptArch::detect(&self.raw_buffer) == crate::ppt_arch::PptArch::Rdna1 { 7 } else { TEMP_LABELS.len() };
+            let max_temps = crate::ppt_arch::PptArch::detect(&self.raw_buffer).max_temp_entries().min(TEMP_LABELS.len());
             for (idx, lbl) in TEMP_LABELS.iter().take(max_temps).enumerate() {
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 8.0;
