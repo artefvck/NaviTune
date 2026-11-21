@@ -56,6 +56,10 @@ impl PptArch {
         matches!(self, Self::Vega10 | Self::Vega20)
     }
 
+    pub fn is_gcn_subtable(self) -> bool {
+        matches!(self, Self::Polaris | Self::Vega10)
+    }
+
     pub fn max_temp_entries(self) -> usize {
         match self {
             Self::Vega20 | Self::Rdna1 => 7,
