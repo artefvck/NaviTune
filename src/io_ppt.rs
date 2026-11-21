@@ -195,6 +195,39 @@ impl PowerPlayApp {
             return;
         }
 
+        if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(&b) {
+            self.power_limit_w = { t1.boost_power_limit } as i32;
+            self.power_limit_ppt1 = { t1.small_power_limit1 } as i32;
+            self.power_limit_ppt2 = { t1.small_power_limit2 } as i32;
+            self.power_limit_ppt3 = { t1.od_turbo_power_limit } as i32;
+            self.soft_shutdown_temp = { t1.software_shutdown_temp } as i32;
+
+            self.oc_gfx_clock = [{ t1.od_settings_min[0] } as i32, { t1.od_settings_max[0] } as i32];
+            self.oc_mem_clock = [{ t1.od_settings_min[1] } as i32, { t1.od_settings_max[1] } as i32];
+            self.oc_power_limit = [{ t1.od_settings_min[2] } as i32, { t1.od_settings_max[2] } as i32];
+            self.oc_fan_rpm = [{ t1.od_settings_min[3] } as i32, { t1.od_settings_max[3] } as i32];
+            self.oc_fan_acoustic_rpm = [{ t1.od_settings_min[4] } as i32, { t1.od_settings_max[4] } as i32];
+            self.fan_target_temp = { t1.od_settings_max[5] } as i32;
+
+            let flags = { t1.od_feature_flags };
+            self.gpu_clock_limit = flags[0] != 0;
+            self.mem_clock_limit = flags[1] != 0;
+            self.fan_zero_rpm = flags[2] != 0;
+            self.fan_curve = flags[3] != 0;
+            self.power_limit_feat = flags[4] != 0;
+            self.temp_target = flags[5] != 0;
+            self.timing_tuning = flags[6] != 0;
+            self.auto_uv_gpu = flags[7] != 0;
+            self.auto_oc_gpu = flags[8] != 0;
+            self.auto_oc_mem = flags[9] != 0;
+            self.power_mode = flags[10] != 0;
+            self.gfx_curve_opt = flags[11] != 0;
+
+            self.raw_buffer = b;
+            self.orig_values = self.snapshot_fields();
+            return;
+        }
+
         let Some(t) = AtomSmcDpmInfoV4_9::from_bytes(&b) else {
             self.show_error("Invalid RDNA 2 PPTable", &format!("Expected at least {} bytes (AtomSmcDpmInfoV4_9), got {} bytes.", std::mem::size_of::<crate::pptable_rdna2::AtomSmcDpmInfoV4_9>(), b.len()));
             return;
@@ -378,6 +411,40 @@ impl PowerPlayApp {
             }
             return;
         }
+        if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes_mut(&mut self.raw_buffer) {
+            t1.boost_power_limit = self.power_limit_w.max(0) as u16;
+            t1.small_power_limit1 = self.power_limit_ppt1.max(0) as u16;
+            t1.small_power_limit2 = self.power_limit_ppt2.max(0) as u16;
+            t1.od_turbo_power_limit = self.power_limit_ppt3.max(0) as u16;
+            t1.software_shutdown_temp = self.soft_shutdown_temp.max(0) as u16;
+
+            t1.od_settings_min[0] = self.oc_gfx_clock[0].max(0) as u32;
+            t1.od_settings_max[0] = self.oc_gfx_clock[1].max(0) as u32;
+            t1.od_settings_min[1] = self.oc_mem_clock[0].max(0) as u32;
+            t1.od_settings_max[1] = self.oc_mem_clock[1].max(0) as u32;
+            t1.od_settings_min[2] = self.oc_power_limit[0] as u32;
+            t1.od_settings_max[2] = self.oc_power_limit[1].max(0) as u32;
+            t1.od_settings_min[3] = self.oc_fan_rpm[0].max(0) as u32;
+            t1.od_settings_max[3] = self.oc_fan_rpm[1].max(0) as u32;
+            t1.od_settings_min[4] = self.oc_fan_acoustic_rpm[0].max(0) as u32;
+            t1.od_settings_max[4] = self.oc_fan_acoustic_rpm[1].max(0) as u32;
+            t1.od_settings_max[5] = self.fan_target_temp.max(0) as u32;
+
+            t1.od_feature_flags[0] = u8::from(self.gpu_clock_limit);
+            t1.od_feature_flags[1] = u8::from(self.mem_clock_limit);
+            t1.od_feature_flags[2] = u8::from(self.fan_zero_rpm);
+            t1.od_feature_flags[3] = u8::from(self.fan_curve);
+            t1.od_feature_flags[4] = u8::from(self.power_limit_feat);
+            t1.od_feature_flags[5] = u8::from(self.temp_target);
+            t1.od_feature_flags[6] = u8::from(self.timing_tuning);
+            t1.od_feature_flags[7] = u8::from(self.auto_uv_gpu);
+            t1.od_feature_flags[8] = u8::from(self.auto_oc_gpu);
+            t1.od_feature_flags[9] = u8::from(self.auto_oc_mem);
+            t1.od_feature_flags[10] = u8::from(self.power_mode);
+            t1.od_feature_flags[11] = u8::from(self.gfx_curve_opt);
+            return;
+        }
+
         let Some(t) = AtomSmcDpmInfoV4_9::from_bytes_mut(&mut self.raw_buffer) else {
             return;
         };
