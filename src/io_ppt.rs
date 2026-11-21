@@ -48,10 +48,10 @@ impl PowerPlayApp {
             match parsed {
                 Ok(bytes) => {
                     let name = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
-                    crate::ui_theme::log_debug("LOAD", &format!("Loaded {} ({} B) | status: {}", path.display(), self.raw_buffer.len(), self.status_msg));
-            self.loaded_file = Some(path);
-            self.selected_gpu = usize::MAX;
+                    self.loaded_file = Some(path);
+                    self.selected_gpu = usize::MAX;
                     self.apply_ppt_bytes(bytes, &name);
+                    crate::ui_theme::log_debug("LOAD", &format!("Loaded {} ({} B) | {}", path.display(), self.raw_buffer.len(), self.status_msg));
                 }
                 Err(e) => self.show_error("Import Error", &e),
             }
