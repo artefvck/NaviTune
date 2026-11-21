@@ -77,19 +77,22 @@ impl PowerPlayApp {
                 }
             });
         }, |ui| {
-            draw_card(ui, "Memory Voltage (mV)", |ui| {
-                kv_header_2(ui, "VDDCI", "MVDD", 62.0);
-                if is_rdna1 {
-                    kv_row_2(ui, "Max (VDDCI/MVDD)", "vddci_max / mvdd_max (0x0DF / 0x0E1)", &mut self.mem_dpm_volt[3], 62.0);
-                    for i in 0..3 {
-                        self.mem_dpm_volt[i] = self.mem_dpm_volt[3];
+            if !arch.is_gcn_subtable() {
+                draw_card(ui, "Memory Voltage (mV)", |ui| {
+                    kv_header_2(ui, "VDDCI", "MVDD", 62.0);
+                    if is_rdna1 {
+                        kv_row_2(ui, "Max (VDDCI/MVDD)", "vddci_max / mvdd_max (0x0DF / 0x0E1)", &mut self.mem_dpm_volt[3], 62.0);
+                        for i in 0..3 {
+                            self.mem_dpm_volt[i] = self.mem_dpm_volt[3];
+                        }
+                    } else {
+                        for i in 0..4 {
+                            kv_row_2(ui, &format!("DPM {}", i), &format!("vddci/mvdd_{} (0x66A / 0x7D4)", i), &mut self.mem_dpm_volt[i], 62.0);
+                        }
                     }
-                } else {
-                    for i in 0..4 {
-                        kv_row_2(ui, &format!("DPM {}", i), &format!("vddci/mvdd_{} (0x66A / 0x7D4)", i), &mut self.mem_dpm_volt[i], 62.0);
-                    }
-                }
-            });
+    
+            }
+        });
             if !is_rdna3 && !is_rdna1 {
                 draw_card(ui, "Thermal Vmin", |ui| {
                     kv_header_2(ui, "TVmin (°C)", "Hyst (°C)", 62.0);
