@@ -50,7 +50,6 @@ impl PowerPlayApp {
                     let name = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
                     self.loaded_file = Some(path);
             self.selected_gpu = usize::MAX;
-                    self.selected_gpu = 0;
                     self.apply_ppt_bytes(bytes, &name);
                 }
                 Err(e) => self.show_error("Import Error", &e),
