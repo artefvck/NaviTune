@@ -305,13 +305,36 @@ pub fn debug_log_path() -> Option<std::path::PathBuf> {
     theme_config_path().and_then(|p| p.parent().map(|d| d.join("debug.log")))
 }
 
+fn format_utc_now() -> String {
+    let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    let days = (secs / 86400) as i64;
+    let rem = secs % 86400;
+    let (h, m, s) = (rem / 3600, (rem % 3600) / 60, rem % 60);
+    let z = days + 719468;
+    let era = if z >= 0 { z } else { z - 146096 } / 146097;
+    let doe = (z - era * 146097) as u64;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = (yoe as i64) + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let mo = if mp < 10 { mp + 3 } else { mp - 9 };
+    let yr = if mo <= 2 { y + 1 } else { y };
+    format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02}Z", yr, mo, d, h, m, s)
+}
+
 pub fn log_debug(tag: &str, msg: &str) {
     let Some(path) = debug_log_path() else { return; };
     if let Some(parent) = path.parent() { let _ = std::fs::create_dir_all(parent); }
+    if let Ok(meta) = std::fs::metadata(&path) {
+        if meta.len() > 512 * 1024 {
+            let _ = std::fs::write(&path, "");
+        }
+    }
     use std::io::Write;
-    let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    let ts = format_utc_now();
     if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
-        let _ = writeln!(f, "[{}] [{}] {}", secs, tag, msg);
+        let _ = writeln!(f, "[{}] [{:<8}] {}", ts, tag, msg);
     }
 }
 
