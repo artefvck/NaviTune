@@ -10,6 +10,7 @@ impl PowerPlayApp {
         let arch = crate::pptable_rdna1::PptArch::detect(&self.raw_buffer);
         let is_rdna3 = arch == crate::pptable_rdna1::PptArch::Rdna3;
         let is_rdna2 = arch == crate::pptable_rdna1::PptArch::Rdna2;
+        let is_rdna1 = arch == crate::pptable_rdna1::PptArch::Rdna1;
 
         let mut issues: Vec<&str> = Vec::new();
         if !is_rdna3 {
