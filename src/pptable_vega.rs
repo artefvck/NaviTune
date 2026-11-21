@@ -80,7 +80,7 @@ pub struct AtomVega10PowerPlayTable {
     pub dispclk_dep_table_offset: u16,
     pub phyclk_dep_table_offset: u16,
     pub mclk_dep_table_offset: u16,
-    pub payload: [u8; 418],
+    pub payload: [u8; 415],
 }
 
 const _: () = {
@@ -184,7 +184,7 @@ pub struct AtomVega20PowerPlayTable {
     pub fan_target_gfxclk: u16,
     pub fan_zero_rpm_enable: u8,
     pub fan_zero_rpm_stop_rpm: u8,
-    pub board_tail_payload: [u8; 253],
+    pub board_tail_payload: [u8; 197],
 }
 
 const _: () = {
