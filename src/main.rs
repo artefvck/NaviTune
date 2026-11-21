@@ -470,6 +470,8 @@ fn draw_tracked_drag<Num: egui::emath::Numeric + PartialEq + Copy + Send + Sync 
             vis.widgets.hovered.bg_stroke = egui::Stroke::new(1.5_f32, egui::Color32::from_rgb(255, 95, 115));
             vis.widgets.active.bg_stroke = egui::Stroke::new(1.5_f32, egui::Color32::from_rgb(255, 95, 115));
         }
+        let card_title = ui.ctx().data(|d| d.get_temp::<String>(egui::Id::new("cur_card_title")).unwrap_or_default());
+        let (field_lbl, field_tag) = ui.ctx().data(|d| d.get_temp::<(String, String)>(egui::Id::new("cur_field_info")).unwrap_or_default());
         let unit_suffix = if field_lbl.contains("(°C)") || field_tag.contains("temp") {
             " °C"
         } else if field_lbl.contains("(MHz)") || field_tag.contains("freq") || field_tag.contains("lclk") || field_tag.contains("od_gfx") || field_tag.contains("od_mem") {
@@ -494,8 +496,6 @@ fn draw_tracked_drag<Num: egui::emath::Numeric + PartialEq + Copy + Send + Sync 
         if let Some(dec) = fixed_decimals {
             dv = dv.fixed_decimals(dec);
         }
-        let card_title = ui.ctx().data(|d| d.get_temp::<String>(egui::Id::new("cur_card_title")).unwrap_or_default());
-        let (field_lbl, field_tag) = ui.ctx().data(|d| d.get_temp::<(String, String)>(egui::Id::new("cur_field_info")).unwrap_or_default());
         let resp = ui.add_sized([width, 20.0], dv);
         if resp.changed() {
             ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("ppt_dirty"), true));
