@@ -3,18 +3,56 @@ use crate::card_layout::{draw_card, two_col_cards};
 use eframe::egui;
 
 #[cfg(target_os = "windows")]
+fn resolve_windows_amd_subkey(selected_label: &str) -> String {
+    use std::os::windows::process::CommandExt;
+    use std::process::Command;
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+    if let Some(sub) = selected_label
+        .split("Class\\")
+        .nth(1)
+        .and_then(|x| x.split(")").next())
+        .filter(|x| x.len() == 4 && x.chars().all(|c| c.is_ascii_digit()))
+    {
+        return sub.to_string();
+    }
+
+    let base = r"HKLM\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}";
+    let mut first_amd: Option<String> = None;
+    for idx in 0..16 {
+        let sub = format!("{:04}", idx);
+        let key = format!(r"{}\{}", base, sub);
+        let Ok(out) = Command::new("reg")
+            .creation_flags(CREATE_NO_WINDOW)
+            .args(["query", &key, "/v", "MatchingDeviceId"])
+            .output()
+        else {
+            continue;
+        };
+        if !out.status.success() {
+            continue;
+        }
+        let txt = String::from_utf8_lossy(&out.stdout).to_ascii_uppercase();
+        if txt.contains("VEN_1002") {
+            if txt.contains("DEV_73") || txt.contains("DEV_74") {
+                return sub;
+            }
+            if first_amd.is_none() {
+                first_amd = Some(sub);
+            }
+        }
+    }
+    first_amd.unwrap_or_else(|| "0000".to_string())
+}
+
+#[cfg(target_os = "windows")]
 pub(crate) fn write_ppt_to_windows_registry(ppt_bytes: &[u8], selected_label: &str) -> Result<String, String> {
     use std::os::windows::process::CommandExt;
     use std::process::Command;
     const CREATE_NO_WINDOW: u32 = 0x08000000;
 
     let base = r"HKLM\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}";
-    let sub = selected_label
-        .split("Class\\")
-        .nth(1)
-        .and_then(|s| s.split(')').next())
-        .filter(|s| s.len() == 4 && s.chars().all(|c| c.is_ascii_digit()))
-        .unwrap_or("0000");
+    let sub = resolve_windows_amd_subkey(selected_label);
     let full_key = format!(r"{}\{}", base, sub);
     let hex_data: String = ppt_bytes.iter().map(|b| format!("{:02X}", b)).collect();
 
@@ -48,12 +86,7 @@ pub(crate) fn delete_ppt_from_windows_registry(selected_label: &str) -> Result<S
     const CREATE_NO_WINDOW: u32 = 0x08000000;
 
     let base = r"HKLM\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}";
-    let sub = selected_label
-        .split("Class\\")
-        .nth(1)
-        .and_then(|s| s.split(')').next())
-        .filter(|s| s.len() == 4 && s.chars().all(|c| c.is_ascii_digit()))
-        .unwrap_or("0000");
+    let sub = resolve_windows_amd_subkey(selected_label);
     let full_key = format!(r"{}\{}", base, sub);
 
     let out = Command::new("reg")
