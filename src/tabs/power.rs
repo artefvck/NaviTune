@@ -47,7 +47,7 @@ impl PowerPlayApp {
                 "socket_power_limit_ac (0x0B7)",
                 "tdc_limit_gfx (0x0D7)",
                 "tdc_limit_soc (0x0D9)",
-                memv_tag,
+                if arch == crate::ppt_arch::PptArch::Vega20 { "vddci_max / mvdd_max (0x145 / 0x147)" } else { "vddci_max / mvdd_max (0x0DF / 0x0E1)" },
             ),
             _ => (
                 "vmin/vmax_gfx (0x3A6 / 0x3B4)",
