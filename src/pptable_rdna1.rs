@@ -9,6 +9,37 @@ pub struct AtomCommonTableHeaderR1 {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PptArch {
+    Rdna1,
+    Rdna2,
+    Rdna3,
+    Unknown,
+}
+
+impl PptArch {
+    pub fn detect(buf: &[u8]) -> Self {
+        if crate::pptable_rdna3::AtomSmcDpmInfoV4_12::from_bytes(buf).is_some() {
+            Self::Rdna3
+        } else if crate::pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(buf).is_some() {
+            Self::Rdna2
+        } else if AtomSmcDpmInfoV4_5::from_bytes(buf).is_some() {
+            Self::Rdna1
+        } else {
+            Self::Unknown
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Rdna1 => "RDNA 1",
+            Self::Rdna2 => "RDNA 2",
+            Self::Rdna3 => "RDNA 3",
+            Self::Unknown => "Unknown",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NaviRDNA1Chip {
     Navi10,
     Navi12,
