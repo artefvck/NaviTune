@@ -120,6 +120,8 @@ impl PowerPlayApp {
         out.push_str(&format!("Encoded Size     : {} bytes\n", self.raw_buffer.len()));
         if let Some(v20) = crate::pptable_vega::AtomVega20PowerPlayTable::from_bytes(&self.raw_buffer) {
             out.push_str(&format!("Vega 20 Offsets  : PPT0={}W (0x11D), TDC={}/{}A (0x13D), GFX_V={}..{}mV (0x159)\n", {v20.socket_power_limit_ac[0]}, {v20.tdc_limit_gfx}, {v20.tdc_limit_soc}, {v20.min_voltage_gfx}/4, {v20.max_voltage_gfx}/4));
+        } else if let Some(pol) = crate::pptable_polaris::AtomPolarisPowerPlayTable::from_bytes(&self.raw_buffer) {
+            out.push_str(&format!("Polaris Offsets  : OD_GFX={}MHz (0x017), OD_MEM={}MHz (0x01B), FanOff=0x{:03X}, HardLimOff=0x{:03X}\n", {pol.max_od_engine_clock}/100, {pol.max_od_memory_clock}/100, {pol.fan_table_offset}, {pol.hard_limit_table_offset}));
         } else if let Some(v10) = crate::pptable_vega::AtomVega10PowerPlayTable::from_bytes(&self.raw_buffer) {
             out.push_str(&format!("Vega 10 Offsets  : OD_GFX={}MHz (0x017), OD_MEM={}MHz (0x01B), FanOff=0x{:03X}, HardLimOff=0x{:03X}\n", {v10.max_od_engine_clock}/100, {v10.max_od_memory_clock}/100, {v10.fan_table_offset}, {v10.hard_limit_table_offset}));
         }

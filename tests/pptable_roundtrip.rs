@@ -249,5 +249,10 @@ fn test_polaris_roundtrip() {
     pptable_polaris::AtomPolarisPowerPlayTable::write_hard_limits(&mut pol, 1450, 2250, 1150);
     let parsed = pptable_polaris::AtomPolarisPowerPlayTable::from_bytes(&pol).expect("valid Polaris");
     assert_eq!(parsed.read_hard_limits(&pol), Some((1450, 2250, 1150)));
+    let fan_off: usize = 0x130;
+    pptable_polaris::AtomPolarisPowerPlayTable::from_bytes_mut(&mut pol).unwrap().fan_table_offset = fan_off as u16;
+    pol[fan_off] = 11;
+    pptable_polaris::AtomPolarisPowerPlayTable::write_fan_subtable(&mut pol, 20, 2200, 72, 1350, true, 52, 60);
+    assert_eq!(pptable_polaris::AtomPolarisPowerPlayTable::from_bytes(&pol).unwrap().read_fan_subtable(&pol), Some((20, 2200, 72, 1350, true, 52, 60)));
     assert_eq!(ppt_arch::PptArch::detect(&pol), ppt_arch::PptArch::Polaris);
 }
