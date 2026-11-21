@@ -1,7 +1,7 @@
 use eframe::egui;
 
 pub fn dynamic_box_w(_ui: &egui::Ui, min_w: f32, _cols: usize) -> f32 {
-    min_w.max(78.0)
+    min_w.max(76.0)
 }
 
 pub fn two_col_cards(
@@ -11,29 +11,37 @@ pub fn two_col_cards(
     right: impl FnOnce(&mut egui::Ui),
 ) {
     let gap = 10.0;
-    let usable_w = (ui.available_width() - 12.0).max(730.0);
-    let col_w = ((usable_w - gap) * 0.5).floor().max(360.0);
-    egui::Grid::new(id)
-        .num_columns(2)
-        .spacing([gap, 0.0])
-        .min_col_width(col_w)
-        .max_col_width(col_w)
-        .show(ui, |ui| {
-            ui.vertical(|ui| {
-                ui.set_width(col_w);
-                left(ui);
+    let avail = (ui.available_width() - 6.0).max(260.0);
+    if avail >= 620.0 {
+        let col_w = ((avail - gap) * 0.5).floor();
+        egui::Grid::new(id)
+            .num_columns(2)
+            .spacing([gap, 0.0])
+            .min_col_width(col_w)
+            .max_col_width(col_w)
+            .show(ui, |ui| {
+                ui.vertical(|ui| {
+                    ui.set_width(col_w);
+                    left(ui);
+                });
+                ui.vertical(|ui| {
+                    ui.set_width(col_w);
+                    right(ui);
+                });
+                ui.end_row();
             });
-            ui.vertical(|ui| {
-                ui.set_width(col_w);
-                right(ui);
-            });
-            ui.end_row();
+    } else {
+        ui.vertical(|ui| {
+            ui.set_width(avail);
+            left(ui);
+            right(ui);
         });
+    }
 }
 
 pub fn draw_card<R>(ui: &mut egui::Ui, title: &str, add_contents: impl FnOnce(&mut egui::Ui) -> R) {
     let outer_w = ui.available_width();
-    let inner_w = (outer_w - 32.0).max(140.0);
+    let inner_w = (outer_w - 30.0).max(180.0);
     ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("cur_card_title"), title.to_string()));
     crate::ui_theme::card_frame(ui).show(ui, |ui| {
         ui.set_width(inner_w);
@@ -43,10 +51,10 @@ pub fn draw_card<R>(ui: &mut egui::Ui, title: &str, add_contents: impl FnOnce(&m
             crate::ui_theme::card_title_color(ui),
             egui::RichText::new(title).size(13.5).strong(),
         );
-        ui.add_space(4.0);
+        ui.add_space(3.0);
         add_contents(ui);
     });
-    ui.add_space(10.0);
+    ui.add_space(8.0);
 }
 
 pub fn label_with_var(ui: &mut egui::Ui, label: &str, var_tag: &str) {
@@ -58,7 +66,7 @@ pub fn label_with_var(ui: &mut egui::Ui, label: &str, var_tag: &str) {
 }
 
 pub fn kv_row_1(ui: &mut egui::Ui, label: &str, var_tag: &str, val: &mut i32, box_w: f32) {
-    let w = dynamic_box_w(ui, box_w, 2);
+    let w = dynamic_box_w(ui, box_w, 1);
     ui.horizontal(|ui| {
         label_with_var(ui, label, var_tag);
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -73,8 +81,8 @@ pub fn kv_row_2(ui: &mut egui::Ui, label: &str, var_tag: &str, pair: &mut [i32; 
         ui.spacing_mut().item_spacing.x = 6.0;
         label_with_var(ui, label, var_tag);
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            crate::num_box(ui, &mut pair[1], w);
-            crate::num_box(ui, &mut pair[0], w);
+            crate::num_box(ui, &mut pair, w);
+            crate::num_box(ui, &mut pair, w);
         });
     });
 }
