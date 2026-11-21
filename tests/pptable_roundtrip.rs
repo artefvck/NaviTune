@@ -144,3 +144,18 @@ fn test_vbios_patch_ppt_and_checksum() {
     let total_sum: u8 = patched.iter().fold(0u8, |acc, &v| acc.wrapping_add(v));
     assert_eq!(total_sum, 0, "Patched VBIOS ROM 8-bit checksum sum must equal 0x00");
 }
+
+#[test]
+fn test_ppt_arch_detect_all_gens() {
+    let mut r1 = make_rdna1_sample();
+    assert_eq!(pptable_rdna1::PptArch::detect(&r1), pptable_rdna1::PptArch::Rdna1);
+    r1[2] = 0x0D;
+    assert_eq!(pptable_rdna1::PptArch::detect(&r1), pptable_rdna1::PptArch::Rdna1);
+
+    let r2 = make_rdna2_sample();
+    assert_eq!(pptable_rdna1::PptArch::detect(&r2), pptable_rdna1::PptArch::Rdna2);
+
+    let r3 = make_rdna3_sample();
+    assert_eq!(pptable_rdna1::PptArch::detect(&r3), pptable_rdna1::PptArch::Rdna3);
+    assert_eq!(pptable_rdna1::PptArch::detect(&[0u8; 32]), pptable_rdna1::PptArch::Unknown);
+}
