@@ -1,6 +1,6 @@
 # NaviTune (`pptool`)
 
-**NaviTune** (`pptool`) is a cross-platform Rust GUI utility (`eframe`/`egui`) for editing Soft PowerPlay Tables on AMD Radeon RDNA 2 and RDNA 3 GPUs across macOS, Windows, and Linux.
+**NaviTune** (`pptool`) is a cross-platform Rust GUI utility (`eframe`/`egui`) for editing Soft PowerPlay Tables on AMD Radeon RDNA1, RDNA2 and RDNA3 GPUs across macOS, Windows, and Linux.
 
 ## Key Features
 * **Packed Struct Mapping & Precision**: Zero-copy mapping and native hardware unit support.
