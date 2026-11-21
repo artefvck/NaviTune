@@ -215,9 +215,10 @@ fn test_vega10_fan_subtable_roundtrip() {
     pptable_vega::AtomVega10PowerPlayTable::from_bytes_mut(&mut v10).unwrap().hard_limit_table_offset = hard_off as u16;
     v10[hard_off] = 1;
     v10[hard_off + 1] = 1;
-    pptable_vega::AtomVega10PowerPlayTable::write_hard_limits(&mut v10, 1200, 1750, 1100, 1150);
+    pptable_vega::AtomVega10PowerPlayTable::write_hard_limits_full(&mut v10, 1200, 1750, 1100, 1150, 950, 1350);
     let parsed2 = pptable_vega::AtomVega10PowerPlayTable::from_bytes(&v10).expect("valid v10");
     assert_eq!(parsed2.read_hard_limits(&v10), Some((1200, 1750, 1100, 1150)));
+    assert_eq!(parsed2.read_hard_limit_mem_volt(&v10), Some((950, 1350)));
 }
 
 #[test]
@@ -246,9 +247,10 @@ fn test_polaris_roundtrip() {
     t.hard_limit_table_offset = hard_off as u16;
     pol[hard_off] = 1;
     pol[hard_off + 1] = 1;
-    pptable_polaris::AtomPolarisPowerPlayTable::write_hard_limits(&mut pol, 1450, 2250, 1150);
+    pptable_polaris::AtomPolarisPowerPlayTable::write_hard_limits_full(&mut pol, 1450, 2250, 1150, 950, 1000);
     let parsed = pptable_polaris::AtomPolarisPowerPlayTable::from_bytes(&pol).expect("valid Polaris");
     assert_eq!(parsed.read_hard_limits(&pol), Some((1450, 2250, 1150)));
+    assert_eq!(parsed.read_hard_limit_mem_volt(&pol), Some((950, 1000)));
     let fan_off: usize = 0x130;
     pptable_polaris::AtomPolarisPowerPlayTable::from_bytes_mut(&mut pol).unwrap().fan_table_offset = fan_off as u16;
     pol[fan_off] = 11;
