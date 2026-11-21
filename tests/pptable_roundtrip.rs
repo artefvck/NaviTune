@@ -215,3 +215,16 @@ fn test_vega10_fan_subtable_roundtrip() {
     let parsed2 = pptable_vega::AtomVega10PowerPlayTable::from_bytes(&v10).expect("valid v10");
     assert_eq!(parsed2.read_hard_limits(&v10), Some((1200, 1750, 1100, 1150)));
 }
+
+#[test]
+fn test_vega_chip_detection_all_ids() {
+    assert_eq!(pptable_vega::VegaChip::from_did_and_rev(0x687F, 0x08), pptable_vega::VegaChip::Vega10);
+    assert_eq!(pptable_vega::VegaChip::from_did_and_rev(0x6861, 0x08), pptable_vega::VegaChip::Vega10);
+    assert_eq!(pptable_vega::VegaChip::from_did_and_rev(0x686C, 0x08), pptable_vega::VegaChip::Vega10);
+    assert_eq!(pptable_vega::VegaChip::from_did_and_rev(0x66AF, 0x0B), pptable_vega::VegaChip::Vega20);
+    assert_eq!(pptable_vega::VegaChip::from_did_and_rev(0x66A1, 0x0B), pptable_vega::VegaChip::Vega20);
+    assert_eq!(pptable_vega::VegaChip::from_did_and_rev(0x0000, 0x08), pptable_vega::VegaChip::Vega10);
+    assert_eq!(pptable_vega::VegaChip::from_did_and_rev(0x0000, 0x0B), pptable_vega::VegaChip::Vega20);
+    assert_eq!(ppt_arch::PptArch::Vega10.default_table_size(), 512);
+    assert_eq!(ppt_arch::PptArch::Vega20.default_table_size(), 1924);
+}
