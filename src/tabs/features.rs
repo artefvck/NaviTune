@@ -130,12 +130,28 @@ impl PowerPlayApp {
                     .num_columns(2)
                     .spacing([14.0, 6.0])
                     .show(ui, |ui| {
+                        let (src_part, vbios_part) = if let Some((left, right)) = self.status_msg.split_once(" | VBIOS ROM:") {
+                            (left.trim(), Some(right.trim()))
+                        } else if let Some((left, right)) = self.status_msg.split_once(" | ") {
+                            (left.trim(), Some(right.trim()))
+                        } else {
+                            (self.status_msg.as_str(), None)
+                        };
                         ui.label("Loaded Source:");
                         ui.colored_label(
                             egui::Color32::from_rgb(165, 195, 235),
-                            egui::RichText::new(&self.status_msg).monospace(),
+                            egui::RichText::new(src_part).monospace(),
                         );
                         ui.end_row();
+
+                        if let Some(vb_txt) = vbios_part {
+                            ui.label("");
+                            ui.colored_label(
+                                egui::Color32::from_rgb(165, 195, 235),
+                                egui::RichText::new(vb_txt).monospace(),
+                            );
+                            ui.end_row();
+                        }
 
                         ui.label("Silicon Family:");
                         let did = info.as_ref().map(|vi| vi.device_id).unwrap_or(0);
