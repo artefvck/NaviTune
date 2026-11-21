@@ -99,6 +99,9 @@ impl PowerPlayApp {
                 if let Some((soc_hi, gfx_hi, mem_hi, vddc_hi)) = v10.read_hard_limits(&self.raw_buffer) {
                     v10_rows.push(("HardLimit SubTable", "GFXCLK / MCLK Max (MHz)", hard_off + 0x06, format!("{} / {}", gfx_hi, mem_hi), format!("{} / {}", self.freq_gfx[1], self.mem_dpm_freq[3][0])));
                     v10_rows.push(("HardLimit SubTable", "SOCCLK Max / VDDC Max", hard_off + 0x02, format!("{}MHz / {}mV", soc_hi, vddc_hi), format!("{}MHz / {}mV", self.freq_soc[1], self.volt_gfx[1])));
+                    if let Some((vddci, mvdd)) = v10.read_hard_limit_mem_volt(&self.raw_buffer) {
+                        v10_rows.push(("HardLimit SubTable", "VDDCI / MVDD (mV)", hard_off + 0x12, format!("{} / {}", vddci, mvdd), format!("{} / {}", self.mem_dpm_volt[3][0], self.mem_dpm_volt[3][1])));
+                    }
                 }
                 if let Some((pwm, rpm, tgt, _gfx, _zrpm, stp, strt)) = v10.read_fan_subtable(&self.raw_buffer) {
                     v10_rows.push(("Fan SubTable", "PWM Min / Max RPM", fan_off + 0x09, format!("{} / {}", pwm, rpm), format!("{} / {}", self.fan_pwm_min, self.fan_max_rpm)));
@@ -114,6 +117,9 @@ impl PowerPlayApp {
                 ];
                 if let Some((gfx_hi, mem_hi, vddc_hi)) = pol.read_hard_limits(&self.raw_buffer) {
                     rows.push(("HardLimit SubTable", "GFXCLK / MCLK / VDDC", hard_off + 0x02, format!("{} / {}MHz / {}mV", gfx_hi, mem_hi, vddc_hi), format!("{} / {}MHz / {}mV", self.freq_gfx[1], self.mem_dpm_freq[3][0], self.volt_gfx[1])));
+                    if let Some((vddci, mvdd)) = pol.read_hard_limit_mem_volt(&self.raw_buffer) {
+                        rows.push(("HardLimit SubTable", "VDDCI / MVDD (mV)", hard_off + 0x0E, format!("{} / {}", vddci, mvdd), format!("{} / {}", self.mem_dpm_volt[3][0], self.mem_dpm_volt[3][1])));
+                    }
                 }
                 ("Polaris (0x07)", rows)
             } else if let Some(t) = AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer) {

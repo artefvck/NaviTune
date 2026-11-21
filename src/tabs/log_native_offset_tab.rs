@@ -60,7 +60,8 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<(&'static str, V
         let therm_off = { v10.thermal_controller_offset } as usize;
         let hard_off = { v10.hard_limit_table_offset } as usize;
         let hard_desc = if let Some((soc_hi, gfx_hi, mem_hi, vddc_hi)) = v10.read_hard_limits(b) {
-            format!("off=0x{:03X} | SOCCLK={}MHz, GFXCLK={}MHz, MCLK={}MHz, VDDC={}mV", hard_off, soc_hi, gfx_hi, mem_hi, vddc_hi)
+            let (vddci, mvdd) = v10.read_hard_limit_mem_volt(b).unwrap_or((0, 0));
+            format!("off=0x{:03X} | SOCCLK={}MHz, GFXCLK={}MHz, MCLK={}MHz, VDDC={}mV, VDDCI={}mV, MVDD={}mV", hard_off, soc_hi, gfx_hi, mem_hi, vddc_hi, vddci, mvdd)
         } else {
             format!("off=0x{:03X} (sub-table out of range)", hard_off)
         };
@@ -80,7 +81,8 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<(&'static str, V
     if let Some(pol) = crate::pptable_polaris::AtomPolarisPowerPlayTable::from_bytes(b) {
         let hard_off = { pol.hard_limit_table_offset } as usize;
         let hard_desc = if let Some((gfx_hi, mem_hi, vddc_hi)) = pol.read_hard_limits(b) {
-            format!("off=0x{:03X} | GFXCLK={}MHz, MCLK={}MHz, VDDC={}mV", hard_off, gfx_hi, mem_hi, vddc_hi)
+            let (vddci, mvdd) = pol.read_hard_limit_mem_volt(b).unwrap_or((0, 0));
+            format!("off=0x{:03X} | GFXCLK={}MHz, MCLK={}MHz, VDDC={}mV, VDDCI={}mV, MVDD={}mV", hard_off, gfx_hi, mem_hi, vddc_hi, vddci, mvdd)
         } else {
             format!("off=0x{:03X} (sub-table out of range)", hard_off)
         };
