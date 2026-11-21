@@ -12,7 +12,7 @@ impl PowerPlayApp {
             egui::CentralPanel::default().show(ctx, |ui| {
                 let b = &self.raw_buffer;
                 let Some((arch, entries)) = collect_native_struct_entries(b) else {
-                    ui.label("Load a valid RDNA 2 (2470 B) or RDNA 3 (5424 B) PPTable first."); return;
+                    ui.label("Load a valid Vega 10 (512 B), Vega 20 / RDNA 1 (1924 B), RDNA 2 (2470 B), or RDNA 3 (5424 B) PPTable first."); return;
                 };
                 ui.strong(format!("Verified Silicon Struct: {} ({} bytes)", arch, b.len()));
                 ui.add_space(4.0);
