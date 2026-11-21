@@ -58,9 +58,15 @@ impl PowerPlayApp {
             });
         }, |ui| {
             draw_card(ui, "Memory DPM", |ui| {
-                kv_header_2(ui, "Freq", "Div", 62.0);
-                for i in 0..4 {
-                    kv_row_2(ui, &format!("DPM {}", i), &format!("freq_uclk[{}] (0x57E / 0x63C)", i), &mut self.mem_dpm_freq[i], 62.0);
+                if is_rdna3 {
+                    for i in 0..4 {
+                        kv_row_1(ui, &format!("DPM {} (MHz)", i), &format!("freq_uclk[{}] (0x63C)", i), &mut self.mem_dpm_freq[i][0], 62.0);
+                    }
+                } else {
+                    kv_header_2(ui, "Freq (MHz)", "Div", 62.0);
+                    for i in 0..4 {
+                        kv_row_2(ui, &format!("DPM {}", i), &format!("freq_uclk[{}] (0x57E)", i), &mut self.mem_dpm_freq[i], 62.0);
+                    }
                 }
             });
             draw_card(ui, "PCIe & LCLK", |ui| {
