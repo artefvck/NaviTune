@@ -30,7 +30,7 @@ fn main() -> eframe::Result<()> {
         ..Default::default()
     };
     eframe::run_native(
-        "NaviTune - RDNA 2 PowerPlay Editor",
+        "NaviTune — PowerPlay Editor",
         options,
         Box::new(|cc| {
             crate::ui_theme::apply_modern_theme(&cc.egui_ctx);
@@ -275,7 +275,13 @@ impl eframe::App for PowerPlayApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             crate::ui_theme::card_frame(ui).inner_margin(6.0).show(ui, |ui| {
                 ui.horizontal(|ui| {
-                let current_text = self.gpus.get(self.selected_gpu).cloned().unwrap_or_else(|| if self.loaded_file.is_some() && !self.status_msg.is_empty() { self.status_msg.clone() } else { "Select GPU Path...".into() });
+                let win_title = if let Some(ref f) = self.loaded_file {
+                    format!("NaviTune — {}", f.file_name().unwrap_or_default().to_string_lossy())
+                } else {
+                    "NaviTune — PowerPlay Editor".to_string()
+                };
+                ctx.send_viewport_cmd(egui::ViewportCommand::Title(win_title));
+                let current_text = self.gpus.get(self.selected_gpu).cloned().unwrap_or_else(|| "Select GPU Path...".into());
                 let mut picked_gpu: Option<usize> = None;
                 egui::ComboBox::from_id_salt("gpu_selector")
                     .width((ui.available_width() - 92.0).max(140.0))
