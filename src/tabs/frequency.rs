@@ -25,11 +25,13 @@ impl PowerPlayApp {
         if self.freq_fclk[0] > self.freq_fclk[1] {
             issues.push("FCLK Min > Max");
         }
+        if !arch.is_gcn_subtable() {
         for i in 1..4 {
             if self.mem_dpm_freq[i][0] > 0 && self.mem_dpm_freq[i][0] < self.mem_dpm_freq[i - 1][0] {
                 issues.push("Memory UCLK DPM states not ascending");
                 break;
             }
+        }
         }
         if self.pcie_gen_speed[0] > self.pcie_gen_speed[1]
             || self.pcie_lane_count[0] > self.pcie_lane_count[1]

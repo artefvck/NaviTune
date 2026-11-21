@@ -21,7 +21,8 @@ impl PowerPlayApp {
             if self.power_limit_w <= 0 || self.power_limit_w > 600 { issues.push("Power Limit (W) out of 1..600 W"); }
             if self.tdc_gfx <= 0 || self.tdc_soc <= 0 { issues.push("TDC GFX/Soc <= 0 A"); }
         }
-        for i in 0..4 {
+        let dpm_range = if arch.is_gcn_subtable() { 3..4 } else { 0..4 };
+        for i in dpm_range {
             if self.mem_dpm_volt[i][0] > self.mem_dpm_volt[i][1] { issues.push("Memory VDDCI > MVDD"); break; }
         }
         if !issues.is_empty() {
