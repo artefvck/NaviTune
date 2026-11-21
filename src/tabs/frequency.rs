@@ -8,6 +8,7 @@ impl PowerPlayApp {
         use crate::card_layout::*;
 
         let is_rdna3 = AtomSmcDpmInfoV4_12::from_bytes(&self.raw_buffer).is_some();
+        let is_rdna1 = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(&self.raw_buffer).is_some();
         let is_rdna2 = !is_rdna3 && AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer).is_some();
 
         let mut issues: Vec<&'static str> = Vec::new();
@@ -58,9 +59,10 @@ impl PowerPlayApp {
             });
         }, |ui| {
             draw_card(ui, "Memory DPM", |ui| {
-                if is_rdna3 {
+                if is_rdna3 || is_rdna1 {
+                    let off = if is_rdna3 { "0x63C" } else { "0x14F" };
                     for i in 0..4 {
-                        kv_row_1(ui, &format!("DPM {} (MHz)", i), &format!("freq_uclk[{}] (0x63C)", i), &mut self.mem_dpm_freq[i][0], 62.0);
+                        kv_row_1(ui, &format!("DPM {} (MHz)", i), &format!("freq_uclk[{}] ({})", i, off), &mut self.mem_dpm_freq[i][0], 62.0);
                     }
                 } else {
                     kv_header_2(ui, "Freq (MHz)", "Div", 62.0);
