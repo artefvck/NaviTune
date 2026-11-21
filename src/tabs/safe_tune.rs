@@ -45,6 +45,13 @@ impl PowerPlayApp {
                 crate::pptable_vega::VegaChip::Vega20 => (vchip.display_name(), false, 1100, 1250, 200, 320, 280, 42, 1050, 95, 1950, 1200, 16),
                 _ => (vchip.display_name(), false, 1000, 1150, 180, 300, 260, 40, 1100, 90, 1750, 1100, 8),
             }
+        } else if crate::ppt_arch::PptArch::detect(&self.raw_buffer) == crate::ppt_arch::PptArch::Polaris {
+            let pchip = crate::pptable_polaris::PolarisChip::from_did(did);
+            match pchip {
+                crate::pptable_polaris::PolarisChip::Baffin => (pchip.display_name(), false, 800, 950, 75, 135, 110, 25, 1100, 82, 1300, 1850, 16),
+                crate::pptable_polaris::PolarisChip::Lexa => (pchip.display_name(), false, 750, 900, 50, 95, 80, 20, 1075, 80, 1220, 1750, 16),
+                _ => (pchip.display_name(), false, 900, 1050, 120, 220, 180, 35, 1150, 85, 1420, 2150, 32),
+            }
         } else {
             let chip2 = AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer)
                 .map(|t| t.detect_chip(&self.raw_buffer))

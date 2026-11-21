@@ -114,4 +114,36 @@ impl AtomPolarisPowerPlayTable {
         buf[off + 0x06..off + 0x0A].copy_from_slice(&((mem_mhz.max(0) as u32) * 100).to_le_bytes());
         buf[off + 0x0A..off + 0x0E].copy_from_slice(&(vddc_mv.max(0) as u32).to_le_bytes());
     }
+
+    pub fn read_fan_subtable(&self, buf: &[u8]) -> Option<(i32, i32, i32, i32, bool, i32, i32)> {
+        let off = { self.fan_table_offset } as usize;
+        if off == 0 || off + 0x1C > buf.len() { return None; }
+        let rev = buf[off];
+        let pwm_min = (u16::from_le_bytes([buf[off + 0x09], buf[off + 0x0A]]) / 100) as i32;
+        let tgt_temp = (u16::from_le_bytes([buf[off + 0x0F], buf[off + 0x10]]) / 100) as i32;
+        let max_rpm = u16::from_le_bytes([buf[off + 0x16], buf[off + 0x17]]) as i32;
+        let tgt_gfx = (u32::from_le_bytes([buf[off + 0x18], buf[off + 0x19], buf[off + 0x1A], buf[off + 0x1B]]) / 100) as i32;
+        let (zrpm, stop_t, start_t) = if rev >= 11 && off + 0x2F <= buf.len() {
+            (buf[off + 0x2C] != 0, buf[off + 0x2D] as i32, buf[off + 0x2E] as i32)
+        } else {
+            (false, 0, 0)
+        };
+        Some((pwm_min, max_rpm, tgt_temp, tgt_gfx, zrpm, stop_t, start_t))
+    }
+
+    pub fn write_fan_subtable(buf: &mut [u8], pwm_min: i32, max_rpm: i32, tgt_temp: i32, tgt_gfx: i32, zrpm: bool, stop_t: i32, start_t: i32) {
+        let Some(t) = Self::from_bytes(buf) else { return; };
+        let off = { t.fan_table_offset } as usize;
+        if off == 0 || off + 0x1C > buf.len() { return; }
+        let rev = buf[off];
+        buf[off + 0x09..off + 0x0B].copy_from_slice(&((pwm_min.max(0) as u16) * 100).to_le_bytes());
+        buf[off + 0x0F..off + 0x11].copy_from_slice(&((tgt_temp.max(0) as u16) * 100).to_le_bytes());
+        buf[off + 0x16..off + 0x18].copy_from_slice(&(max_rpm.max(0) as u16).to_le_bytes());
+        buf[off + 0x18..off + 0x1C].copy_from_slice(&((tgt_gfx.max(0) as u32) * 100).to_le_bytes());
+        if rev >= 11 && off + 0x2F <= buf.len() {
+            buf[off + 0x2C] = u8::from(zrpm);
+            buf[off + 0x2D] = stop_t.clamp(0, 255) as u8;
+            buf[off + 0x2E] = start_t.clamp(0, 255) as u8;
+        }
+    }
 }

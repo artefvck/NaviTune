@@ -105,6 +105,17 @@ impl PowerPlayApp {
                     v10_rows.push(("Fan SubTable", "Stop / Start / Target", fan_off + 0x0F, format!("{} / {} / {}", stp, strt, tgt), format!("{} / {} / {}", self.fan_stop_temp, self.fan_start_temp, self.fan_target_temp)));
                 }
                 ("Vega 10 (0x08)", v10_rows)
+            } else if let Some(pol) = crate::pptable_polaris::AtomPolarisPowerPlayTable::from_bytes(&self.raw_buffer) {
+                let hard_off = { pol.hard_limit_table_offset } as usize;
+                let mut rows = vec![
+                    ("OC Limits", "Max OD Engine Clock (MHz)", 0x017, format!("{}", { pol.max_od_engine_clock } / 100), format!("{}", self.oc_gfx_clock[1])),
+                    ("OC Limits", "Max OD Memory Clock (MHz)", 0x01B, format!("{}", { pol.max_od_memory_clock } / 100), format!("{}", self.oc_mem_clock[1])),
+                    ("OC Limits", "Power Control Limit (+%)", 0x01F, format!("{}", { pol.power_control_limit }), format!("{}", self.oc_power_limit[1])),
+                ];
+                if let Some((gfx_hi, mem_hi, vddc_hi)) = pol.read_hard_limits(&self.raw_buffer) {
+                    rows.push(("HardLimit SubTable", "GFXCLK / MCLK / VDDC", hard_off + 0x02, format!("{} / {}MHz / {}mV", gfx_hi, mem_hi, vddc_hi), format!("{} / {}MHz / {}mV", self.freq_gfx[1], self.mem_dpm_freq[3][0], self.volt_gfx[1])));
+                }
+                ("Polaris (0x07)", rows)
             } else if let Some(t) = AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer) {
                 let (od_gfx_min, od_gfx_max) = ({t.od_gfx_min[0]}, {t.od_gfx_max[0]});
                 let (od_mem_min, od_mem_max) = ({t.od_mem_min[0]}, {t.od_mem_max[0]});

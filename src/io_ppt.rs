@@ -458,6 +458,15 @@ impl PowerPlayApp {
                 self.freq_gfx = [0, 0];
                 self.freq_soc = [0, 0];
             }
+            if let Some((pwm_min, max_rpm, tgt_temp, tgt_gfx, zrpm, stop_t, start_t)) = pol.read_fan_subtable(&b) {
+                self.fan_pwm_min = pwm_min;
+                self.fan_max_rpm = max_rpm;
+                self.fan_target_temp = tgt_temp;
+                self.fan_target_gfx_clock = tgt_gfx;
+                self.fan_zero_rpm_enable = zrpm;
+                self.fan_stop_temp = stop_t;
+                self.fan_start_temp = start_t;
+            }
             self.status_msg = format!("Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B]", label, chip_p.display_name(), frev, crev, trev, b.len());
             self.raw_buffer = b;
             return;
@@ -889,6 +898,16 @@ impl PowerPlayApp {
             pol.max_od_engine_clock = (self.oc_gfx_clock[1].max(0) * 100) as u32;
             pol.max_od_memory_clock = (self.oc_mem_clock[1].max(0) * 100) as u32;
             pol.power_control_limit = self.oc_power_limit[1].max(0) as u16;
+            crate::pptable_polaris::AtomPolarisPowerPlayTable::write_fan_subtable(
+                &mut self.raw_buffer,
+                self.fan_pwm_min,
+                self.fan_max_rpm,
+                self.fan_target_temp,
+                self.fan_target_gfx_clock,
+                self.fan_zero_rpm_enable,
+                self.fan_stop_temp,
+                self.fan_start_temp,
+            );
             crate::pptable_polaris::AtomPolarisPowerPlayTable::write_hard_limits(
                 &mut self.raw_buffer,
                 self.freq_gfx[1],
