@@ -26,7 +26,7 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<(&'static str, V
             ("Clocks", "freq_fclk_min / max", off3("freq_fclk"), 4, format!("{}..{} MHz", {t3.freq_fclk_min}, {t3.freq_fclk_max})),
             ("Memory", "freq_uclk[0..3]", off3("mem_dpm_freq"), 8, format!("{:?} MHz", {t3.freq_uclk})),
             ("Power", "tdc_limit_gfx / soc", off3("tdc_gfx"), 4, format!("{} A / {} A", {t3.tdc_limit_gfx}, {t3.tdc_limit_soc})),
-            ("Fan", "stop / start / target / zero", off3("fan_stop_temp"), 4, format!("Stop={}°C, Start={}°C, Target={}°C, MaxRPM={}, ZeroRPM={}", {t3.fan_stop_temp}, {t3.fan_start_temp}, {t3.fan_target_temp} / 10, {t3.fan_max_rpm}, {t3.fan_zero_rpm_enable})),
+            ("Fan", "stop / start / target / zero", off3("fan_stop_temp"), 4, format!("Stop={}°C, Start={}°C, Target={}°C, MaxRPM={}, ZeroRPM={}", {t3.fan_stop_temp}, {t3.fan_start_temp}, if {t3.fan_target_temp} > 200 { {t3.fan_target_temp} / 10 } else { {t3.fan_target_temp} }, {t3.fan_max_rpm}, {t3.fan_zero_rpm_enable})),
         ]));
     }
     let t = AtomSmcDpmInfoV4_9::from_bytes(b)?;
