@@ -368,7 +368,8 @@ impl PowerPlayApp {
             t3.fan_acoustic_limit = self.fan_acoustic_limit as u16;
             t3.fan_max_rpm = self.fan_max_rpm as u16;
             t3.fan_target_gfx_clock = self.fan_target_gfx_clock as u16;
-            t3.fan_target_temp = (self.fan_target_temp * 10) as u16;
+            let orig_tt = { t3.fan_target_temp };
+            t3.fan_target_temp = if orig_tt > 200 { (self.fan_target_temp * 10) as u16 } else { self.fan_target_temp as u16 };
             t3.fan_zero_rpm_enable = self.fan_zero_rpm_enable as u8;
             t3.fan_stop_temp = self.fan_stop_temp as u16;
             t3.fan_start_temp = self.fan_start_temp as u16;
