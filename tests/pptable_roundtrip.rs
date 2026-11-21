@@ -1,4 +1,8 @@
 #[allow(dead_code)]
+#[path = "../src/pptable_vega.rs"]
+mod pptable_vega;
+
+#[allow(dead_code)]
 #[path = "../src/pptable_rdna1.rs"]
 mod pptable_rdna1;
 
@@ -158,4 +162,28 @@ fn test_ppt_arch_detect_all_gens() {
     let r3 = make_rdna3_sample();
     assert_eq!(pptable_rdna1::PptArch::detect(&r3), pptable_rdna1::PptArch::Rdna3);
     assert_eq!(pptable_rdna1::PptArch::detect(&[0u8; 32]), pptable_rdna1::PptArch::Unknown);
+}
+
+#[test]
+fn test_vega10_and_vega20_roundtrip() {
+    let mut v10 = vec![0u8; 512];
+    v10[0..2].copy_from_slice(&512u16.to_le_bytes());
+    v10[2] = 0x08;
+    v10[3] = 1;
+    let t10 = pptable_vega::AtomVega10PowerPlayTable::from_bytes_mut(&mut v10).expect("valid Vega10");
+    t10.max_od_engine_clock = 175000;
+    t10.max_od_memory_clock = 110000;
+    t10.power_control_limit = 50;
+    assert_eq!(pptable_rdna1::PptArch::detect(&v10), pptable_rdna1::PptArch::Vega10);
+
+    let mut v20 = vec![0u8; 1924];
+    v20[0..2].copy_from_slice(&1924u16.to_le_bytes());
+    v20[2] = 0x0B;
+    v20[3] = 1;
+    let t20 = pptable_vega::AtomVega20PowerPlayTable::from_bytes_mut(&mut v20).expect("valid Vega20");
+    t20.socket_power_limit_ac[0] = 295;
+    t20.tdc_limit_gfx = 260;
+    t20.min_voltage_gfx = 3000;
+    t20.max_voltage_gfx = 4600;
+    assert_eq!(pptable_rdna1::PptArch::detect(&v20), pptable_rdna1::PptArch::Vega20);
 }

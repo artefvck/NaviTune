@@ -38,6 +38,13 @@ impl PowerPlayApp {
                 crate::pptable_rdna1::NaviRDNA1Chip::Navi14 => (chip1.display_name(), false, 1150, 1150, 50, 130, 125, 24, 900, 95, 1400, 1100, 8),
                 crate::pptable_rdna1::NaviRDNA1Chip::UnknownRdna1 => (chip1.display_name(), false, 1200, 1200, 50, 225, 210, 32, 950, 95, 1400, 1100, 16),
             }
+        } else if matches!(crate::pptable_rdna1::PptArch::detect(&self.raw_buffer), crate::pptable_rdna1::PptArch::Vega10 | crate::pptable_rdna1::PptArch::Vega20) {
+            let frev_v = self.raw_buffer.get(2).copied().unwrap_or(0);
+            let vchip = crate::pptable_vega::VegaChip::from_did_and_rev(did, frev_v);
+            match vchip {
+                crate::pptable_vega::VegaChip::Vega20 => (vchip.display_name(), false, 1100, 1250, 200, 320, 280, 42, 1050, 95, 1950, 1200, 16),
+                _ => (vchip.display_name(), false, 1000, 1150, 180, 300, 260, 40, 1100, 90, 1750, 1100, 8),
+            }
         } else {
             let chip2 = AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer)
                 .map(|t| t.detect_chip(&self.raw_buffer))
