@@ -16,14 +16,13 @@ impl PowerPlayApp {
             ui.add_space(6.0);
         }
         let mut issues: Vec<&'static str> = Vec::new();
-        if self.freq_gfx[0] > self.freq_gfx[1] {
-            issues.push("GFX Min > Max");
-        }
-        if self.freq_soc[0] > self.freq_soc[1] {
-            issues.push("Soc Min > Max");
-        }
-        if self.freq_fclk[0] > self.freq_fclk[1] {
-            issues.push("FCLK Min > Max");
+        if arch.is_gcn_subtable() {
+            if self.freq_gfx[1] <= 0 { issues.push("HardLimit GFXCLK Max <= 0 MHz"); }
+            if self.mem_dpm_freq[3][0] <= 0 { issues.push("HardLimit MCLK Max <= 0 MHz"); }
+        } else {
+            if self.freq_gfx[0] > self.freq_gfx[1] { issues.push("GFX Min > Max"); }
+            if self.freq_soc[0] > self.freq_soc[1] { issues.push("Soc Min > Max"); }
+            if self.freq_fclk[0] > self.freq_fclk[1] { issues.push("FCLK Min > Max"); }
         }
         if !arch.is_gcn_subtable() {
         for i in 1..4 {
