@@ -108,6 +108,8 @@ impl PowerPlayApp {
         let did = self.vbios_buffer.as_deref().and_then(|vb| crate::vbios::inspect_vbios_info(vb, self.vbios_ppt_offset.unwrap_or(0))).map(|vi| vi.device_id).unwrap_or(0);
         let chip_name = if let Some(t3) = crate::pptable_rdna3::AtomSmcDpmInfoV4_12::from_bytes(&self.raw_buffer) {
             t3.detect_chip(did).display_name()
+        } else if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(&self.raw_buffer) {
+            t1.detect_chip(did).display_name()
         } else {
             crate::pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer).map(|t| t.detect_chip(&self.raw_buffer).display_name()).unwrap_or("Unknown")
         };
