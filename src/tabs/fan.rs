@@ -10,7 +10,6 @@ impl PowerPlayApp {
         let arch = crate::pptable_rdna1::PptArch::detect(&self.raw_buffer);
         let is_rdna3 = arch == crate::pptable_rdna1::PptArch::Rdna3;
         let is_rdna1 = arch == crate::pptable_rdna1::PptArch::Rdna1;
-        let _ = is_rdna1;
         let is_rdna2 = !is_rdna3 && AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer).is_some();
 
         let mut issues: Vec<&'static str> = Vec::new();
@@ -46,7 +45,7 @@ impl PowerPlayApp {
                 kv_row_1(ui, "Max RPM", "fan_max_rpm (0x71C / 0x870)", &mut self.fan_max_rpm, 62.0);
                 kv_row_1(ui, "Target Temp (°C)", "fan_target_temp (0x720 / 0x878)", &mut self.fan_target_temp, 62.0);
                 kv_row_1(ui, "Target GFX Clock", "fan_target_gfx_clock (0x722 / 0x876)", &mut self.fan_target_gfx_clock, 62.0);
-                if is_rdna2 || !is_rdna3 {
+                if is_rdna2 {
                     kv_row_1(ui, "Fan Mode", "fan_mode (0x71E)", &mut self.fan_mode, 62.0);
                     kv_row_1(ui, "Hyst / Ctrl", "fan_hyst_ctrl (0x71F)", &mut self.fan_hyst_ctrl, 62.0);
                 }
@@ -55,7 +54,7 @@ impl PowerPlayApp {
                 kv_header_2(ui, "Min", "Max", 62.0);
                 kv_row_2(ui, "Fan RPM", "od_fan_min/max (0x106 / 0x113)", &mut self.oc_fan_rpm, 62.0);
                 kv_row_2(ui, "Acoustic RPM", "od_acoustic_min/max (0x10A / 0x117)", &mut self.oc_fan_acoustic_rpm, 62.0);
-                if is_rdna2 || !is_rdna3 {
+                if is_rdna2 {
                     kv_row_2(ui, "OD Temp (°C)", "od_fan_curve_min/max", &mut self.od_fan_temp, 62.0);
                     kv_row_2(ui, "OD Speed (%)", "od_fan_curve_min/max", &mut self.od_fan_speed, 62.0);
                 }
@@ -88,7 +87,7 @@ impl PowerPlayApp {
                 kv_row_1(ui, "Start Temp (°C)", "fan_start_temp (0x72A / 0x838)", &mut self.fan_start_temp, 62.0);
             });
             draw_card(ui, "Fan Curve", |ui| {
-                if is_rdna3 {
+                if is_rdna3 || is_rdna1 {
                     ui.colored_label(
                         egui::Color32::from_rgb(160, 175, 195),
                         "RDNA 3 (SMU 13.0) computes dynamic fan PWM from Target Temp (101°C) & Acoustic Limit; 5-point curve slots are RDNA 2 only.",

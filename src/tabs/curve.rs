@@ -10,12 +10,11 @@ impl PowerPlayApp {
         let arch = crate::pptable_rdna1::PptArch::detect(&self.raw_buffer);
         let is_rdna3 = arch == crate::pptable_rdna1::PptArch::Rdna3;
         let is_rdna1 = arch == crate::pptable_rdna1::PptArch::Rdna1;
-        let _ = is_rdna1;
         let is_rdna2 = !is_rdna3 && AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer).is_some();
 
         two_col_cards(ui, "crv_cols", |ui| {
             draw_card(ui, "Voltage Curve (VID)", |ui| {
-                if is_rdna3 {
+                if is_rdna3 || is_rdna1 {
                     ui.colored_label(
                         egui::Color32::from_rgb(160, 175, 195),
                         "RDNA 3 (SMU 13.0) uses AVFS per-die fused V/F curves instead of static quadratic (a, b, c) coefficients.",
@@ -44,7 +43,7 @@ impl PowerPlayApp {
                 }
             });
             draw_card(ui, "Voltage Offset", |ui| {
-                if is_rdna3 {
+                if is_rdna3 || is_rdna1 {
                     ui.colored_label(
                         egui::Color32::from_rgb(160, 175, 195),
                         "Use Power -> GFX / Soc Vmin & Vmax (0x3B4..0x3BC) to adjust RDNA 3 voltage bounds.",
@@ -89,7 +88,7 @@ impl PowerPlayApp {
                     kv_row_1(ui, lbl, tag, &mut self.temp_limits[i], 76.0);
                 }
             });
-            if is_rdna2 || !is_rdna3 {
+            if is_rdna2 {
                 draw_card(ui, "DcBtc & DcTol (mV)", |ui| {
                     let w2 = dynamic_box_w(ui, 76.0, 2);
                     kv_header_2(ui, "GFX", "Soc", 76.0);
