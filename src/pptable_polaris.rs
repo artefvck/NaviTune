@@ -98,21 +98,14 @@ impl AtomPolarisPowerPlayTable {
     }
 
     pub fn read_hard_limits(&self, buf: &[u8]) -> Option<(i32, i32, i32)> {
-        let off = { self.hard_limit_table_offset } as usize;
-        if off == 0 || off + 0x0E > buf.len() || buf[off + 1] == 0 { return None; }
-        let gfx_mhz = (u32::from_le_bytes([buf[off + 0x02], buf[off + 0x03], buf[off + 0x04], buf[off + 0x05]]) / 100) as i32;
-        let mem_mhz = (u32::from_le_bytes([buf[off + 0x06], buf[off + 0x07], buf[off + 0x08], buf[off + 0x09]]) / 100) as i32;
-        let vddc_mv = u32::from_le_bytes([buf[off + 0x0A], buf[off + 0x0B], buf[off + 0x0C], buf[off + 0x0D]]) as i32;
-        Some((gfx_mhz, mem_mhz, vddc_mv))
+        let (_soc, gfx, mem, vddc) = crate::pptable_vega::read_gcn_hard_limit_entry(buf, { self.hard_limit_table_offset } as usize)?;
+        Some((gfx, mem, vddc))
     }
 
     pub fn write_hard_limits(buf: &mut [u8], gfx_mhz: i32, mem_mhz: i32, vddc_mv: i32) {
-        let Some(t) = Self::from_bytes(buf) else { return; };
-        let off = { t.hard_limit_table_offset } as usize;
-        if off == 0 || off + 0x0E > buf.len() || buf[off + 1] == 0 { return; }
-        buf[off + 0x02..off + 0x06].copy_from_slice(&((gfx_mhz.max(0) as u32) * 100).to_le_bytes());
-        buf[off + 0x06..off + 0x0A].copy_from_slice(&((mem_mhz.max(0) as u32) * 100).to_le_bytes());
-        buf[off + 0x0A..off + 0x0E].copy_from_slice(&(vddc_mv.max(0) as u32).to_le_bytes());
+        if let Some(t) = Self::from_bytes(buf) {
+            crate::pptable_vega::write_gcn_hard_limit_entry(buf, { t.hard_limit_table_offset } as usize, None, gfx_mhz, mem_mhz, vddc_mv);
+        }
     }
 
     pub fn read_fan_subtable(&self, buf: &[u8]) -> Option<(i32, i32, i32, i32, bool, i32, i32)> {
