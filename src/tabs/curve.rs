@@ -52,7 +52,7 @@ impl PowerPlayApp {
                     for (lbl, tag, pair) in [
                         ("Coeff a", "off_a (0x766)", &mut self.static_off_a),
                         ("Coeff b", "off_b (0x76A)", &mut self.static_off_b),
-                        ("Coeff c (V)", "off_c (0x76E)", &mut self.static_off_c),
+                        ("Coeff c", "off_c (0x76E)", &mut self.static_off_c),
                     ] {
                         ui.horizontal(|ui| {
                             ui.spacing_mut().item_spacing.x = 6.0;

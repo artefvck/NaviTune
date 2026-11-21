@@ -1,5 +1,4 @@
 use eframe::egui;
-use crate::pptable_rdna2::AtomSmcDpmInfoV4_9;
 use crate::pptable_rdna3::AtomSmcDpmInfoV4_12;
 use crate::PowerPlayApp;
 
@@ -9,25 +8,6 @@ impl PowerPlayApp {
 
         let is_rdna3 = AtomSmcDpmInfoV4_12::from_bytes(&self.raw_buffer).is_some();
         
-        let mut issues: Vec<&'static str> = Vec::new();
-        if self.volt_gfx > self.volt_gfx {
-            issues.push("GFX Vmin > Vmax");
-        }
-        if self.volt_soc > self.volt_soc {
-            issues.push("Soc Vmin > Vmax");
-        }
-        if self.power_limit_w <= 0 || self.power_limit_w > 600 {
-            issues.push("Power Limit (W) out of range");
-        }
-        if self.tdc_gfx <= 0 || self.tdc_soc <= 0 {
-            issues.push("TDC GFX/Soc <= 0 A");
-        }
-        for i in 0..4 {
-            if self.mem_dpm_volt[i] > self.mem_dpm_volt[i] {
-                issues.push("Memory VDDCI > MVDD");
-                break;
-            }
-        }
 
 
         two_col_cards(ui, "pwr_cols", |ui| {
