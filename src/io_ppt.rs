@@ -327,11 +327,17 @@ impl PowerPlayApp {
             self.volt_gfx = [{ v20.min_voltage_gfx } as i32 / 4, { v20.max_voltage_gfx } as i32 / 4];
             self.volt_soc = [{ v20.min_voltage_soc } as i32 / 4, { v20.max_voltage_soc } as i32 / 4];
 
+            let desc = { v20.dpm_descriptor };
+            let gfx_n = (desc[0] as usize).clamp(1, 16);
+            let soc_n = (desc[1] as usize).clamp(1, 8);
+            let fclk_n = (desc[3] as usize).clamp(1, 8);
             let ft_gfx = { v20.freq_table_gfx };
             let ft_soc = { v20.freq_table_socclk };
             let ft_uclk = { v20.freq_table_uclk };
-            self.freq_gfx = [ft_gfx[0] as i32, ft_gfx[15] as i32];
-            self.freq_soc = [ft_soc[0] as i32, ft_soc[7] as i32];
+            let ft_fclk = { v20.freq_table_fclk };
+            self.freq_gfx = [ft_gfx[0] as i32, ft_gfx[gfx_n - 1] as i32];
+            self.freq_soc = [ft_soc[0] as i32, ft_soc[soc_n - 1] as i32];
+            self.freq_fclk = [ft_fclk[0] as i32, ft_fclk[fclk_n - 1] as i32];
             let vddci_hi = { v20.vddci_max } as i32 / 4;
             let mvdd_hi = { v20.mvdd_max } as i32 / 4;
             for i in 0..4 {
@@ -722,10 +728,16 @@ impl PowerPlayApp {
             v20.od_settings_min[4] = self.oc_fan_acoustic_rpm[0].max(0) as u32;
             v20.od_settings_max[4] = self.oc_fan_acoustic_rpm[1].max(0) as u32;
 
+            let desc = { v20.dpm_descriptor };
+            let gfx_n = (desc[0] as usize).clamp(1, 16);
+            let soc_n = (desc[1] as usize).clamp(1, 8);
+            let fclk_n = (desc[3] as usize).clamp(1, 8);
             v20.freq_table_gfx[0] = self.freq_gfx[0].max(0) as u16;
-            v20.freq_table_gfx[15] = self.freq_gfx[1].max(0) as u16;
+            v20.freq_table_gfx[gfx_n - 1] = self.freq_gfx[1].max(0) as u16;
             v20.freq_table_socclk[0] = self.freq_soc[0].max(0) as u16;
-            v20.freq_table_socclk[7] = self.freq_soc[1].max(0) as u16;
+            v20.freq_table_socclk[soc_n - 1] = self.freq_soc[1].max(0) as u16;
+            v20.freq_table_fclk[0] = self.freq_fclk[0].max(0) as u16;
+            v20.freq_table_fclk[fclk_n - 1] = self.freq_fclk[1].max(0) as u16;
             for i in 0..4 { v20.freq_table_uclk[i] = self.mem_dpm_freq[i][0].max(0) as u16; }
             v20.vddci_max = (self.mem_dpm_volt[3][0].max(0) * 4) as u16;
             v20.mvdd_max = (self.mem_dpm_volt[3][1].max(0) * 4) as u16;
