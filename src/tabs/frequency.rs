@@ -9,6 +9,10 @@ impl PowerPlayApp {
 
         let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
         let is_rdna3 = arch.is_rdna3();
+        if arch == crate::ppt_arch::PptArch::Polaris {
+            ui.colored_label(egui::Color32::from_rgb(235, 190, 95), "Polaris (SMU 8.0, rev 0x07): GFXCLK Max and Memory DPM 3 edit HardLimit sub-table bounds in-place.",);
+            ui.add_space(6.0);
+        }
         if arch == crate::ppt_arch::PptArch::Vega10 {
             ui.colored_label(
                 egui::Color32::from_rgb(235, 190, 95),
