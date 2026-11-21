@@ -15,10 +15,9 @@ impl PowerPlayApp {
             let mut changed = false;
             for (idx, lbl) in TEMP_LABELS.iter().enumerate() {
                 ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 8.0;
+                    changed |= ui.add_sized([86.0, 20.0], egui::DragValue::new(&mut self.temp_limits[idx]).range(0..=150).suffix(" °C")).changed();
                     ui.label(*lbl);
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        changed |= ui.add(egui::DragValue::new(&mut self.temp_limits[idx]).range(0..=150).suffix(" °C")).changed();
-                    });
                 });
             }
             if changed { self.sync_fields_to_buffer(); }

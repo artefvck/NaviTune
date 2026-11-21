@@ -72,11 +72,13 @@ pub fn label_with_var(ui: &mut egui::Ui, label: &str, var_tag: &str) {
 pub fn kv_row_1(ui: &mut egui::Ui, label: &str, var_tag: &str, val: &mut i32, box_w: f32) {
     let w = dynamic_box_w(ui, box_w, 1);
     ui.horizontal(|ui| {
-        label_with_var(ui, label, var_tag);
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("cur_box_idx"), 0usize));
-            crate::num_box(ui, val, w);
+        ui.spacing_mut().item_spacing.x = 8.0;
+        ui.ctx().data_mut(|d| {
+            d.insert_temp(egui::Id::new("cur_field_info"), (label.to_string(), var_tag.to_string()));
+            d.insert_temp(egui::Id::new("cur_box_idx"), 0usize);
         });
+        crate::num_box(ui, val, w);
+        label_with_var(ui, label, var_tag);
     });
 }
 
@@ -84,13 +86,15 @@ pub fn kv_row_2(ui: &mut egui::Ui, label: &str, var_tag: &str, pair: &mut [i32; 
     let w = dynamic_box_w(ui, box_w, 2);
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 6.0;
-        label_with_var(ui, label, var_tag);
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("cur_box_idx"), 1usize));
-            crate::num_box(ui, &mut pair[1], w);
-            ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("cur_box_idx"), 0usize));
-            crate::num_box(ui, &mut pair[0], w);
+        ui.ctx().data_mut(|d| {
+            d.insert_temp(egui::Id::new("cur_field_info"), (label.to_string(), var_tag.to_string()));
+            d.insert_temp(egui::Id::new("cur_box_idx"), 0usize);
         });
+        crate::num_box(ui, &mut pair[0], w);
+        ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("cur_box_idx"), 1usize));
+        crate::num_box(ui, &mut pair[1], w);
+        ui.add_space(2.0);
+        label_with_var(ui, label, var_tag);
     });
 }
 
@@ -114,23 +118,20 @@ pub fn kv_header_2(ui: &mut egui::Ui, h1: &str, h2: &str, box_w: f32) {
     let w = dynamic_box_w(ui, box_w, 2);
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 6.0;
-        ui.label("");
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            for h in [h2, h1] {
-                ui.allocate_ui_with_layout(
-                    egui::vec2(w, 16.0),
-                    egui::Layout::centered_and_justified(egui::Direction::LeftToRight),
+        for h in [h1, h2] {
+            ui.allocate_ui_with_layout(
+                egui::vec2(w, 16.0),
+                egui::Layout::centered_and_justified(egui::Direction::LeftToRight),
 
-                    |ui| {
-                        ui.label(
-                            egui::RichText::new(h)
-                                .size(11.0)
-                                .strong()
-                                .color(egui::Color32::from_rgb(160, 182, 214)),
-                        );
-                    },
-                );
-            }
-        });
+                |ui| {
+                    ui.label(
+                        egui::RichText::new(h)
+                            .size(11.0)
+                            .strong()
+                            .color(egui::Color32::from_rgb(160, 182, 214)),
+                    );
+                },
+            );
+        }
     });
 }
