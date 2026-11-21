@@ -12,7 +12,7 @@ impl PowerPlayApp {
         if arch == crate::ppt_arch::PptArch::Vega10 {
             ui.colored_label(
                 egui::Color32::from_rgb(235, 190, 95),
-                "Vega 10 (SMU 9.0, rev 0x08) uses offset-indexed sub-tables; edit OverDrive GFX, Memory, and Power limits in OC Limits.",
+                "Vega 10 (SMU 9.0, rev 0x08): PWM Min, Max RPM, Target Temp, Target GFX Clock, and V3 Zero RPM edit Fan sub-table in-place.",
             );
             ui.add_space(6.0);
         }
