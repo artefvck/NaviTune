@@ -470,7 +470,27 @@ fn draw_tracked_drag<Num: egui::emath::Numeric + PartialEq + Copy + Send + Sync 
             vis.widgets.hovered.bg_stroke = egui::Stroke::new(1.5_f32, egui::Color32::from_rgb(255, 95, 115));
             vis.widgets.active.bg_stroke = egui::Stroke::new(1.5_f32, egui::Color32::from_rgb(255, 95, 115));
         }
+        let unit_suffix = if field_lbl.contains("(°C)") || field_tag.contains("temp") {
+            " °C"
+        } else if field_lbl.contains("(MHz)") || field_tag.contains("freq") || field_tag.contains("lclk") || field_tag.contains("od_gfx") || field_tag.contains("od_mem") {
+            " MHz"
+        } else if field_lbl.contains("(mV)") || field_tag.contains("volt") || field_tag.contains("ulv") || field_tag.contains("dcbtc") {
+            " mV"
+        } else if field_lbl.contains("(W)") || field_tag.contains("power_limit") {
+            " W"
+        } else if field_lbl.contains("(A)") || field_tag.contains("tdc") {
+            " A"
+        } else if field_lbl.contains("(RPM)") || field_tag.contains("rpm") || field_tag.contains("acoustic") {
+            " RPM"
+        } else if field_lbl.contains("(%)") || field_tag.contains("pwm") || field_tag.contains("od_pwr") {
+            " %"
+        } else {
+            ""
+        };
         let mut dv = egui::DragValue::new(val).speed(speed);
+        if !unit_suffix.is_empty() {
+            dv = dv.suffix(unit_suffix);
+        }
         if let Some(dec) = fixed_decimals {
             dv = dv.fixed_decimals(dec);
         }
