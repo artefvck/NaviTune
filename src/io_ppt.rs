@@ -293,6 +293,81 @@ impl PowerPlayApp {
             return;
         }
 
+        if let Some(v20) = crate::pptable_vega::AtomVega20PowerPlayTable::from_bytes(&b) {
+            let did = self.vbios_buffer.as_deref()
+                .and_then(|vb| crate::vbios::inspect_vbios_info(vb, self.vbios_ppt_offset.unwrap_or(0)))
+                .map(|vi| vi.device_id)
+                .unwrap_or(0);
+            let chip_v = crate::pptable_vega::VegaChip::from_did_and_rev(did, frev);
+
+            let f = { v20.od_feature_flags };
+            self.gpu_clock_limit = f[0] != 0;
+            self.gpu_clock_curve = f[1] != 0;
+            self.memory_clock_limit = f[2] != 0;
+            self.zero_rpm = f[3] != 0;
+            self.min_fan_speed = f[4] != 0;
+            self.fan_target_temp_limit = f[5] != 0;
+            self.operating_temp_limit = f[6] != 0;
+            self.fan_acoustic_rpm = f[7] != 0;
+            self.fan_curve = f[8] != 0;
+            self.power_limit_feat = f[9] != 0;
+
+            let od_min = { v20.od_settings_min };
+            let od_max = { v20.od_settings_max };
+            self.oc_gfx_clock = [od_min[0] as i32, od_max[0] as i32];
+            self.oc_mem_clock = [od_min[1] as i32, od_max[1] as i32];
+            self.oc_power_limit = [od_min[2] as i32, od_max[2] as i32];
+            self.oc_fan_rpm = [od_min[3] as i32, od_max[3] as i32];
+            self.oc_fan_acoustic_rpm = [od_min[4] as i32, od_max[4] as i32];
+
+            let ppt0 = { v20.socket_power_limit_ac[0] } as i32;
+            self.power_limit_w = if ppt0 > 0 { ppt0 } else { ({ v20.boost_power_limit }) as i32 };
+            self.tdc_gfx = { v20.tdc_limit_gfx } as i32;
+            self.tdc_soc = { v20.tdc_limit_soc } as i32;
+            self.volt_gfx = [{ v20.min_voltage_gfx } as i32 / 4, { v20.max_voltage_gfx } as i32 / 4];
+            self.volt_soc = [{ v20.min_voltage_soc } as i32 / 4, { v20.max_voltage_soc } as i32 / 4];
+
+            let ft_gfx = { v20.freq_table_gfx };
+            let ft_soc = { v20.freq_table_socclk };
+            let ft_uclk = { v20.freq_table_uclk };
+            self.freq_gfx = [ft_gfx[0] as i32, ft_gfx[15] as i32];
+            self.freq_soc = [ft_soc[0] as i32, ft_soc[7] as i32];
+            let vddci_hi = { v20.vddci_max } as i32 / 4;
+            let mvdd_hi = { v20.mvdd_max } as i32 / 4;
+            for i in 0..4 {
+                self.mem_dpm_freq[i] = [ft_uclk[i] as i32, 1];
+                self.mem_dpm_volt[i] = [vddci_hi, mvdd_hi];
+            }
+            self.fan_pwm_min = { v20.fan_pwm_min } as i32;
+            self.fan_acoustic_limit = { v20.fan_acoustic_limit_rpm } as i32;
+            self.fan_throttling_rpm = { v20.fan_throttling_rpm } as i32;
+            self.fan_max_rpm = { v20.fan_maximum_rpm } as i32;
+            self.fan_target_temp = { v20.fan_target_temperature } as i32;
+            self.fan_zero_rpm_enable = v20.fan_zero_rpm_enable != 0;
+            self.fan_stop_temp = { v20.fan_stop_temp } as i32;
+            self.fan_start_temp = { v20.fan_start_temp } as i32;
+            let tl = { v20.temp_limit };
+            for i in 0..7 { self.temp_limits[i] = tl[i] as i32; }
+
+            self.status_msg = format!("Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B]", label, chip_v.display_name(), frev, crev, trev, b.len());
+            self.raw_buffer = b;
+            return;
+        }
+
+        if let Some(v10) = crate::pptable_vega::AtomVega10PowerPlayTable::from_bytes(&b) {
+            let did = self.vbios_buffer.as_deref()
+                .and_then(|vb| crate::vbios::inspect_vbios_info(vb, self.vbios_ppt_offset.unwrap_or(0)))
+                .map(|vi| vi.device_id)
+                .unwrap_or(0);
+            let chip_v = crate::pptable_vega::VegaChip::from_did_and_rev(did, frev);
+            self.oc_gfx_clock = [0, ({ v10.max_od_engine_clock } / 100) as i32];
+            self.oc_mem_clock = [0, ({ v10.max_od_memory_clock } / 100) as i32];
+            self.oc_power_limit = [-50, { v10.power_control_limit } as i32];
+            self.status_msg = format!("Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B]", label, chip_v.display_name(), frev, crev, trev, b.len());
+            self.raw_buffer = b;
+            return;
+        }
+
         let supported_rdna2 = matches!(frev, 0x10 | 0x11 | 0x12 | 0x13) || (frev == 0x0F && b.len() == 2470);
         if !supported_rdna2 {
             self.show_error(
@@ -584,6 +659,38 @@ impl PowerPlayApp {
             t1.od_feature_flags[9] = u8::from(self.power_limit_feat);
             t1.od_feature_flags[10] = u8::from(self.timing_tuning);
             t1.od_feature_flags[11] = u8::from(self.power_mode);
+            return;
+        }
+
+        if let Some(v20) = crate::pptable_vega::AtomVega20PowerPlayTable::from_bytes_mut(&mut self.raw_buffer) {
+            v20.boost_power_limit = self.power_limit_w.max(0) as u16;
+            v20.socket_power_limit_ac[0] = self.power_limit_w.max(0) as u16;
+            v20.tdc_limit_gfx = self.tdc_gfx.max(0) as u16;
+            v20.tdc_limit_soc = self.tdc_soc.max(0) as u16;
+            v20.min_voltage_gfx = (self.volt_gfx[0].max(0) * 4) as u16;
+            v20.max_voltage_gfx = (self.volt_gfx[1].max(0) * 4) as u16;
+            v20.min_voltage_soc = (self.volt_soc[0].max(0) * 4) as u16;
+            v20.max_voltage_soc = (self.volt_soc[1].max(0) * 4) as u16;
+            v20.od_settings_min[0] = self.oc_gfx_clock[0].max(0) as u32;
+            v20.od_settings_max[0] = self.oc_gfx_clock[1].max(0) as u32;
+            v20.od_settings_min[1] = self.oc_mem_clock[0].max(0) as u32;
+            v20.od_settings_max[1] = self.oc_mem_clock[1].max(0) as u32;
+            v20.od_settings_min[2] = self.oc_power_limit[0] as u32;
+            v20.od_settings_max[2] = self.oc_power_limit[1].max(0) as u32;
+            v20.fan_pwm_min = self.fan_pwm_min.max(0) as u16;
+            v20.fan_maximum_rpm = self.fan_max_rpm.max(0) as u16;
+            v20.fan_target_temperature = self.fan_target_temp.max(0) as u16;
+            v20.fan_zero_rpm_enable = u8::from(self.fan_zero_rpm_enable);
+            v20.fan_stop_temp = self.fan_stop_temp.max(0) as u16;
+            v20.fan_start_temp = self.fan_start_temp.max(0) as u16;
+            for i in 0..4 { v20.freq_table_uclk[i] = self.mem_dpm_freq[i][0].max(0) as u16; }
+            return;
+        }
+
+        if let Some(v10) = crate::pptable_vega::AtomVega10PowerPlayTable::from_bytes_mut(&mut self.raw_buffer) {
+            v10.max_od_engine_clock = (self.oc_gfx_clock[1].max(0) * 100) as u32;
+            v10.max_od_memory_clock = (self.oc_mem_clock[1].max(0) * 100) as u32;
+            v10.power_control_limit = self.oc_power_limit[1].max(0) as u16;
             return;
         }
 
