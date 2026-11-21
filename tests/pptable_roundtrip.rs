@@ -255,4 +255,8 @@ fn test_polaris_roundtrip() {
     pptable_polaris::AtomPolarisPowerPlayTable::write_fan_subtable(&mut pol, 20, 2200, 72, 1350, true, 52, 60);
     assert_eq!(pptable_polaris::AtomPolarisPowerPlayTable::from_bytes(&pol).unwrap().read_fan_subtable(&pol), Some((20, 2200, 72, 1350, true, 52, 60)));
     assert_eq!(ppt_arch::PptArch::detect(&pol), ppt_arch::PptArch::Polaris);
+    let reg_pol = export_formats::format_reg_ppt(&pol);
+    assert_eq!(import_formats::parse_reg_ppt(reg_pol.as_bytes()).expect("parse pol reg"), pol);
+    let plist_pol = export_formats::format_opencore_plist(&pol, "PciRoot(0x0)/Pci(0x1,0x0)/Pci(0x0,0x0)");
+    assert_eq!(import_formats::parse_plist_ppt(plist_pol.as_bytes()).expect("parse pol plist"), pol);
 }
