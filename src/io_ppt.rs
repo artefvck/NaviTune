@@ -12,10 +12,10 @@ impl PowerPlayApp {
     }
 
     #[inline]
-    fn build_smu_mask(&self) -> u64 {
+    fn build_smu_mask(smu_features: &[bool; 64]) -> u64 {
         let mut mask = 0u64;
         for bit in 0..64 {
-            if self.smu_features[bit] {
+            if smu_features[bit] {
                 mask |= 1u64 << bit;
             }
         }
@@ -836,8 +836,17 @@ impl PowerPlayApp {
             v20.fan_start_temp = self.fan_start_temp.max(0) as u16;
             for i in 0..7 { v20.temp_limit[i] = self.temp_limits[i].max(0) as u16; }
 
-            v20.features_to_run = self.build_smu_mask();
-            self.save_od8_flags_10(&mut v20.od_feature_flags);
+            v20.features_to_run = Self::build_smu_mask(&self.smu_features);
+            v20.od_feature_flags[0] = u8::from(self.gpu_clock_limit);
+            v20.od_feature_flags[1] = u8::from(self.gpu_clock_curve);
+            v20.od_feature_flags[2] = u8::from(self.memory_clock_limit);
+            v20.od_feature_flags[3] = u8::from(self.zero_rpm);
+            v20.od_feature_flags[4] = u8::from(self.min_fan_speed);
+            v20.od_feature_flags[5] = u8::from(self.fan_target_temp_limit);
+            v20.od_feature_flags[6] = u8::from(self.operating_temp_limit);
+            v20.od_feature_flags[7] = u8::from(self.fan_acoustic_rpm);
+            v20.od_feature_flags[8] = u8::from(self.fan_curve);
+            v20.od_feature_flags[9] = u8::from(self.power_limit_feat);
             return;
         }
 
