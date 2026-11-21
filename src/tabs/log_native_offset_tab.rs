@@ -45,6 +45,22 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<(&'static str, V
             ("Fan", "stop / start / target / zero", 0x679, 32, format!("Stop={}C, Start={}C, Target={}C, MaxRPM={}, ZeroRPM={}", {t1.fan_stop_temp}, {t1.fan_start_temp}, {t1.fan_target_temperature}, {t1.fan_maximum_rpm}, t1.fan_zero_rpm_enable)),
         ]));
     }
+    if let Some(v20) = crate::pptable_vega::AtomVega20PowerPlayTable::from_bytes(b) {
+        let od_max = { v20.od_settings_max };
+        let ppt_ac = { v20.socket_power_limit_ac };
+        return Some(("Vega 20 (0x0B)", vec![
+            ("Header", "AtomCommonTableHeader", 0x000, 5, format!("size={}, rev=0x{:02X}.{:02X}.{:02X}", hdr_sz, frev, crev, trev)),
+            ("OD8", "od_settings_max[0..4]", 0x055, 16, format!("GFX={}, Mem={}, Pwr=+{}%, Fan={}", od_max[0], od_max[1], od_max[2], od_max[3])),
+            ("Power", "socket_power_limit_ac / tdc", 0x11D, 12, format!("PPT0={}W, TDC_GFX={}A, TDC_Soc={}A", ppt_ac[0], {v20.tdc_limit_gfx}, {v20.tdc_limit_soc})),
+            ("Voltage", "GFX / Soc Vmin..Vmax", 0x159, 8, format!("GFX={}..{}mV, Soc={}..{}mV", {v20.min_voltage_gfx}/4, {v20.max_voltage_gfx}/4, {v20.min_voltage_soc}/4, {v20.max_voltage_soc}/4)),
+        ]));
+    }
+    if let Some(v10) = crate::pptable_vega::AtomVega10PowerPlayTable::from_bytes(b) {
+        return Some(("Vega 10 (0x08)", vec![
+            ("Header", "AtomCommonTableHeader", 0x000, 5, format!("size={}, rev=0x{:02X}.{:02X}.{:02X}", hdr_sz, frev, crev, trev)),
+            ("OverDrive", "max_od_engine / memory / pwr", 0x017, 10, format!("GFX={}MHz, Mem={}MHz, Pwr=+{}%", {v10.max_od_engine_clock}/100, {v10.max_od_memory_clock}/100, {v10.power_control_limit})),
+        ]));
+    }
     let t = AtomSmcDpmInfoV4_9::from_bytes(b)?;
     Some(("RDNA 2 (V4_9)", vec![
         ("Header", "AtomCommonTableHeader", 0x000, 5, format!("size={}, rev=0x{:02X}.{:02X}.{:02X}", hdr_sz, frev, crev, trev)),

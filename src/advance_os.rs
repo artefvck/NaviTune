@@ -459,7 +459,7 @@ pub(crate) fn compile_dsl_to_aml(dsl_text: &str, out_aml_path: &std::path::Path)
 }
 
 pub(crate) fn format_opencore_acpi_dsl(ppt_bytes: &[u8], acpi_path: &str, dis_pc: bool, dis_ulps: bool) -> String {
-    let arch_lbl = crate::pptable_rdna1::PptArch::detect(ppt_bytes).label();
+    let arch_lbl = crate::ppt_arch::PptArch::detect(ppt_bytes).label();
     let ext_path = if let Some(rest) = acpi_path.strip_prefix("_SB.") {
         format!("_SB_.{}", rest)
     } else {

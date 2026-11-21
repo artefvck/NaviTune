@@ -31,6 +31,20 @@ impl PowerPlayApp {
                         ui.end_row();
                     }
                 });
+            } else if let Some(v20) = crate::pptable_vega::AtomVega20PowerPlayTable::from_bytes_mut(&mut self.raw_buffer) {
+                let base = offset_of!(crate::pptable_vega::AtomVega20PowerPlayTable, socket_power_limit_ac);
+                egui::Grid::new("card_pwr_grid").spacing([10.0, 6.0]).show(ui, |ui| {
+                    ui.strong("Limit (Vega 20)"); ui.strong("Value (W)"); ui.strong("Offset"); ui.end_row();
+                    for (idx, lbl) in [(1, "PPT1 (Short)"), (2, "PPT2 (Peak)"), (3, "PPT3 (Fast)")] {
+                        ui.label(lbl);
+                        let mut val = { v20.socket_power_limit_ac[idx] } as i32;
+                        if ui.add(egui::DragValue::new(&mut val).range(0..=1000)).changed() {
+                            v20.socket_power_limit_ac[idx] = val as u16;
+                        }
+                        ui.monospace(format!("0x{:03X}", base + idx * 2));
+                        ui.end_row();
+                    }
+                });
             } else if let Some(t) = AtomSmcDpmInfoV4_9::from_bytes_mut(&mut self.raw_buffer) {
                 let base = offset_of!(AtomSmcDpmInfoV4_9, socket_power_limit_ac);
                 egui::Grid::new("card_pwr_grid").spacing([10.0, 6.0]).show(ui, |ui| {

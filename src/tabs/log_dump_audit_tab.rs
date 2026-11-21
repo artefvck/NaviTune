@@ -108,6 +108,9 @@ impl PowerPlayApp {
         let did = self.vbios_buffer.as_deref().and_then(|vb| crate::vbios::inspect_vbios_info(vb, self.vbios_ppt_offset.unwrap_or(0))).map(|vi| vi.device_id).unwrap_or(0);
         let chip_name = if let Some(t3) = crate::pptable_rdna3::AtomSmcDpmInfoV4_12::from_bytes(&self.raw_buffer) {
             t3.detect_chip(did).display_name()
+        } else if matches!(crate::ppt_arch::PptArch::detect(&self.raw_buffer), crate::ppt_arch::PptArch::Vega10 | crate::ppt_arch::PptArch::Vega20) {
+            let frev_v = self.raw_buffer.get(2).copied().unwrap_or(0);
+            crate::pptable_vega::VegaChip::from_did_and_rev(did, frev_v).display_name()
         } else if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(&self.raw_buffer) {
             t1.detect_chip(did).display_name()
         } else {
