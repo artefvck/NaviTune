@@ -3,6 +3,8 @@
 **NaviTune** (`pptool`) is a cross-platform Rust GUI application (`eframe` / `egui`) for inspecting, editing, auditing, and deploying AMD Radeon **RDNA 1**, **RDNA 2**, and **RDNA 3** Soft PowerPlay Tables (`PP_PhmSoftPowerPlayTable`) and VBIOS ROM images.
 
 ## 1. Packed Binary Models & Architecture Dispatch
+* **`src/ppt_arch.rs` (`PptArch`)**: Centralized architecture detection (`Vega10`, `Vega20`, `Rdna1`, `Rdna2`, `Rdna3`) and per-family capability helpers.
+* **`src/pptable_vega.rs` (`AtomVega10PowerPlayTable`, `AtomVega20PowerPlayTable`)**: Zero-copy mapping for Vega 10 (`0x08`) and Vega 20 (`0x0B`, `1,924` bytes).
 * **`src/pptable_rdna1.rs` (`AtomSmcDpmInfoV4_5`, `1,924` bytes)**: Zero-copy `#[repr(C, packed)]` mapping for RDNA 1 (`Navi 10`, `Navi 12`, `Navi 14`, `SMU 11.0`, `table_format_revision` `0x0C` / `0x0D`), plus `PptArch::detect(&[u8])` unified architecture dispatch and `NaviRDNA1Chip` silicon detection.
 * **`src/pptable_rdna2.rs` (`AtomSmcDpmInfoV4_9`, `2,470` bytes)**: Zero-copy `#[repr(C, packed)]` mapping for RDNA 2 (`Navi 21`, `Navi 22`, `Navi 23`, `Navi 24`, `SMU 11.0`, `table_format_revision` `0x0F`–`0x13`).
 * **`src/pptable_rdna3.rs` (`AtomSmcDpmInfoV4_12`, `5,424` bytes)**: Zero-copy `#[repr(C, packed)]` mapping for RDNA 3 (`Navi 31`, `Navi 32`, `Navi 33`, `SMU 13.0`, `table_format_revision` `0x14`–`0x16`).

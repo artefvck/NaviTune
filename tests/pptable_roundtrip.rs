@@ -186,4 +186,8 @@ fn test_vega10_and_vega20_roundtrip() {
     t20.min_voltage_gfx = 3000;
     t20.max_voltage_gfx = 4600;
     assert_eq!(pptable_rdna1::PptArch::detect(&v20), pptable_rdna1::PptArch::Vega20);
+    let reg_v20 = export_formats::format_reg_ppt(&v20);
+    assert_eq!(import_formats::parse_reg_ppt(reg_v20.as_bytes()).expect("parse v20 reg"), v20);
+    let plist_v20 = export_formats::format_opencore_plist(&v20, "PciRoot(0x0)/Pci(0x1,0x0)/Pci(0x0,0x0)");
+    assert_eq!(import_formats::parse_plist_ppt(plist_v20.as_bytes()).expect("parse v20 plist"), v20);
 }
