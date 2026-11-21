@@ -11,8 +11,8 @@ pub fn two_col_cards(
     right: impl FnOnce(&mut egui::Ui),
 ) {
     let gap = 10.0;
-    let usable_w = (ui.available_width() - 10.0).max(320.0);
-    let col_w = ((usable_w - gap) * 0.5).floor();
+    let usable_w = (ui.available_width() - 12.0).max(730.0);
+    let col_w = ((usable_w - gap) * 0.5).floor().max(360.0);
     egui::Grid::new(id)
         .num_columns(2)
         .spacing([gap, 0.0])
