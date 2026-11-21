@@ -1,5 +1,9 @@
 #[allow(dead_code)]
 #[path = "../src/pptable_rdna2.rs"]
+#[allow(dead_code)]
+#[path = "../src/pptable_rdna1.rs"]
+mod pptable_rdna1;
+
 mod pptable_rdna2;
 
 #[allow(dead_code)]
@@ -20,6 +24,39 @@ mod import_formats;
 
 use pptable_rdna2::AtomSmcDpmInfoV4_9;
 use pptable_rdna3::AtomSmcDpmInfoV4_12;
+
+use pptable_rdna1::AtomSmcDpmInfoV4_5;
+
+fn make_rdna1_sample() -> Vec<u8> {
+    let sz = core::mem::size_of::<AtomSmcDpmInfoV4_5>();
+    let mut buf = vec![0u8; sz];
+    buf[0..2].copy_from_slice(&(sz as u16).to_le_bytes());
+    buf[2] = 0x0C;
+    buf[3] = 1;
+    let t1 = AtomSmcDpmInfoV4_5::from_bytes_mut(&mut buf).expect("valid V4_5");
+    t1.boost_power_limit = 180;
+    t1.socket_power_limit_ac[0] = 180;
+    t1.tdc_limit_gfx = 175;
+    t1.min_voltage_gfx = 3000;
+    t1.max_voltage_gfx = 4800;
+    t1.freq_table_gfx[0] = 800;
+    t1.freq_table_gfx[15] = 2100;
+    t1.fan_target_temperature = 85;
+    buf
+}
+
+#[test]
+fn test_rdna1_v4_5_size_and_roundtrip() {
+    let buf = make_rdna1_sample();
+    assert_eq!(buf.len(), 1924, "AtomSmcDpmInfoV4_5 must be 1,924 bytes");
+    let t1 = AtomSmcDpmInfoV4_5::from_bytes(&buf).expect("valid V4_5 read view");
+    assert_eq!({ t1.socket_power_limit_ac[0] }, 180);
+    assert_eq!({ t1.tdc_limit_gfx }, 175);
+    assert_eq!({ t1.min_voltage_gfx } / 4, 750);
+    assert_eq!({ t1.max_voltage_gfx } / 4, 1200);
+    assert_eq!({ t1.freq_table_gfx[15] }, 2100);
+    assert_eq!({ t1.fan_target_temperature }, 85);
+}
 
 fn make_rdna2_sample() -> Vec<u8> {
     let sz = core::mem::size_of::<AtomSmcDpmInfoV4_9>();
@@ -77,7 +114,7 @@ fn test_rdna3_v4_12_size_and_navi31_vs_navi33_scaling() {
 
 #[test]
 fn test_reg_mpt_plist_format_roundtrip() {
-    for sample in [make_rdna2_sample(), make_rdna3_sample()] {
+    for sample in [make_rdna1_sample(), make_rdna2_sample(), make_rdna3_sample()] {
         let reg_txt = export_formats::format_reg_ppt(&sample);
         let parsed_reg = import_formats::parse_reg_ppt(reg_txt.as_bytes()).expect("parse .reg");
         assert_eq!(parsed_reg, sample, ".reg round-trip must be byte-exact");
