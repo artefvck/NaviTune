@@ -262,3 +262,15 @@ fn test_polaris_roundtrip() {
     let plist_pol = export_formats::format_opencore_plist(&pol, "PciRoot(0x0)/Pci(0x1,0x0)/Pci(0x0,0x0)");
     assert_eq!(import_formats::parse_plist_ppt(plist_pol.as_bytes()).expect("parse pol plist"), pol);
 }
+
+#[test]
+fn test_cross_arch_gcn_and_rdna_detection() {
+    assert!(ppt_arch::PptArch::Polaris.is_gcn_subtable());
+    assert!(ppt_arch::PptArch::Vega10.is_gcn_subtable());
+    assert!(!ppt_arch::PptArch::Vega20.is_gcn_subtable());
+    assert!(!ppt_arch::PptArch::Rdna1.is_gcn_subtable());
+    assert!(ppt_arch::PptArch::Polaris.gcn_subtable_hint("power").is_some());
+    assert!(ppt_arch::PptArch::Vega10.gcn_subtable_hint("freq").is_some());
+    assert!(ppt_arch::PptArch::Rdna2.gcn_subtable_hint("fan").is_none());
+    assert_eq!(ppt_arch::PptArch::Polaris.default_table_size(), 384);
+}

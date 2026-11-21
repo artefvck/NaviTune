@@ -11,6 +11,10 @@ impl PowerPlayApp {
         let is_rdna3 = arch.is_rdna3();
         let is_rdna2 = arch.is_rdna2();
         let is_rdna1 = arch.is_rdna1() || arch.is_vega() || arch.is_gcn_subtable();
+        if arch.is_gcn_subtable() && (self.fan_pwm_min < 0 || self.fan_pwm_min > 100) {
+            ui.colored_label(egui::Color32::from_rgb(245, 185, 65), "Fan Check: Fan PWM Min out of 0..100%");
+            ui.add_space(4.0);
+        }
         if let Some(hint) = arch.gcn_subtable_hint("fan") {
             ui.colored_label(egui::Color32::from_rgb(235, 190, 95), hint);
             ui.add_space(6.0);
