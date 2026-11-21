@@ -70,7 +70,7 @@ pub struct AtomPolarisPowerPlayTable {
     pub pcie_table_offset: u16,
     pub bi_table_offset: u16,
     pub hard_limit_table_offset: u16,
-    pub payload: [u8; 307],
+    pub payload: [u8; 311],
 }
 
 const _: () = {
@@ -79,7 +79,7 @@ const _: () = {
     assert!(offset_of!(AtomPolarisPowerPlayTable, max_od_memory_clock) == 0x01B);
     assert!(offset_of!(AtomPolarisPowerPlayTable, power_control_limit) == 0x01F);
     assert!(offset_of!(AtomPolarisPowerPlayTable, fan_table_offset) == 0x025);
-    assert!(offset_of!(AtomPolarisPowerPlayTable, hard_limit_table_offset) == 0x04B);
+    assert!(offset_of!(AtomPolarisPowerPlayTable, hard_limit_table_offset) == 0x047);
 };
 
 impl AtomPolarisPowerPlayTable {

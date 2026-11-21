@@ -60,7 +60,7 @@ impl PptArch {
         match self {
             Self::Vega20 | Self::Rdna1 => 7,
             Self::Rdna2 | Self::Rdna3 => 9,
-            Self::Vega10 | Self::Unknown => 0,
+            Self::Polaris | Self::Vega10 | Self::Unknown => 0,
         }
     }
 
