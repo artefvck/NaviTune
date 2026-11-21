@@ -217,7 +217,7 @@ impl PowerPlayApp {
             self.oc_fan_acoustic_rpm = [od_min[4] as i32, od_max[4] as i32];
 
             let ppt0 = { t1.socket_power_limit_ac[0] } as i32;
-            self.power_limit_w = if ppt0 > 0 { ppt0 } else { { t1.boost_power_limit } as i32 };
+            self.power_limit_w = if ppt0 > 0 { ppt0 } else { ({ t1.boost_power_limit }) as i32 };
             self.tdc_gfx = { t1.tdc_limit_gfx } as i32;
             self.tdc_soc = { t1.tdc_limit_soc } as i32;
 
