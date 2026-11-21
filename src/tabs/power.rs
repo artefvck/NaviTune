@@ -68,35 +68,34 @@ impl PowerPlayApp {
                     kv_row_1(ui, "TDC Soc (A)", tdcs_tag, &mut self.tdc_soc, 62.0);
                 });
             }
-            draw_card(ui, "ULV Voltage (mV)", |ui| {
-                if is_rdna3 {
-                    kv_row_1(ui, "GFX Vmin", "ulv_voltage_vmin_gfx (0x3C4)", &mut self.ulv_gfx[0], 62.0);
-                    kv_row_1(ui, "Soc Vmin", "ulv_voltage_vmin_soc (0x3C6)", &mut self.ulv_soc[0], 62.0);
-                } else {
-                    kv_header_2(ui, "Vmin", "Vmax", 62.0);
-                    kv_row_2(ui, "GFX", "ulv_voltage_vmin_gfx (0x380)", &mut self.ulv_gfx, 62.0);
-                    kv_row_2(ui, "Soc", "ulv_voltage_vmin_soc (0x382)", &mut self.ulv_soc, 62.0);
-                }
-            });
+            if !arch.is_gcn_subtable() {
+                draw_card(ui, "ULV Voltage (mV)", |ui| {
+                    if is_rdna3 {
+                        kv_row_1(ui, "GFX Vmin", "ulv_voltage_vmin_gfx (0x3C4)", &mut self.ulv_gfx[0], 62.0);
+                        kv_row_1(ui, "Soc Vmin", "ulv_voltage_vmin_soc (0x3C6)", &mut self.ulv_soc[0], 62.0);
+                    } else {
+                        kv_header_2(ui, "Vmin", "Vmax", 62.0);
+                        kv_row_2(ui, "GFX", "ulv_voltage_vmin_gfx (0x380)", &mut self.ulv_gfx, 62.0);
+                        kv_row_2(ui, "Soc", "ulv_voltage_vmin_soc (0x382)", &mut self.ulv_soc, 62.0);
+                    }
+                });
+            }
         }, |ui| {
             if !arch.is_gcn_subtable() {
-                if !arch.is_gcn_subtable() {
-                    draw_card(ui, "Memory Voltage (mV)", |ui| {
-                        kv_header_2(ui, "VDDCI", "MVDD", 62.0);
-                        if is_rdna1 {
-                            kv_row_2(ui, "Max (VDDCI/MVDD)", "vddci_max / mvdd_max (0x0DF / 0x0E1)", &mut self.mem_dpm_volt[3], 62.0);
-                            for i in 0..3 {
-                                self.mem_dpm_volt[i] = self.mem_dpm_volt[3];
-                            }
-                        } else {
-                            for i in 0..4 {
-                                kv_row_2(ui, &format!("DPM {}", i), &format!("vddci/mvdd_{} (0x66A / 0x7D4)", i), &mut self.mem_dpm_volt[i], 62.0);
-                            }
+                draw_card(ui, "Memory Voltage (mV)", |ui| {
+                    kv_header_2(ui, "VDDCI", "MVDD", 62.0);
+                    if is_rdna1 {
+                        kv_row_2(ui, "Max (VDDCI/MVDD)", "vddci_max / mvdd_max (0x0DF / 0x0E1)", &mut self.mem_dpm_volt[3], 62.0);
+                        for i in 0..3 {
+                            self.mem_dpm_volt[i] = self.mem_dpm_volt[3];
                         }
-    
-                }
-                }
-        });
+                    } else {
+                        for i in 0..4 {
+                            kv_row_2(ui, &format!("DPM {}", i), &format!("vddci/mvdd_{} (0x66A / 0x7D4)", i), &mut self.mem_dpm_volt[i], 62.0);
+                        }
+                    }
+                });
+            }
             if !is_rdna3 && !is_rdna1 {
                 draw_card(ui, "Thermal Vmin", |ui| {
                     kv_header_2(ui, "TVmin (°C)", "Hyst (°C)", 62.0);
