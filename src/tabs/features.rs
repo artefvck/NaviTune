@@ -173,16 +173,22 @@ impl PowerPlayApp {
 
                         ui.label("VBIOS ROM:");
                         if let Some(ref vi) = info {
-                            ui.monospace(format!(
-                                "{} [{:04X}:{:04X}] | {} B (Legacy {} B, PPTable @ 0x{:X}, {} B)",
-                                vi.device_name,
-                                vi.vendor_id,
-                                vi.device_id,
-                                vi.total_size,
-                                vi.legacy_size,
-                                vi.ppt_offset,
-                                vi.ppt_size
-                            ));
+                            ui.vertical(|ui| {
+                                ui.spacing_mut().item_spacing.y = 2.0;
+                                ui.monospace(format!(
+                                    "{} [{:04X}:{:04X}]",
+                                    vi.device_name,
+                                    vi.vendor_id,
+                                    vi.device_id,
+                                ));
+                                ui.monospace(format!(
+                                    "{} B (Legacy {} B, PPTable @ 0x{:X}, {} B)",
+                                    vi.total_size,
+                                    vi.legacy_size,
+                                    vi.ppt_offset,
+                                    vi.ppt_size
+                                ));
+                            });
                         } else {
                             ui.weak("Standalone PPTable / Registry buffer (no full ROM)");
                         }
