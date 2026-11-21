@@ -208,11 +208,13 @@ impl PowerPlayApp {
                 self.smu_features[bit] = (mask & (1u64 << bit)) != 0;
             }
 
-            self.oc_gfx_clock = [{ t1.od_settings_min[0] } as i32, { t1.od_settings_max[0] } as i32];
-            self.oc_mem_clock = [{ t1.od_settings_min[1] } as i32, { t1.od_settings_max[1] } as i32];
-            self.oc_power_limit = [{ t1.od_settings_min[2] } as i32, { t1.od_settings_max[2] } as i32];
-            self.oc_fan_rpm = [{ t1.od_settings_min[3] } as i32, { t1.od_settings_max[3] } as i32];
-            self.oc_fan_acoustic_rpm = [{ t1.od_settings_min[4] } as i32, { t1.od_settings_max[4] } as i32];
+            let od_min = { t1.od_settings_min };
+            let od_max = { t1.od_settings_max };
+            self.oc_gfx_clock = [od_min[0] as i32, od_max[0] as i32];
+            self.oc_mem_clock = [od_min[1] as i32, od_max[1] as i32];
+            self.oc_power_limit = [od_min[2] as i32, od_max[2] as i32];
+            self.oc_fan_rpm = [od_min[3] as i32, od_max[3] as i32];
+            self.oc_fan_acoustic_rpm = [od_min[4] as i32, od_max[4] as i32];
 
             let ppt0 = { t1.socket_power_limit_ac[0] } as i32;
             self.power_limit_w = if ppt0 > 0 { ppt0 } else { { t1.boost_power_limit } as i32 };
