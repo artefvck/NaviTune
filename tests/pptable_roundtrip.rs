@@ -1,9 +1,9 @@
 #[allow(dead_code)]
-#[path = "../src/pptable_rdna2.rs"]
-#[allow(dead_code)]
 #[path = "../src/pptable_rdna1.rs"]
 mod pptable_rdna1;
 
+#[allow(dead_code)]
+#[path = "../src/pptable_rdna2.rs"]
 mod pptable_rdna2;
 
 #[allow(dead_code)]
