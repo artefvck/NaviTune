@@ -398,15 +398,27 @@ impl PowerPlayApp {
                 self.mem_dpm_freq[i] = [0, 1];
                 self.mem_dpm_volt[i] = [0, 0];
             }
-            self.fan_pwm_min = 0;
-            self.fan_acoustic_limit = 0;
-            self.fan_throttling_rpm = 0;
-            self.fan_max_rpm = 0;
-            self.fan_target_temp = 0;
-            self.fan_target_gfx_clock = 0;
-            self.fan_zero_rpm_enable = false;
-            self.fan_stop_temp = 0;
-            self.fan_start_temp = 0;
+            if let Some((pwm_min, max_rpm, tgt_temp, tgt_gfx, zrpm, stop_t, start_t)) = v10.read_fan_subtable(&b) {
+                self.fan_pwm_min = pwm_min;
+                self.fan_acoustic_limit = 0;
+                self.fan_throttling_rpm = 0;
+                self.fan_max_rpm = max_rpm;
+                self.fan_target_temp = tgt_temp;
+                self.fan_target_gfx_clock = tgt_gfx;
+                self.fan_zero_rpm_enable = zrpm;
+                self.fan_stop_temp = stop_t;
+                self.fan_start_temp = start_t;
+            } else {
+                self.fan_pwm_min = 0;
+                self.fan_acoustic_limit = 0;
+                self.fan_throttling_rpm = 0;
+                self.fan_max_rpm = 0;
+                self.fan_target_temp = 0;
+                self.fan_target_gfx_clock = 0;
+                self.fan_zero_rpm_enable = false;
+                self.fan_stop_temp = 0;
+                self.fan_start_temp = 0;
+            }
             for i in 0..9 { self.temp_limits[i] = 0; }
             self.status_msg = format!("Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B]", label, chip_v.display_name(), frev, crev, trev, b.len());
             self.raw_buffer = b;
@@ -778,6 +790,16 @@ impl PowerPlayApp {
             v10.max_od_engine_clock = (self.oc_gfx_clock[1].max(0) * 100) as u32;
             v10.max_od_memory_clock = (self.oc_mem_clock[1].max(0) * 100) as u32;
             v10.power_control_limit = self.oc_power_limit[1].max(0) as u16;
+            crate::pptable_vega::AtomVega10PowerPlayTable::write_fan_subtable(
+                &mut self.raw_buffer,
+                self.fan_pwm_min,
+                self.fan_max_rpm,
+                self.fan_target_temp,
+                self.fan_target_gfx_clock,
+                self.fan_zero_rpm_enable,
+                self.fan_stop_temp,
+                self.fan_start_temp,
+            );
             return;
         }
 
