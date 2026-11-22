@@ -364,3 +364,14 @@ fn test_power_modes_and_acoustic_capabilities_all_six() {
     assert!(Rdna3.has_multi_power_modes());
     assert!(!Rdna3.has_power_mode_acoustic());
 }
+
+#[test]
+fn test_od_offset_labels_all_six_architectures() {
+    use ppt_arch::PptArch::*;
+    assert_eq!(Polaris.od_offset_labels().0, "max_od_engine_clock (0x017)");
+    assert_eq!(Vega10.od_offset_labels().2, "power_control_limit (0x01F)");
+    assert!(Vega20.od_offset_labels().0.contains("0x02F"));
+    assert!(Rdna1.od_offset_labels().1.contains("0x033"));
+    assert!(Rdna2.od_offset_labels().0.contains("0x04F"));
+    assert!(Rdna3.od_offset_labels().0.contains("0x051"));
+}

@@ -76,6 +76,40 @@ impl PptArch {
         matches!(self, Self::Rdna2)
     }
 
+    pub fn od_offset_labels(self) -> (&x27static str, &x27static str, &x27static str, &x27static str, &x27static str) {
+        match self {
+            Self::Polaris | Self::Vega10 => (
+                "max_od_engine_clock (0x017)",
+                "max_od_memory_clock (0x01B)",
+                "power_control_limit (0x01F)",
+                "N/A (ATOM Fan SubTable)",
+                "N/A (ATOM Fan SubTable)",
+            ),
+            Self::Vega20 | Self::Rdna1 => (
+                "od_settings_min / max (0x02F / 0x053)",
+                "od_settings_min / max (0x033 / 0x057)",
+                "od_settings_min / max (0x037 / 0x05B)",
+                "od_settings_min / max (0x03B / 0x05F)",
+                "od_settings_min / max (0x03F / 0x063)",
+            ),
+            Self::Rdna2 => (
+                "od_gfx_min / max (0x04F / 0x097)",
+                "od_mem_min / max (0x053 / 0x09B)",
+                "od_pwr_min / max (0x057 / 0x09F)",
+                "od_fan_min / max (0x05B / 0x0A3)",
+                "od_acoustic_min / max (0x05F / 0x0A7)",
+            ),
+            Self::Rdna3 => (
+                "od_gfx_min / max (0x051 / 0x099)",
+                "od_mem_min / max (0x055 / 0x09D)",
+                "od_pwr_min / max (0x059 / 0x0A1)",
+                "od_fan_min / max (0x05D / 0x0A5)",
+                "od_acoustic_min / max (0x061 / 0x0A9)",
+            ),
+            Self::Unknown => ("GFX Clock", "Memory Clock", "Power Limit", "Fan Max RPM", "Fan Acoustic RPM"),
+        }
+    }
+
     pub fn has_vf_curve_points(self) -> bool {
         matches!(self, Self::Vega20 | Self::Rdna1 | Self::Rdna2 | Self::Rdna3)
     }
