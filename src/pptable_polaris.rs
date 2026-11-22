@@ -161,7 +161,7 @@ impl AtomPolarisPowerPlayTable {
             if n > 0 && soff + 2 + n * stride <= buf.len() {
                 let c0 = u32::from_le_bytes([buf[soff + 3], buf[soff + 4], buf[soff + 5], buf[soff + 6]]) / 100;
                 let last = soff + 2 + (n - 1) * stride;
-                let cn = u32::from_le_bytes([buf[last + 1], buf[last + 2], buf[last + 3], buf[last + 4]]) / 100;
+                let cn = u32::from_le_bytes([buf[last + 3], buf[last + 4], buf[last + 5], buf[last + 6]]) / 100;
                 sclk_min = c0 as i32;
                 sclk_max = cn as i32;
             }
@@ -199,8 +199,8 @@ impl AtomPolarisPowerPlayTable {
                 for i in 0..n.min(4) {
                     let eoff = moff + 2 + i * stride;
                     let vddci = u16::from_le_bytes([buf[eoff + 1], buf[eoff + 2]]) as i32;
-                    let mvdd = u16::from_le_bytes([buf[eoff + 3], buf[eoff + 4]]) as i32;
-                    let mclk = (u32::from_le_bytes([buf[eoff + 5], buf[eoff + 6], buf[eoff + 7], buf[eoff + 8]]) / 100) as i32;
+                    let mvdd = u16::from_le_bytes([buf[eoff + 5], buf[eoff + 6]]) as i32;
+                    let mclk = (u32::from_le_bytes([buf[eoff + 7], buf[eoff + 8], buf[eoff + 9], buf[eoff + 10]]) / 100) as i32;
                     mclk_states.push((mclk, vddci, mvdd));
                 }
             }
@@ -212,7 +212,7 @@ impl AtomPolarisPowerPlayTable {
             if buf[i] == 0x04 {
                 let tdp = u16::from_le_bytes([buf[i + 1], buf[i + 2]]) as i32;
                 let tdc = u16::from_le_bytes([buf[i + 5], buf[i + 6]]) as i32;
-                let max_p = u16::from_le_bytes([buf[i + 0x2E], buf[i + 0x2F]]) as i32;
+                let max_p = u16::from_le_bytes([buf[i + 0x2D], buf[i + 0x2E]]) as i32;
                 if (30..=500).contains(&tdp) && (20..=400).contains(&tdc) && (30..=600).contains(&max_p) {
                     pwr_w = max_p;
                     tdc_a = tdc;
@@ -238,7 +238,7 @@ impl AtomPolarisPowerPlayTable {
                 }
                 if sclk_max > 0 {
                     let last = soff + 2 + (n - 1) * stride;
-                    buf[last + 1..last + 5].copy_from_slice(&((sclk_max as u32) * 100).to_le_bytes());
+                    buf[last + 3..last + 7].copy_from_slice(&((sclk_max as u32) * 100).to_le_bytes());
                 }
             }
         }
@@ -270,10 +270,10 @@ impl AtomPolarisPowerPlayTable {
                         buf[eoff + 1..eoff + 3].copy_from_slice(&(mem_dpm_volt[i][0] as u16).to_le_bytes());
                     }
                     if mem_dpm_volt[i][1] > 0 {
-                        buf[eoff + 3..eoff + 5].copy_from_slice(&(mem_dpm_volt[i][1] as u16).to_le_bytes());
+                        buf[eoff + 5..eoff + 7].copy_from_slice(&(mem_dpm_volt[i][1] as u16).to_le_bytes());
                     }
                     if mem_dpm_freq[i][0] > 0 {
-                        buf[eoff + 5..eoff + 9].copy_from_slice(&((mem_dpm_freq[i][0] as u32) * 100).to_le_bytes());
+                        buf[eoff + 7..eoff + 11].copy_from_slice(&((mem_dpm_freq[i][0] as u32) * 100).to_le_bytes());
                     }
                 }
             }
@@ -282,13 +282,13 @@ impl AtomPolarisPowerPlayTable {
             if buf[i] == 0x04 {
                 let tdp = u16::from_le_bytes([buf[i + 1], buf[i + 2]]) as i32;
                 let tdc = u16::from_le_bytes([buf[i + 5], buf[i + 6]]) as i32;
-                let max_p = u16::from_le_bytes([buf[i + 0x2E], buf[i + 0x2F]]) as i32;
+                let max_p = u16::from_le_bytes([buf[i + 0x2D], buf[i + 0x2E]]) as i32;
                 if (30..=500).contains(&tdp) && (20..=400).contains(&tdc) && (30..=600).contains(&max_p) {
                     if tdc_a > 0 {
                         buf[i + 5..i + 7].copy_from_slice(&(tdc_a as u16).to_le_bytes());
                     }
                     if pwr_w > 0 {
-                        buf[i + 0x2E..i + 0x30].copy_from_slice(&(pwr_w as u16).to_le_bytes());
+                        buf[i + 0x2D..i + 0x2F].copy_from_slice(&(pwr_w as u16).to_le_bytes());
                     }
                     break;
                 }
