@@ -52,7 +52,7 @@ impl PowerPlayApp {
             crate::card_layout::draw_arch_note_card(ui, &format!("{} — Thermal & Fan Architecture", arch.label()), "No discrete fan or thermal sub-table is present in this PPTable revision.");
             return;
         }
-        two_col_cards_adaptive(ui, "fan_cols", true, show_zerorpm || show_fancurve || show_thermallimits, |ui| {
+        two_col_cards_adaptive(ui, "fan_cols", true, show_zerorpm || show_fancurve, |ui| {
             draw_card(ui, "Fan Settings", |ui| {
                 kv_row_1(ui, "PWM Min (%)", "fan_pwm_min (0x716 / 0x86C)", &mut self.fan_pwm_min, 62.0);
                 kv_row_1(ui, "Acoustic Limit (RPM)", "fan_acoustic_limit (0x718 / 0x86E)", &mut self.fan_acoustic_limit, 62.0);
@@ -76,20 +76,18 @@ impl PowerPlayApp {
                     }
                 });
             }
-            }
         }, |ui| {
-                if show_zerorpm {
-                    draw_card(ui, "Zero RPM", |ui| {
-                        ui.horizontal(|ui| {
-                            let resp = crate::ui_theme::green_checkbox(ui, &mut self.fan_zero_rpm_enable, "Enable Zero RPM");
-                            if resp.hovered() || resp.clicked() {
-                                let state = if self.fan_zero_rpm_enable { "Enabled" } else { "Disabled" };
-                                let info = format!("Zero RPM › Enable Zero RPM (0x726 / 0x87C) · {}", state);
-                                ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("hovered_field_banner"), info.clone()));
-                                resp.on_hover_text(info);
-                            }
-                        });
-                    }
+            if show_zerorpm {
+                draw_card(ui, "Zero RPM", |ui| {
+                    ui.horizontal(|ui| {
+                        let resp = crate::ui_theme::green_checkbox(ui, &mut self.fan_zero_rpm_enable, "Enable Zero RPM");
+                        if resp.hovered() || resp.clicked() {
+                            let state = if self.fan_zero_rpm_enable { "Enabled" } else { "Disabled" };
+                            let info = format!("Zero RPM › Enable Zero RPM (0x726 / 0x87C) · {}", state);
+                            ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("hovered_field_banner"), info.clone()));
+                            resp.on_hover_text(info);
+                        }
+                    });
                     if self.fan_zero_rpm_enable && !self.zero_rpm {
                         ui.horizontal_wrapped(|ui| {
                             ui.colored_label(
@@ -107,8 +105,6 @@ impl PowerPlayApp {
                     kv_row_1(ui, "Start Temp (°C)", "fan_start_temp (0x72A / 0x838)", &mut self.fan_start_temp, 62.0);
                 });
             }
-            if arch.has_fan_curve_points() {
-                }
             if show_fancurve {
                 draw_card(ui, "Fan Curve", |ui| {
                     if is_rdna3 || is_rdna1 {
@@ -125,10 +121,8 @@ impl PowerPlayApp {
                             self.fan_curve_pwm[i] = pair[1];
                         }
                     }
-                );
-            
-            });
-
+                });
+            }
+        });
     }
 }
-
