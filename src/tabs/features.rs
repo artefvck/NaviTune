@@ -5,7 +5,7 @@ impl PowerPlayApp {
     pub fn draw_features_tab(&mut self, ui: &mut egui::Ui) {
         let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
         let loaded = !self.raw_buffer.is_empty();
-        let gen = ui.ctx().data(|d| d.get_temp::<u64>(egui::Id::new("ppt_baseline_gen")).unwrap_or(0));
+        let gen = ctx.data(|d| d.get_temp::<u64>(egui::Id::new("ppt_baseline_gen")).unwrap_or(0));
 
         if arch.has_od8_and_smu_masks() {
             ui.vertical_centered(|ui| {
@@ -23,6 +23,7 @@ impl PowerPlayApp {
             "OverDrive Features"
         };
 
+        let ctx = ctx.clone();
         crate::card_layout::draw_card(ui, card_title, |ui| {
             if !loaded {
                 ui.disable();
@@ -45,7 +46,7 @@ impl PowerPlayApp {
                             continue;
                         }
                         let base_id = egui::Id::new(("od_feat_base", gen, tag));
-                        let base_val = ui.ctx().data_mut(|d| {
+                        let base_val = ctx.data_mut(|d| {
                             if let Some(v) = d.get_temp::<bool>(base_id) {
                                 v
                             } else {
@@ -56,7 +57,7 @@ impl PowerPlayApp {
                         cols[0].horizontal(|ui| {
                             let resp = crate::ui_theme::green_checkbox(ui, flag, lbl);
                             if resp.changed() {
-                                ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("ppt_dirty"), true));
+                                ctx.data_mut(|d| d.insert_temp(egui::Id::new("ppt_dirty"), true));
                             }
                             if *flag != base_val {
                                 ui.colored_label(egui::Color32::from_rgb(240, 70, 90), "●");
@@ -69,7 +70,7 @@ impl PowerPlayApp {
                                 } else {
                                     format!("{} › {} ({}) · {}", card_title, lbl, tag, state)
                                 };
-                                ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("hovered_field_banner"), info.clone()));
+                                ctx.data_mut(|d| d.insert_temp(egui::Id::new("hovered_field_banner"), info.clone()));
                                 resp.on_hover_text(info);
                             }
                         });
@@ -89,7 +90,7 @@ impl PowerPlayApp {
                             continue;
                         }
                         let base_id = egui::Id::new(("od_feat_base", gen, tag));
-                        let base_val = ui.ctx().data_mut(|d| {
+                        let base_val = ctx.data_mut(|d| {
                             if let Some(v) = d.get_temp::<bool>(base_id) {
                                 v
                             } else {
@@ -100,7 +101,7 @@ impl PowerPlayApp {
                         cols[1].horizontal(|ui| {
                             let resp = crate::ui_theme::green_checkbox(ui, flag, lbl);
                             if resp.changed() {
-                                ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("ppt_dirty"), true));
+                                ctx.data_mut(|d| d.insert_temp(egui::Id::new("ppt_dirty"), true));
                             }
                             if *flag != base_val {
                                 ui.colored_label(egui::Color32::from_rgb(240, 70, 90), "●");
@@ -113,7 +114,7 @@ impl PowerPlayApp {
                                 } else {
                                     format!("{} › {} ({}) · {}", card_title, lbl, tag, state)
                                 };
-                                ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("hovered_field_banner"), info.clone()));
+                                ctx.data_mut(|d| d.insert_temp(egui::Id::new("hovered_field_banner"), info.clone()));
                                 resp.on_hover_text(info);
                             }
                         });
