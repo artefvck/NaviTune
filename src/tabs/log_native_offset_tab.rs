@@ -79,7 +79,7 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<(&'static str, V
         ]));
     }
     if let Some(pol) = crate::pptable_polaris::AtomPolarisPowerPlayTable::from_bytes(b) {
-        let hard_off = { pol.hard_limit_table_offset } as usize;
+        let hard_off = pol.resolved_hard_limit_offset(b);
         let hard_desc = if let Some((gfx_hi, mem_hi, vddc_hi)) = pol.read_hard_limits(b) {
             let (vddci, mvdd) = pol.read_hard_limit_mem_volt(b).unwrap_or((0, 0));
             format!("off=0x{:03X} | GFXCLK={}MHz, MCLK={}MHz, VDDC={}mV, VDDCI={}mV, MVDD={}mV", hard_off, gfx_hi, mem_hi, vddc_hi, vddci, mvdd)

@@ -104,7 +104,7 @@ impl AtomPolarisPowerPlayTable {
                 return off;
             }
         }
-        ({ self.hard_limit_table_offset }) as usize
+        0
     }
 
     pub fn read_hard_limits(&self, buf: &[u8]) -> Option<(i32, i32, i32)> {

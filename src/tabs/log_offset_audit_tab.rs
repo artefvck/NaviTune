@@ -109,7 +109,7 @@ impl PowerPlayApp {
                 }
                 ("Vega 10 (0x08)", v10_rows)
             } else if let Some(pol) = crate::pptable_polaris::AtomPolarisPowerPlayTable::from_bytes(&self.raw_buffer) {
-                let hard_off = { pol.hard_limit_table_offset } as usize;
+                let hard_off = pol.resolved_hard_limit_offset(&self.raw_buffer);
                 let mut rows = vec![
                     ("OC Limits", "Max OD Engine Clock (MHz)", 0x017, format!("{}", { pol.max_od_engine_clock } / 100), format!("{}", self.oc_gfx_clock[1])),
                     ("OC Limits", "Max OD Memory Clock (MHz)", 0x01B, format!("{}", { pol.max_od_memory_clock } / 100), format!("{}", self.oc_mem_clock[1])),
