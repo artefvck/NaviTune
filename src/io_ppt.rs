@@ -415,22 +415,7 @@ impl PowerPlayApp {
             self.fan_target_gfx_clock = { v20.fan_target_gfxclk } as i32;
             self.ulv_gfx = [{ v20.min_voltage_ulv_gfx } as i32 / 4, 0];
             self.ulv_soc = [{ v20.min_voltage_ulv_soc } as i32 / 4, 0];
-            if b.len() == 1534 && b.len() >= 0x392 {
-                let u16_at = |o: usize| u16::from_le_bytes([b[o], b[o + 1]]) as i32;
-                let u32_at = |o: usize| u32::from_le_bytes([b[o], b[o + 1], b[o + 2], b[o + 3]]) as i32;
-                self.power_limit_w = u16_at(0x016);
-                self.power_limit_ac[0] = self.power_limit_w;
-                self.tdc_gfx = u16_at(0x018);
-                self.tdc_soc = u16_at(0x01A);
-                self.oc_gfx_clock = [u32_at(0x04F), u32_at(0x027)];
-                self.oc_mem_clock = [0, u32_at(0x02B)];
-                self.volt_gfx = [u32_at(0x03B), u32_at(0x043)];
-                self.freq_gfx = [u16_at(0x33A), u16_at(0x33A + 14)];
-                for i in 0..4 {
-                    self.mem_dpm_freq[i] = [u16_at(0x3C4 + i * 2), 1];
-                    self.mem_dpm_volt[i] = [u32_at(0x03B), u32_at(0x043)];
-                }
-            }
+            if let Some(st) = crate::pptable_vega::VegaParsedState::parse(&b, frev) { self.apply_vega_parsed(st); }
             self.fan_zero_rpm_enable = v20.fan_zero_rpm_enable != 0;
             self.fan_stop_temp = { v20.fan_stop_temp } as i32;
             self.fan_start_temp = { v20.fan_start_temp } as i32;
@@ -547,126 +532,7 @@ impl PowerPlayApp {
                 .map(|vi| vi.device_id)
                 .unwrap_or(0);
             let chip_v = crate::pptable_vega::VegaChip::from_did_and_rev(did, frev);
-            let u16_at = |o: usize| u16::from_le_bytes([b[o], b[o + 1]]) as i32;
-            let u32_at = |o: usize| u32::from_le_bytes([b[o], b[o + 1], b[o + 2], b[o + 3]]) as i32;
-
-            self.oc_gfx_clock = [0, u32_at(0x017) / 100];
-            self.oc_mem_clock = [0, u32_at(0x01B) / 100];
-            let pwr_pct = i16::from_le_bytes([b[0x01F], b[0x020]]) as i32;
-            self.oc_power_limit = [-50, pwr_pct];
-
-            // VddcLookup (0x03E): rev(1), count(1), entries of u16 mV
-            let vddc_off = u16_at(0x03E) as usize;
-            let mut vddc_lut = Vec::new();
-            if vddc_off > 0 && vddc_off + 2 <= b.len() {
-                let cnt = b[vddc_off + 1] as usize;
-                for i in 0..cnt {
-                    let eo = vddc_off + 2 + i * 2;
-                    if eo + 2 <= b.len() { vddc_lut.push(u16_at(eo)); }
-                }
-            }
-            if let (Some(&vmin), Some(&vmax)) = (vddc_lut.first(), vddc_lut.last()) {
-                self.volt_gfx = [vmin, vmax];
-            }
-
-            // VddmemLookup (0x040)
-            let vmem_off = u16_at(0x040) as usize;
-            let (mut vddci_v, mut mvdd_v) = (900, 1200);
-            if vmem_off > 0 && vmem_off + 4 <= b.len() {
-                mvdd_v = u16_at(vmem_off + 2);
-                if vmem_off + 8 <= b.len() { vddci_v = u16_at(vmem_off + 6); }
-            }
-
-            // GfxclkDep (0x03A): rev(1), count(1), 13-byte entries (u32 clk_10khz at +0, u8 vidx at +4)
-            let gfx_off = u16_at(0x03A) as usize;
-            if gfx_off > 0 && gfx_off + 2 <= b.len() {
-                let cnt = b[gfx_off + 1] as usize;
-                let mut gclks = Vec::new();
-                for i in 0..cnt {
-                    let eo = gfx_off + 2 + i * 13;
-                    if eo + 5 <= b.len() {
-                        let mhz = u32_at(eo) / 100;
-                        if (100..=2500).contains(&mhz) { gclks.push(mhz); }
-                    }
-                }
-                if let (Some(&gmin), Some(&gmax)) = (gclks.first(), gclks.last()) {
-                    self.freq_gfx = [gmin, gmax];
-                }
-            }
-
-            // UclkDep (0x03C): rev(1), count(1), 13-byte entries (u32 clk_10khz at +0)
-            let uclk_off = u16_at(0x03C) as usize;
-            if uclk_off > 0 && uclk_off + 2 <= b.len() {
-                let cnt = b[uclk_off + 1] as usize;
-                let mut mclks = Vec::new();
-                for i in 0..cnt {
-                    let eo = uclk_off + 2 + i * 13;
-                    if eo + 4 <= b.len() {
-                        let mhz = u32_at(eo) / 100;
-                        if (100..=1600).contains(&mhz) { mclks.push(mhz); }
-                    }
-                }
-                for idx in 0..4 {
-                    let clk = mclks.get(idx).or_else(|| mclks.last()).copied().unwrap_or(0);
-                    self.mem_dpm_freq[idx] = [clk, 1];
-                    self.mem_dpm_volt[idx] = [vddci_v, mvdd_v];
-                }
-            }
-
-            if self.oc_gfx_clock[1] == 0 { self.oc_gfx_clock[1] = self.freq_gfx[1]; }
-            if self.oc_mem_clock[1] == 0 { self.oc_mem_clock[1] = self.mem_dpm_freq[3][0]; }
-            // SocclkDep (0x038): rev(1), count(1), 13-byte entries (u32 clk_10khz at +0)
-            let soc_off = u16_at(0x038) as usize;
-            if soc_off > 0 && soc_off + 2 <= b.len() {
-                let cnt = b[soc_off + 1] as usize;
-                let mut sclks = Vec::new();
-                for i in 0..cnt {
-                    let eo = soc_off + 2 + i * 13;
-                    if eo + 4 <= b.len() {
-                        let mhz = u32_at(eo) / 100;
-                        if (100..=1800).contains(&mhz) { sclks.push(mhz); }
-                    }
-                }
-                if let (Some(&smin), Some(&smax)) = (sclks.first(), sclks.last()) {
-                    self.freq_soc = [smin, smax];
-                }
-            }
-            // FanTable (0x034): read sub-table or populate workstation defaults from HardLimit when passive-zeroed
-            let fan_off = u16_at(0x034) as usize;
-            if let Some((pwm, rpm, tt, tgf, zr, st_t, sa_t)) = crate::pptable_vega::read_gcn_fan_subtable(&b, fan_off) {
-                self.fan_pwm_min = pwm;
-                self.fan_max_rpm = rpm;
-                self.fan_target_temp = tt;
-                self.fan_target_gfx_clock = tgf;
-                self.fan_zero_rpm_enable = zr;
-                self.fan_stop_temp = st_t;
-                self.fan_start_temp = sa_t;
-            }
-            let hl_tmp = u16_at(0x048) as usize;
-            if self.fan_target_temp == 0 && hl_tmp > 0 && hl_tmp + 0x10 <= b.len() {
-                let t_op = b[hl_tmp + 0x0E] as i32;
-                self.fan_target_temp = if (50..=95).contains(&t_op) { t_op } else { 75 };
-            }
-            if self.fan_pwm_min == 0 { self.fan_pwm_min = 20; }
-            if self.fan_max_rpm == 0 { self.fan_max_rpm = 3000; }
-            if self.fan_target_gfx_clock == 0 { self.fan_target_gfx_clock = self.freq_gfx[1]; }
-            if self.fan_stop_temp == 0 { self.fan_stop_temp = 50; }
-            if self.fan_start_temp == 0 { self.fan_start_temp = 60; }
-            // PowerTune (0x042) & HardLimit (0x048)
-            let pt_off = u16_at(0x042) as usize;
-            if pt_off > 0 && pt_off + 0x59 <= b.len() {
-                let tdc_v = u16_at(pt_off + 0x55);
-                let pwr_v = u16_at(pt_off + 0x57);
-                self.tdc_gfx = if (40..=400).contains(&tdc_v) { tdc_v } else { 144 };
-                self.power_limit_w = if (50..=450).contains(&pwr_v) { pwr_v } else { 150 };
-                self.power_limit_ac[0] = self.power_limit_w;
-            }
-            let hl_off = u16_at(0x048) as usize;
-            if hl_off > 0 && hl_off + 0x16 <= b.len() {
-                let t_hot = b[hl_off + 0x15] as i32;
-                let t_edge = b[hl_off + 0x13] as i32;
-                self.temp_limits[0] = if (60..=125).contains(&t_hot) { t_hot } else if (60..=125).contains(&t_edge) { t_edge } else { 105 };
-            }
+            if let Some(st) = crate::pptable_vega::VegaParsedState::parse(&b, frev) { self.apply_vega_parsed(st); }
             self.status_msg = format!("Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B]", label, chip_v.display_name(), frev, crev, trev, b.len());
             self.baseline_buffer = b.clone();
             self.raw_buffer = b;
@@ -1035,23 +901,8 @@ impl PowerPlayApp {
             return;
         }
 
-        if self.raw_buffer.len() == 1534 && self.raw_buffer.get(2).copied() == Some(0x0B) {
-            self.raw_buffer[0x016..0x018].copy_from_slice(&(self.power_limit_w.max(0) as u16).to_le_bytes());
-            self.raw_buffer[0x018..0x01A].copy_from_slice(&(self.tdc_gfx.max(0) as u16).to_le_bytes());
-            self.raw_buffer[0x01A..0x01C].copy_from_slice(&(self.tdc_soc.max(0) as u16).to_le_bytes());
-            self.raw_buffer[0x027..0x02B].copy_from_slice(&(self.oc_gfx_clock[1].max(0) as u32).to_le_bytes());
-            self.raw_buffer[0x02B..0x02F].copy_from_slice(&(self.oc_mem_clock[1].max(0) as u32).to_le_bytes());
-            self.raw_buffer[0x03B..0x03F].copy_from_slice(&(self.volt_gfx[0].max(0) as u32).to_le_bytes());
-            self.raw_buffer[0x043..0x047].copy_from_slice(&(self.volt_gfx[1].max(0) as u32).to_le_bytes());
-            self.raw_buffer[0x04F..0x053].copy_from_slice(&(self.oc_gfx_clock[0].max(0) as u32).to_le_bytes());
-            self.raw_buffer[0x33A..0x33C].copy_from_slice(&(self.freq_gfx[0].max(0) as u16).to_le_bytes());
-            self.raw_buffer[0x348..0x34A].copy_from_slice(&(self.freq_gfx[1].max(0) as u16).to_le_bytes());
-            for i in 0..4 {
-                let off = 0x3C4 + i * 2;
-                self.raw_buffer[off..off + 2].copy_from_slice(&(self.mem_dpm_freq[i][0].max(0) as u16).to_le_bytes());
-            }
-            return;
-        }
+        let vst = self.capture_vega_parsed();
+        if vst.write_to_buf(&mut self.raw_buffer) { return; }
         if let Some(mut v20_val) = crate::pptable_vega::AtomVega20PowerPlayTable::from_bytes_padded(&self.raw_buffer) { let v20 = &mut v20_val;
             v20.boost_power_limit = self.power_limit_w.max(0) as u16;
             v20.socket_power_limit_ac[0] = self.power_limit_w.max(0) as u16;
@@ -1159,47 +1010,6 @@ impl PowerPlayApp {
             return;
         }
 
-        if self.raw_buffer.len() >= 0x4A && self.raw_buffer.get(2).copied() == Some(0x08) {
-            let u16_at = |buf: &[u8], o: usize| u16::from_le_bytes([buf[o], buf[o + 1]]) as usize;
-            self.raw_buffer[0x017..0x01B].copy_from_slice(&((self.oc_gfx_clock[1].max(0) * 100) as u32).to_le_bytes());
-            self.raw_buffer[0x01B..0x01F].copy_from_slice(&((self.oc_mem_clock[1].max(0) * 100) as u32).to_le_bytes());
-            self.raw_buffer[0x01F..0x021].copy_from_slice(&(self.oc_power_limit[1] as i16).to_le_bytes());
-            let vddc_off = u16_at(&self.raw_buffer, 0x03E);
-            if vddc_off > 0 && vddc_off + 2 <= self.raw_buffer.len() {
-                let cnt = self.raw_buffer[vddc_off + 1] as usize;
-                if cnt > 0 && vddc_off + 4 <= self.raw_buffer.len() {
-                    self.raw_buffer[vddc_off + 2..vddc_off + 4].copy_from_slice(&(self.volt_gfx[0].max(0) as u16).to_le_bytes());
-                    let last = vddc_off + 2 + (cnt - 1) * 2;
-                    if last + 2 <= self.raw_buffer.len() {
-                        self.raw_buffer[last..last + 2].copy_from_slice(&(self.volt_gfx[1].max(0) as u16).to_le_bytes());
-                    }
-                }
-            }
-            let gfx_off = u16_at(&self.raw_buffer, 0x03A);
-            if gfx_off > 0 && gfx_off + 2 <= self.raw_buffer.len() {
-                let cnt = self.raw_buffer[gfx_off + 1] as usize;
-                if cnt > 0 && gfx_off + 6 <= self.raw_buffer.len() {
-                    self.raw_buffer[gfx_off + 2..gfx_off + 6].copy_from_slice(&((self.freq_gfx[0].max(0) * 100) as u32).to_le_bytes());
-                    let last = gfx_off + 2 + (cnt - 1) * 13;
-                    if last + 4 <= self.raw_buffer.len() {
-                        self.raw_buffer[last..last + 4].copy_from_slice(&((self.freq_gfx[1].max(0) * 100) as u32).to_le_bytes());
-                    }
-                }
-            }
-            let mut pcaps = u32::from_le_bytes([self.raw_buffer[0x013], self.raw_buffer[0x014], self.raw_buffer[0x015], self.raw_buffer[0x016]]);
-            if self.gpu_clock_limit || self.memory_clock_limit || self.power_limit_feat { pcaps |= 1 << 18; } else { pcaps &= !(1 << 18); }
-            if self.min_fan_speed { pcaps |= 1 << 11; } else { pcaps &= !(1 << 11); }
-            if self.fan_target_temp_limit { pcaps |= 1 << 12; } else { pcaps &= !(1 << 12); }
-            if self.operating_temp_limit { pcaps |= 1 << 2; } else { pcaps &= !(1 << 2); }
-            if self.zero_rpm { pcaps |= 1 << 14; } else { pcaps &= !(1 << 14); }
-            self.raw_buffer[0x013..0x017].copy_from_slice(&pcaps.to_le_bytes());
-            let pt_off = u16_at(&self.raw_buffer, 0x042);
-            if pt_off > 0 && pt_off + 0x59 <= self.raw_buffer.len() {
-                self.raw_buffer[pt_off + 0x55..pt_off + 0x57].copy_from_slice(&(self.tdc_gfx.max(0) as u16).to_le_bytes());
-                self.raw_buffer[pt_off + 0x57..pt_off + 0x59].copy_from_slice(&(self.power_limit_w.max(0) as u16).to_le_bytes());
-            }
-            return;
-        }
         if let Some(v10) = crate::pptable_vega::AtomVega10PowerPlayTable::from_bytes_mut(&mut self.raw_buffer) {
             v10.max_od_engine_clock = (self.oc_gfx_clock[1].max(0) * 100) as u32;
             v10.max_od_memory_clock = (self.oc_mem_clock[1].max(0) * 100) as u32;
@@ -1368,6 +1178,68 @@ impl PowerPlayApp {
                 }
                 Err(e) => self.show_error("File Save Error", &e.to_string()),
             }
+        }
+    }
+    fn apply_vega_parsed(&mut self, st: crate::pptable_vega::VegaParsedState) {
+        self.power_limit_w = st.power_limit_w;
+        self.power_limit_ac[0] = st.power_limit_w;
+        self.tdc_gfx = st.tdc_gfx;
+        self.tdc_soc = st.tdc_soc;
+        self.oc_gfx_clock = st.oc_gfx_clock;
+        self.oc_mem_clock = st.oc_mem_clock;
+        self.oc_power_limit = st.oc_power_limit;
+        self.volt_gfx = st.volt_gfx;
+        self.volt_soc = st.volt_soc;
+        self.freq_gfx = st.freq_gfx;
+        self.freq_soc = st.freq_soc;
+        self.freq_fclk = st.freq_fclk;
+        self.mem_dpm_freq = st.mem_dpm_freq;
+        self.mem_dpm_volt = st.mem_dpm_volt;
+        self.fan_pwm_min = st.fan_pwm_min;
+        self.fan_max_rpm = st.fan_max_rpm;
+        self.fan_acoustic_limit = st.fan_acoustic_limit;
+        self.fan_throttling_rpm = st.fan_throttling_rpm;
+        self.fan_target_temp = st.fan_target_temp;
+        self.fan_target_gfx_clock = st.fan_target_gfx_clock;
+        self.fan_zero_rpm_enable = st.fan_zero_rpm_enable;
+        self.fan_stop_temp = st.fan_stop_temp;
+        self.fan_start_temp = st.fan_start_temp;
+        self.temp_limits[0] = st.temp_limit_0;
+        self.gpu_clock_limit = st.caps[0];
+        self.memory_clock_limit = st.caps[1];
+        self.power_limit_feat = st.caps[2];
+        self.min_fan_speed = st.caps[3];
+        self.fan_target_temp_limit = st.caps[4];
+        self.operating_temp_limit = st.caps[5];
+        self.zero_rpm = st.caps[6];
+    }
+
+    fn capture_vega_parsed(&self) -> crate::pptable_vega::VegaParsedState {
+        crate::pptable_vega::VegaParsedState {
+            power_limit_w: self.power_limit_w,
+            tdc_gfx: self.tdc_gfx,
+            tdc_soc: self.tdc_soc,
+            oc_gfx_clock: self.oc_gfx_clock,
+            oc_mem_clock: self.oc_mem_clock,
+            oc_power_limit: self.oc_power_limit,
+            volt_gfx: self.volt_gfx,
+            volt_soc: self.volt_soc,
+            freq_gfx: self.freq_gfx,
+            freq_soc: self.freq_soc,
+            freq_fclk: self.freq_fclk,
+            mem_dpm_freq: self.mem_dpm_freq,
+            mem_dpm_volt: self.mem_dpm_volt,
+            fan_pwm_min: self.fan_pwm_min,
+            fan_max_rpm: self.fan_max_rpm,
+            fan_acoustic_limit: self.fan_acoustic_limit,
+            fan_throttling_rpm: self.fan_throttling_rpm,
+            fan_target_temp: self.fan_target_temp,
+            fan_target_gfx_clock: self.fan_target_gfx_clock,
+            fan_zero_rpm_enable: self.fan_zero_rpm_enable,
+            fan_stop_temp: self.fan_stop_temp,
+            fan_start_temp: self.fan_start_temp,
+            temp_limit_0: self.temp_limits[0],
+            caps: [self.gpu_clock_limit, self.memory_clock_limit, self.power_limit_feat, self.min_fan_speed, self.fan_target_temp_limit, self.operating_temp_limit, self.zero_rpm],
         }
     }
 }
