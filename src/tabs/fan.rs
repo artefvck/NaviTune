@@ -126,8 +126,7 @@ impl PowerPlayApp {
                     }
                 });
             }
-            }
-        });
+            });
 
     }
 }
