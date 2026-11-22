@@ -441,18 +441,6 @@ impl PowerPlayApp {
         }
 
         if let Some(pol) = crate::pptable_polaris::AtomPolarisPowerPlayTable::from_bytes(&b) {
-            // polaris_od_caps_loaded: decode ulPlatformCaps (0x013..0x017) into OverDrive Feature checkboxes
-            if b.len() >= 0x17 {
-                let pcaps = u32::from_le_bytes([b[0x13], b[0x14], b[0x15], b[0x16]]);
-                let odn_ac = (pcaps & (1 << 18)) != 0;
-                self.gpu_clock_limit = odn_ac;
-                self.memory_clock_limit = odn_ac;
-                self.power_limit_feat = odn_ac;
-                self.min_fan_speed = (pcaps & (1 << 11)) != 0 || self.fan_pwm_min > 0;
-                self.fan_target_temp_limit = self.fan_target_temp > 0;
-                self.operating_temp_limit = (pcaps & (1 << 2)) != 0;
-                self.zero_rpm = false;
-            }
             let did = self.vbios_buffer.as_deref()
                 .and_then(|vb| crate::vbios::inspect_vbios_info(vb, self.vbios_ppt_offset.unwrap_or(0)))
                 .map(|vi| vi.device_id)
@@ -500,6 +488,18 @@ impl PowerPlayApp {
                 self.fan_zero_rpm_enable = zrpm;
                 self.fan_stop_temp = stop_t;
                 self.fan_start_temp = start_t;
+            }
+            // polaris_od_caps_loaded: decode ulPlatformCaps (0x013) + ATOM_Tonga_Fan_Table state
+            if b.len() >= 0x17 {
+                let pcaps = u32::from_le_bytes([b[0x13], b[0x14], b[0x15], b[0x16]]);
+                let odn_ac = (pcaps & (1 << 18)) != 0;
+                self.gpu_clock_limit = odn_ac;
+                self.memory_clock_limit = odn_ac;
+                self.power_limit_feat = odn_ac;
+                self.min_fan_speed = (pcaps & (1 << 11)) != 0 || self.fan_pwm_min > 0;
+                self.fan_target_temp_limit = self.fan_target_temp > 0;
+                self.operating_temp_limit = (pcaps & (1 << 2)) != 0 || self.fan_target_temp > 0;
+                self.zero_rpm = false;
             }
             self.status_msg = format!("Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B]", label, chip_p.display_name(), frev, crev, trev, b.len());
             self.raw_buffer = b;
