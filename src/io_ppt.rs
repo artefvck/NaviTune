@@ -613,6 +613,8 @@ impl PowerPlayApp {
                 }
             }
 
+            if self.oc_gfx_clock[1] == 0 { self.oc_gfx_clock[1] = self.freq_gfx[1]; }
+            if self.oc_mem_clock[1] == 0 { self.oc_mem_clock[1] = self.mem_dpm_freq[3][0]; }
             // PowerTune (0x042) & HardLimit (0x048)
             let pt_off = u16_at(0x042) as usize;
             if pt_off > 0 && pt_off + 0x59 <= b.len() {
