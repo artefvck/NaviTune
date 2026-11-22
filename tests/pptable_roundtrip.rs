@@ -375,3 +375,14 @@ fn test_od_offset_labels_all_six_architectures() {
     assert!(Rdna2.od_offset_labels().0.contains("0x04F"));
     assert!(Rdna3.od_offset_labels().0.contains("0x051"));
 }
+
+#[test]
+fn test_core_voltage_offset_labels_all_six_architectures() {
+    use ppt_arch::PptArch::*;
+    assert_eq!(Polaris.core_voltage_offset_labels().0, "hard_limit_table_offset VDDC (mV)");
+    assert_eq!(Vega10.core_voltage_offset_labels().0, "hard_limit_table_offset VDDC (mV)");
+    assert!(Vega20.core_voltage_offset_labels().0.contains("0x11F"));
+    assert!(Rdna1.core_voltage_offset_labels().1.contains("0x0BD"));
+    assert!(Rdna2.core_voltage_offset_labels().0.contains("0x378"));
+    assert!(Rdna3.core_voltage_offset_labels().1.contains("0x3C0"));
+}

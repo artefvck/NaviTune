@@ -76,6 +76,17 @@ impl PptArch {
         matches!(self, Self::Rdna2)
     }
 
+    pub fn core_voltage_offset_labels(self) -> (&'static str, &'static str) {
+        match self {
+            Self::Polaris | Self::Vega10 => ("hard_limit_table_offset VDDC (mV)", "N/A (GCN4/5)"),
+            Self::Vega20 => ("min/max_voltage_gfx (0x11F)", "min/max_voltage_soc (0x123)"),
+            Self::Rdna1 => ("min/max_voltage_gfx (0x0B9)", "min/max_voltage_soc (0x0BD)"),
+            Self::Rdna2 => ("min/max_voltage_gfx (0x378)", "min/max_voltage_soc (0x37C)"),
+            Self::Rdna3 => ("min/max_voltage_gfx (0x3BC)", "min/max_voltage_soc (0x3C0)"),
+            Self::Unknown => ("GFX Voltage (mV)", "Soc Voltage (mV)"),
+        }
+    }
+
     pub fn od_offset_labels(self) -> (&'static str, &'static str, &'static str, &'static str, &'static str) {
         match self {
             Self::Polaris | Self::Vega10 => (

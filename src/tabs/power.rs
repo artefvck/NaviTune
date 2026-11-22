@@ -60,12 +60,13 @@ impl PowerPlayApp {
         };
         two_col_cards(ui, "pwr_cols", |ui| {
             draw_card(ui, "Core Voltage (mV)", |ui| {
-                if arch.is_gcn_subtable() {
-                    kv_row_1(ui, "VDDC Max (HardLimit)", "hard_limit_table_offset VDDC (mV)", &mut self.volt_gfx[1], 62.0);
+                let (gfx_vtag, soc_vtag) = arch.core_voltage_offset_labels();
+                if arch.has_hard_limit_subtable() {
+                    kv_row_1(ui, "VDDC Max (HardLimit)", gfx_vtag, &mut self.volt_gfx[1], 62.0);
                 } else {
                     kv_header_2(ui, "Vmin", "Vmax", 62.0);
-                    kv_row_2(ui, "GFX", vg_tag, &mut self.volt_gfx, 62.0);
-                    kv_row_2(ui, "Soc", vs_tag, &mut self.volt_soc, 62.0);
+                    kv_row_2(ui, "GFX", gfx_vtag, &mut self.volt_gfx, 62.0);
+                    kv_row_2(ui, "Soc", soc_vtag, &mut self.volt_soc, 62.0);
                 }
             });
             if !arch.is_gcn_subtable() {
