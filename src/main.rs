@@ -1,3 +1,4 @@
+mod cli;
 mod gpu_telemetry;
 mod advance_os;
 mod card_layout;
@@ -21,6 +22,9 @@ use eframe::egui;
 use std::path::PathBuf;
 
 fn main() -> eframe::Result<()> {
+    if cli::try_run_cli() {
+        return Ok(());
+    }
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size(crate::ui_theme::load_saved_window_size())
