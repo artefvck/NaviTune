@@ -45,6 +45,7 @@ impl PowerPlayApp {
         }
 
 
+        let show_zerorpm = show_zerorpm;
         two_col_cards(ui, "fan_cols", |ui| {
             draw_card(ui, "Fan Settings", |ui| {
                 kv_row_1(ui, "PWM Min (%)", "fan_pwm_min (0x716 / 0x86C)", &mut self.fan_pwm_min, 62.0);
@@ -68,7 +69,7 @@ impl PowerPlayApp {
                 }
             });
         }, |ui| {
-            if self.is_card_usable(crate::ppt_arch::PptCard::ZeroRpm) {
+            if show_zerorpm {
                 draw_card(ui, "Zero RPM", |ui| {
                     ui.horizontal(|ui| {
                         let resp = crate::ui_theme::green_checkbox(ui, &mut self.fan_zero_rpm_enable, "Enable Zero RPM");
