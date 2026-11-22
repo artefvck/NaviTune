@@ -320,7 +320,13 @@ impl PowerPlayApp {
                                 ui.colored_label(egui::Color32::from_rgb(245, 75, 95), egui::RichText::new(msg).monospace());
                             }
                         } else {
-                            ui.weak("No valid RDNA 2 (V4_9) or RDNA 3 (V4_12) table loaded");
+                            ui.weak(match crate::ppt_arch::PptArch::detect(&self.raw_buffer) {
+                            crate::ppt_arch::PptArch::Polaris => "Valid Polaris (SMU 8.0, rev 0x07) table loaded",
+                            crate::ppt_arch::PptArch::Vega10 => "Valid Vega 10 (SMU 9.0, rev 0x08) table loaded",
+                            crate::ppt_arch::PptArch::Vega20 => "Valid Vega 20 (SMU 11.0, rev 0x0B) table loaded",
+                            crate::ppt_arch::PptArch::Rdna1 => "Valid RDNA 1 (SMU 11.0, V4_5) table loaded",
+                            _ => "No valid Polaris, Vega, or RDNA table loaded",
+                        });
                         }
                         ui.end_row();
                     });
