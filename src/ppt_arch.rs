@@ -144,6 +144,18 @@ impl PptArch {
         matches!(self, Self::Vega20 | Self::Rdna1 | Self::Rdna2 | Self::Rdna3)
     }
 
+    pub fn safe_tune_bounds(self) -> (i32, i32, i32, i32, i32) {
+        match self {
+            Self::Polaris => (1550, 2350, 1200, 3500, 75),
+            Self::Vega10 => (1850, 1200, 1200, 3600, 75),
+            Self::Vega20 => (2000, 1300, 1200, 3600, 78),
+            Self::Rdna1 => (2150, 960, 1200, 3600, 80),
+            Self::Rdna2 => (2700, 1150, 1175, 3600, 82),
+            Self::Rdna3 => (3100, 1350, 1150, 3600, 85),
+            Self::Unknown => (2500, 1100, 1150, 3500, 80),
+        }
+    }
+
     pub fn has_fan_curve_points(self) -> bool {
         matches!(self, Self::Vega20 | Self::Rdna1 | Self::Rdna2 | Self::Rdna3)
     }

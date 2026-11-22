@@ -430,3 +430,14 @@ fn test_fan_cards_all_six_architectures() {
     assert!(Rdna2.fan_offset_labels().0.contains("0x8B8"));
     assert!(Rdna3.fan_offset_labels().0.contains("0x1438"));
 }
+
+#[test]
+fn test_safe_tune_bounds_all_six_architectures() {
+    use ppt_arch::PptArch::*;
+    assert_eq!(Polaris.safe_tune_bounds(), (1550, 2350, 1200, 3500, 75));
+    assert_eq!(Vega10.safe_tune_bounds(), (1850, 1200, 1200, 3600, 75));
+    assert_eq!(Vega20.safe_tune_bounds(), (2000, 1300, 1200, 3600, 78));
+    assert_eq!(Rdna1.safe_tune_bounds(), (2150, 960, 1200, 3600, 80));
+    assert_eq!(Rdna2.safe_tune_bounds(), (2700, 1150, 1175, 3600, 82));
+    assert_eq!(Rdna3.safe_tune_bounds(), (3100, 1350, 1150, 3600, 85));
+}
