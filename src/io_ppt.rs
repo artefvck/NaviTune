@@ -459,6 +459,15 @@ impl PowerPlayApp {
                 self.fan_throttling_rpm = u16_at(0x538);
                 self.fan_max_rpm = u16_at(0x53A);
             }
+            let pcaps = u32::from_le_bytes([b[0x013], b[0x014], b[0x015], b[0x016]]);
+            let odn_ac = (pcaps & (1 << 18)) != 0;
+            self.gpu_clock_limit = odn_ac || self.oc_gfx_clock[1] > 0;
+            self.memory_clock_limit = odn_ac || self.oc_mem_clock[1] > 0;
+            self.power_limit_feat = odn_ac || self.oc_power_limit[1] > 0;
+            self.min_fan_speed = (pcaps & (1 << 11)) != 0 || self.fan_pwm_min > 0;
+            self.fan_target_temp_limit = (pcaps & (1 << 12)) != 0 || self.fan_target_temp > 0;
+            self.operating_temp_limit = (pcaps & (1 << 2)) != 0 || self.temp_limits[0] > 0;
+            self.zero_rpm = (pcaps & (1 << 14)) != 0 || self.fan_zero_rpm_enable;
             self.status_msg = format!("Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B]", label, chip_v.display_name(), frev, crev, trev, b.len());
             self.baseline_buffer = b.clone();
             self.raw_buffer = b;
@@ -1138,6 +1147,13 @@ impl PowerPlayApp {
                     }
                 }
             }
+            let mut pcaps = u32::from_le_bytes([self.raw_buffer[0x013], self.raw_buffer[0x014], self.raw_buffer[0x015], self.raw_buffer[0x016]]);
+            if self.gpu_clock_limit || self.memory_clock_limit || self.power_limit_feat { pcaps |= 1 << 18; } else { pcaps &= !(1 << 18); }
+            if self.min_fan_speed { pcaps |= 1 << 11; } else { pcaps &= !(1 << 11); }
+            if self.fan_target_temp_limit { pcaps |= 1 << 12; } else { pcaps &= !(1 << 12); }
+            if self.operating_temp_limit { pcaps |= 1 << 2; } else { pcaps &= !(1 << 2); }
+            if self.zero_rpm { pcaps |= 1 << 14; } else { pcaps &= !(1 << 14); }
+            self.raw_buffer[0x013..0x017].copy_from_slice(&pcaps.to_le_bytes());
             let pt_off = u16_at(&self.raw_buffer, 0x042);
             if pt_off > 0 && pt_off + 0x59 <= self.raw_buffer.len() {
                 self.raw_buffer[pt_off + 0x55..pt_off + 0x57].copy_from_slice(&(self.tdc_gfx.max(0) as u16).to_le_bytes());
