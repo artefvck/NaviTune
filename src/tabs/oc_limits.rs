@@ -28,7 +28,7 @@ impl PowerPlayApp {
         }
 
         two_col_cards(ui, "oc_cols", |ui| {
-            draw_card(ui, "OverDrive", |ui| {
+            draw_card(ui, arch.card_title(crate::ppt_arch::PptCard::OverDrive), |ui| {
                 let (gfx_tag, mem_tag, pwr_tag, fan_tag, ac_tag) = arch.od_offset_labels();
                 if !arch.has_od8_and_smu_masks() {
                     kv_row_1(ui, "GFX Clock Max (MHz)", gfx_tag, &mut self.oc_gfx_clock[1], 62.0);

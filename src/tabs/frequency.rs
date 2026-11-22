@@ -41,7 +41,7 @@ impl PowerPlayApp {
 
 
         two_col_cards(ui, "freq_cols", |ui| {
-            draw_card(ui, "Clock Limits", |ui| {
+            draw_card(ui, arch.card_title(crate::ppt_arch::PptCard::ClockLimits), |ui| {
                 if arch.has_hard_limit_subtable() {
                     kv_row_1(ui, "GFXCLK Max (HardLimit)", "hard_limit_table_offset GFXCLK (MHz)", &mut self.freq_gfx[1], 62.0);
                     if arch == crate::ppt_arch::PptArch::Vega10 {
@@ -70,7 +70,7 @@ impl PowerPlayApp {
                 }
             });
         }, |ui| {
-            draw_card(ui, "Memory DPM", |ui| {
+            draw_card(ui, arch.card_title(crate::ppt_arch::PptCard::MemoryDpm), |ui| {
                 if is_rdna3 || is_rdna1 {
                     let off = if is_rdna3 { "0x63C" } else if arch == crate::ppt_arch::PptArch::Vega20 { "0x1B5" } else { "0x14F" };
                     for i in 0..4 {

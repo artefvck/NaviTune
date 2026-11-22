@@ -1,4 +1,25 @@
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PptCard {
+    PowerAndCurrent,
+    CoreVoltage,
+    UlvVoltage,
+    MemoryVoltage,
+    ThermalVmin,
+    ClockLimits,
+    MemoryDpm,
+    PcieAndLinkClocks,
+    OverDrive,
+    PowerModes,
+    PowerModeAcoustic,
+    VfCurve,
+    VidCurveAndOffset,
+    FanSettingsAndLimits,
+    ZeroRpm,
+    FanCurve,
+    ThermalLimits,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PptArch {
     Polaris,
     Vega10,
@@ -384,5 +405,36 @@ impl PptArch {
             .filter(|&bit| (mask & (1u64 << bit)) != 0)
             .map(|bit| (bit, self.feature_bit_name(bit)))
             .collect()
+    }
+
+    pub fn supports_card(self, card: PptCard) -> bool {
+        match card {
+            PptCard::CoreVoltage | PptCard::MemoryVoltage | PptCard::ClockLimits | PptCard::MemoryDpm | PptCard::OverDrive | PptCard::FanSettingsAndLimits | PptCard::ZeroRpm => true,
+            PptCard::PowerAndCurrent | PptCard::UlvVoltage | PptCard::PcieAndLinkClocks | PptCard::VfCurve | PptCard::VidCurveAndOffset | PptCard::FanCurve | PptCard::ThermalLimits => !self.is_gcn_subtable(),
+            PptCard::ThermalVmin | PptCard::PowerModeAcoustic => matches!(self, Self::Rdna2),
+            PptCard::PowerModes => matches!(self, Self::Rdna2 | Self::Rdna3),
+        }
+    }
+
+    pub fn card_title(self, card: PptCard) -> &'static str {
+        match card {
+            PptCard::PowerAndCurrent => "Power & Current",
+            PptCard::CoreVoltage => if self.is_gcn_subtable() { "Core Voltage — HardLimit VDDC (mV)" } else { "Core Voltage (mV)" },
+            PptCard::UlvVoltage => "ULV Voltage (mV)",
+            PptCard::MemoryVoltage => if self.is_gcn_subtable() { "Memory Voltage — HardLimit (mV)" } else { "Memory Voltage (mV)" },
+            PptCard::ThermalVmin => "Thermal Vmin",
+            PptCard::ClockLimits => if self.is_gcn_subtable() { "Clock Limits — HardLimit (MHz)" } else { "Clock Limits" },
+            PptCard::MemoryDpm => if self.is_gcn_subtable() { "Memory MCLK — HardLimit (MHz)" } else { "Memory DPM" },
+            PptCard::PcieAndLinkClocks => "PCIe & Link Clocks",
+            PptCard::OverDrive => if self.is_gcn_subtable() { "OverDrive Ceilings (0x017)" } else { "OverDrive" },
+            PptCard::PowerModes => "Power Modes",
+            PptCard::PowerModeAcoustic => "Power Mode Acoustic",
+            PptCard::VfCurve => "V/F Curve",
+            PptCard::VidCurveAndOffset => "Voltage Curve (VID) & Offset",
+            PptCard::FanSettingsAndLimits => if self.is_gcn_subtable() { "ATOM Fan Settings & Limits" } else { "Fan Settings & Limits" },
+            PptCard::ZeroRpm => "Zero RPM",
+            PptCard::FanCurve => "Fan Curve",
+            PptCard::ThermalLimits => "Thermal Limits",
+        }
     }
 }

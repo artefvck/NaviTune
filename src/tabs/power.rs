@@ -59,7 +59,7 @@ impl PowerPlayApp {
             ),
         };
         two_col_cards(ui, "pwr_cols", |ui| {
-            draw_card(ui, "Core Voltage (mV)", |ui| {
+            draw_card(ui, arch.card_title(crate::ppt_arch::PptCard::CoreVoltage), |ui| {
                 let (gfx_vtag, soc_vtag) = arch.core_voltage_offset_labels();
                 if arch.has_hard_limit_subtable() {
                     kv_row_1(ui, "VDDC Max (HardLimit)", gfx_vtag, &mut self.volt_gfx[1], 62.0);
@@ -69,15 +69,15 @@ impl PowerPlayApp {
                     kv_row_2(ui, "Soc", soc_vtag, &mut self.volt_soc, 62.0);
                 }
             });
-            if !arch.is_gcn_subtable() {
-                draw_card(ui, "Power & Current", |ui| {
+            if arch.supports_card(crate::ppt_arch::PptCard::PowerAndCurrent) {
+                draw_card(ui, arch.card_title(crate::ppt_arch::PptCard::PowerAndCurrent), |ui| {
                     kv_row_1(ui, "Power Limit (W)", ppt_tag, &mut self.power_limit_w, 62.0);
                     kv_row_1(ui, "TDC GFX (A)", tdcg_tag, &mut self.tdc_gfx, 62.0);
                     kv_row_1(ui, "TDC Soc (A)", tdcs_tag, &mut self.tdc_soc, 62.0);
                 });
             }
-            if !arch.is_gcn_subtable() {
-                draw_card(ui, "ULV Voltage (mV)", |ui| {
+            if arch.supports_card(crate::ppt_arch::PptCard::UlvVoltage) {
+                draw_card(ui, arch.card_title(crate::ppt_arch::PptCard::UlvVoltage), |ui| {
                     if is_rdna3 {
                         kv_row_1(ui, "GFX Vmin", "ulv_voltage_vmin_gfx (0x3C4)", &mut self.ulv_gfx[0], 62.0);
                         kv_row_1(ui, "Soc Vmin", "ulv_voltage_vmin_soc (0x3C6)", &mut self.ulv_soc[0], 62.0);
@@ -90,7 +90,7 @@ impl PowerPlayApp {
             }
         }, |ui| {
             if !arch.is_gcn_subtable() {
-                draw_card(ui, "Memory Voltage (mV)", |ui| {
+                draw_card(ui, arch.card_title(crate::ppt_arch::PptCard::MemoryVoltage), |ui| {
                     kv_header_2(ui, "VDDCI", "MVDD", 62.0);
                     if is_rdna1 {
                         kv_row_2(ui, "Max (VDDCI/MVDD)", "vddci_max / mvdd_max (0x0DF / 0x0E1)", &mut self.mem_dpm_volt[3], 62.0);
@@ -104,8 +104,8 @@ impl PowerPlayApp {
                     }
                 });
             }
-            if is_rdna2 {
-                draw_card(ui, "Thermal Vmin", |ui| {
+            if arch.supports_card(crate::ppt_arch::PptCard::ThermalVmin) {
+                draw_card(ui, arch.card_title(crate::ppt_arch::PptCard::ThermalVmin), |ui| {
                     kv_header_2(ui, "TVmin (°C)", "Hyst (°C)", 62.0);
                     kv_row_2(ui, "GFX", "tvmin/hyst_gfx (0x3B2)", &mut self.tvmin_gfx, 62.0);
                     kv_row_2(ui, "Soc", "tvmin/hyst_soc (0x3B4)", &mut self.tvmin_soc, 62.0);

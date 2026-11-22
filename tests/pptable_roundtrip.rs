@@ -441,3 +441,28 @@ fn test_safe_tune_bounds_all_six_architectures() {
     assert_eq!(Rdna2.safe_tune_bounds(), (2700, 1150, 1175, 3600, 82));
     assert_eq!(Rdna3.safe_tune_bounds(), (3100, 1350, 1150, 3600, 85));
 }
+
+#[test]
+fn test_all_cards_matrix_across_six_architectures() {
+    use ppt_arch::{PptArch::*, PptCard::*};
+    for arch in [Polaris, Vega10] {
+        assert!(arch.supports_card(CoreVoltage));
+        assert!(arch.supports_card(OverDrive));
+        assert!(!arch.supports_card(PowerAndCurrent));
+        assert!(!arch.supports_card(PowerModes));
+        assert!(!arch.supports_card(FanCurve));
+        assert!(arch.card_title(CoreVoltage).contains("HardLimit"));
+    }
+    for arch in [Vega20, Rdna1] {
+        assert!(arch.supports_card(PowerAndCurrent));
+        assert!(arch.supports_card(FanCurve));
+        assert!(!arch.supports_card(PowerModes));
+        assert!(!arch.supports_card(ThermalVmin));
+    }
+    assert!(Rdna2.supports_card(PowerModes));
+    assert!(Rdna2.supports_card(PowerModeAcoustic));
+    assert!(Rdna2.supports_card(ThermalVmin));
+    assert!(Rdna3.supports_card(PowerModes));
+    assert!(!Rdna3.supports_card(PowerModeAcoustic));
+    assert!(!Rdna3.supports_card(ThermalVmin));
+}
