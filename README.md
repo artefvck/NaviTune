@@ -22,3 +22,48 @@ Cross-platform Rust GUI inspector & editor for AMD Radeon PowerPlayTables (`PPTa
 cargo test
 cargo run --release
 ```
+
+## Project Structure
+
+```text
+src/
+├── main.rs                    # Desktop GUI entrypoint & PowerPlayApp shell
+├── cli.rs                     # Headless CLI (--inspect, --export-oc, --export-reg, --export-bin)
+├── arch/                      # Silicon binary layouts & capability matrix (Polaris -> RDNA 3)
+│   ├── detect.rs              # PptArch detection, tab/card capability matrix
+│   ├── polaris.rs             # Polaris SMU 8.0 (rev 0x07)
+│   ├── rdna1.rs               # RDNA 1 V4_5 (Navi 10/12/14)
+│   ├── rdna2.rs               # RDNA 2 V4_9 (Navi 21/22/23/24)
+│   ├── rdna3.rs               # RDNA 3 V4_12 (Navi 31/32/33)
+│   ├── smu_features.rs        # SMU feature bitmask definitions
+│   └── vega.rs                # Vega 10 (rev 0x08) & Vega 20 (rev 0x0B) + VegaParsedState
+├── io/                        # Binary load/sync, VBIOS ROM & export formats
+│   ├── export.rs              # macOS OpenCore .plist, Windows .reg, Linux sysfs
+│   ├── import.rs              # .bin, .ppt, .rom, .plist, .reg importers
+│   ├── ppt.rs                 # PPTable load & bidirectional field sync
+│   └── vbios.rs               # AtomBIOS / PSP VBIOS extraction & 0x21 checksum patching
+├── platform/                  # OS detection & live GPU telemetry
+│   ├── advance_os.rs          # Host OS target helpers
+│   ├── gpu_telemetry.rs       # Live clocks, temp, power & fan telemetry
+│   └── macos_ioreg.rs         # macOS IORegistry GPU discovery
+├── tabs/                      # Modular UI tabs (alphabetical)
+│   ├── advance.rs             # Multi-OS export & injection tab
+│   ├── curve.rs               # V/F curve coefficients + interactive drag-plot
+│   ├── dump_audit.rs          # Full system & decoded variable dump
+│   ├── fan.rs                 # Fan settings, Zero RPM + interactive drag-plot
+│   ├── features.rs            # OverDrive & SMU feature checklists
+│   ├── frequency.rs           # GFX, SoC, FCLK & Memory DPM clocks
+│   ├── log.rs                 # Capture log, offset audit & struct inspector
+│   ├── more.rs                # Power settings & throttler windows
+│   ├── native_offset.rs       # Live PPTable & VBIOS hex offset map
+│   ├── oc_limits.rs           # OverDrive ceilings
+│   ├── power.rs               # Power limit, TDC & voltage rails
+│   └── safe_tune.rs           # Architecture-calibrated safety guidelines & presets
+└── ui/                        # Reusable cards, plots, presets, modals & theme
+    ├── cards.rs               # Adaptive card grid, field boxes & tracked checklists
+    ├── curve_plot.rs          # Interactive Fan & V/F curve 2D drag-plots
+    ├── more_popups.rs         # Pop-out power & throttler dialogs
+    ├── safe_presets.rs        # Quiet Undervolt, Balanced OC & Auto-Fix Risks
+    ├── save_diff_modal.rs     # Pre-Save Binary Diff & VBIOS Checksum Audit modal
+    └── theme.rs               # Modern dark theme & styling
+```
