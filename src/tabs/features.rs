@@ -24,7 +24,9 @@ impl PowerPlayApp {
         };
 
         crate::card_layout::draw_card(ui, card_title, |ui| {
-            ui.add_enabled_ui(loaded, |ui| {
+            if !loaded {
+                ui.disable();
+            }
                 ui.columns(2, |cols| {
                     cols[0].spacing_mut().item_spacing.y = 4.0;
                     cols[1].spacing_mut().item_spacing.y = 4.0;
@@ -117,7 +119,6 @@ impl PowerPlayApp {
                         });
                     }
                 });
-            });
         });
     }
 }
