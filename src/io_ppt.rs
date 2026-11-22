@@ -615,6 +615,43 @@ impl PowerPlayApp {
 
             if self.oc_gfx_clock[1] == 0 { self.oc_gfx_clock[1] = self.freq_gfx[1]; }
             if self.oc_mem_clock[1] == 0 { self.oc_mem_clock[1] = self.mem_dpm_freq[3][0]; }
+            // SocclkDep (0x038): rev(1), count(1), 13-byte entries (u32 clk_10khz at +0)
+            let soc_off = u16_at(0x038) as usize;
+            if soc_off > 0 && soc_off + 2 <= b.len() {
+                let cnt = b[soc_off + 1] as usize;
+                let mut sclks = Vec::new();
+                for i in 0..cnt {
+                    let eo = soc_off + 2 + i * 13;
+                    if eo + 4 <= b.len() {
+                        let mhz = u32_at(eo) / 100;
+                        if (100..=1800).contains(&mhz) { sclks.push(mhz); }
+                    }
+                }
+                if let (Some(&smin), Some(&smax)) = (sclks.first(), sclks.last()) {
+                    self.freq_soc = [smin, smax];
+                }
+            }
+            // FanTable (0x034): read sub-table or populate workstation defaults from HardLimit when passive-zeroed
+            let fan_off = u16_at(0x034) as usize;
+            if let Some((pwm, rpm, tt, tgf, zr, st_t, sa_t)) = crate::pptable_vega::read_gcn_fan_subtable(&b, fan_off) {
+                self.fan_pwm_min = pwm;
+                self.fan_max_rpm = rpm;
+                self.fan_target_temp = tt;
+                self.fan_target_gfx_clock = tgf;
+                self.fan_zero_rpm_enable = zr;
+                self.fan_stop_temp = st_t;
+                self.fan_start_temp = sa_t;
+            }
+            let hl_tmp = u16_at(0x048) as usize;
+            if self.fan_target_temp == 0 && hl_tmp > 0 && hl_tmp + 0x10 <= b.len() {
+                let t_op = b[hl_tmp + 0x0E] as i32;
+                self.fan_target_temp = if (50..=95).contains(&t_op) { t_op } else { 75 };
+            }
+            if self.fan_pwm_min == 0 { self.fan_pwm_min = 20; }
+            if self.fan_max_rpm == 0 { self.fan_max_rpm = 3000; }
+            if self.fan_target_gfx_clock == 0 { self.fan_target_gfx_clock = self.freq_gfx[1]; }
+            if self.fan_stop_temp == 0 { self.fan_stop_temp = 50; }
+            if self.fan_start_temp == 0 { self.fan_start_temp = 60; }
             // PowerTune (0x042) & HardLimit (0x048)
             let pt_off = u16_at(0x042) as usize;
             if pt_off > 0 && pt_off + 0x59 <= b.len() {
