@@ -95,11 +95,13 @@ pub fn label_with_var(ui: &mut egui::Ui, label: &str, var_tag: &str) {
 
 pub fn kv_row_1(ui: &mut egui::Ui, label: &str, var_tag: &str, val: &mut i32, box_w: f32) {
     let w = dynamic_box_w(ui, box_w, 1);
+    let unit = extract_unit_from_text(label);
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 8.0;
         ui.ctx().data_mut(|d| {
             d.insert_temp(egui::Id::new("cur_field_info"), (label.to_string(), var_tag.to_string()));
             d.insert_temp(egui::Id::new("cur_box_idx"), 0usize);
+            d.insert_temp(egui::Id::new("cur_col_units"), (unit.to_string(), String::new()));
         });
         crate::num_box(ui, val, w);
         label_with_var(ui, label, var_tag);
@@ -158,6 +160,47 @@ pub fn kv_header_2(ui: &mut egui::Ui, h1: &str, h2: &str, box_w: f32) {
             );
         }
     });
+}
+
+pub fn kv_header_1(ui: &mut egui::Ui, h1: &str, box_w: f32) {
+    let w = dynamic_box_w(ui, box_w, 1);
+    ui.horizontal(|ui| {
+        ui.allocate_ui_with_layout(
+            egui::vec2(w, 16.0),
+            egui::Layout::centered_and_justified(egui::Direction::LeftToRight),
+
+            |ui| {
+                ui.label(
+                    egui::RichText::new(h1)
+                        .size(11.0)
+                        .strong()
+                        .color(egui::Color32::from_rgb(160, 182, 214)),
+                );
+            },
+        );
+    });
+}
+
+pub fn draw_check_row(ui: &mut egui::Ui, label: &str, var_tag: &str, checked: &mut bool) -> bool {
+    let resp = ui.checkbox(checked, egui::RichText::new(label).size(12.5));
+    if !var_tag.is_empty() {
+        resp.clone().on_hover_text(var_tag);
+    }
+    resp.changed()
+}
+
+pub fn draw_check_grid(ui: &mut egui::Ui, id: &str, cols: usize, items: &mut [(&str, &str, &mut bool)]) {
+    egui::Grid::new(id)
+        .num_columns(cols)
+        .spacing([18.0, 6.0])
+        .show(ui, |ui| {
+            for (idx, (label, tag, flag)) in items.iter_mut().enumerate() {
+                draw_check_row(ui, label, tag, flag);
+                if (idx + 1) % cols == 0 {
+                    ui.end_row();
+                }
+            }
+        });
 }
 
 pub fn draw_arch_note_card(ui: &mut egui::Ui, title: &str, body: &str) {
