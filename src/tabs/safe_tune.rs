@@ -70,7 +70,7 @@ impl PowerPlayApp {
         let gfx_sev = if self.freq_gfx[0] >= self.freq_gfx[1] { 2 } else if !gfx_ok { 1 } else { 0 };
         checks.push(("Clocks", "GFX Min / Max vs OD8", format!("{} / {} MHz (OD Max: {})", self.freq_gfx[0], self.freq_gfx[1], self.oc_gfx_clock[1]), "Min < Max <= OD Max".to_string(), gfx_sev, "Keep GFX Max within OverDrive Max to prevent driver clock clamping."));
 
-        let uclk_dpm3 = self.mem_dpm_freq[3][0];
+        let uclk_dpm3 = self.mem_dpm_freq.iter().map(|d| d[0]).max().unwrap_or(0);
         let uclk_sev = if uclk_dpm3 > safe_uclk_max + 50 { 2 } else if uclk_dpm3 > safe_uclk_max || (self.oc_mem_clock[1] > 0 && uclk_dpm3 > self.oc_mem_clock[1]) { 1 } else { 0 };
         checks.push(("Clocks", "UCLK DPM3 vs Safe Max", format!("{} MHz (OD Max: {} MHz)", uclk_dpm3, self.oc_mem_clock[1]), format!("<= {} MHz (OD <= {})", safe_uclk_max, self.oc_mem_clock[1]), uclk_sev, "GDDR6 strap timing loosens or throws ECC retries if UCLK exceeds silicon ceiling."));
 
@@ -90,7 +90,7 @@ impl PowerPlayApp {
             let mvdd = self.mem_dpm_volt[i][1];
             if vddci > mvdd || mvdd > 1425 { mem_v_sev = 2; } else if (vddci > 900 || mvdd > 1365) && mem_v_sev < 1 { mem_v_sev = 1; }
         }
-        checks.push(("Memory", "VDDCI / MVDD DPM 0..3", format!("DPM3: {} / {} mV", self.mem_dpm_volt[3][0], self.mem_dpm_volt[3][1]), "VDDCI <= MVDD <= 1365 mV".to_string(), mem_v_sev, "Factory DPM3 is 800..850 mV VDDCI / 1350 mV MVDD; keep MVDD <= 1365 mV on air."));
+        checks.push(("Memory", "VDDCI / MVDD DPM 0..3", format!("DPM3: {} / {} mV", self.mem_dpm_volt.iter().map(|d| d[0]).max().unwrap_or(0), self.mem_dpm_volt.iter().map(|d| d[1]).max().unwrap_or(0)), "VDDCI <= MVDD <= 1365 mV".to_string(), mem_v_sev, "Factory DPM3 is 800..850 mV VDDCI / 1350 mV MVDD; keep MVDD <= 1365 mV on air."));
 
         let hotspot_lim = self.temp_limits[1];
         let fan_sev = if self.fan_stop_temp >= self.fan_start_temp || (self.fan_target_temp >= 45 && self.fan_start_temp >= self.fan_target_temp) || hotspot_lim > 115 { 2 } else if self.fan_target_temp > max_fan_tgt || self.fan_pwm_min < 10 || hotspot_lim > 110 { 1 } else { 0 };
