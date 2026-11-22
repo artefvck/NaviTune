@@ -538,3 +538,30 @@ fn test_power_mode_acoustic_verification_all_six() {
     assert_eq!({ r2_check.ac_turbo }, [2100, 45]);
     assert_eq!({ r2_check.ac_rage }, [2400, 55]);
 }
+
+#[test]
+fn test_thermal_limits_verification_all_six() {
+    use ppt_arch::{PptArch::*, PptCard::ThermalLimits};
+    for arch in [Polaris, Vega10] {
+        assert!(!arch.supports_card(ThermalLimits));
+    }
+    for arch in [Vega20, Rdna1, Rdna2, Rdna3] {
+        assert!(arch.supports_card(ThermalLimits));
+    }
+
+    // Verify Vega 20 (1534 B) & RDNA 2 (2470 B) temp_limit round-trip
+    let mut v20 = vec![0u8; 1534];
+    v20[0..2].copy_from_slice(&1534u16.to_le_bytes());
+    v20[2] = 0x0B;
+    let mut t20 = pptable_vega::AtomVega20PowerPlayTable::from_bytes_padded(&v20).unwrap();
+    t20.temp_limit = [100, 110, 105, 115, 115, 115, 115, 100, 100];
+    t20.write_back_to_slice(&mut v20);
+    assert_eq!({ pptable_vega::AtomVega20PowerPlayTable::from_bytes_padded(&v20).unwrap().temp_limit[1] }, 110);
+
+    let mut r2 = vec![0u8; 2470];
+    r2[0..2].copy_from_slice(&2470u16.to_le_bytes());
+    r2[2] = 0x0F;
+    let t2 = pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes_mut(&mut r2).unwrap();
+    t2.temp_limit = [100, 110, 105, 115, 115, 115, 115, 100, 100];
+    assert_eq!({ pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(&r2).unwrap().temp_limit[1] }, 110);
+}
