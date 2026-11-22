@@ -400,3 +400,16 @@ fn test_frequency_cards_all_six_architectures() {
     assert!(Rdna2.clock_limit_offset_labels().2.contains("0x5D6"));
     assert!(Rdna3.clock_limit_offset_labels().0.contains("0x5EC"));
 }
+
+#[test]
+fn test_vid_voltage_offset_and_thermal_limits_all_six() {
+    use ppt_arch::PptArch::*;
+    for arch in [Polaris, Vega10] {
+        assert!(!arch.has_vid_and_voltage_offset());
+        assert!(!arch.has_thermal_limits_array());
+    }
+    for arch in [Vega20, Rdna1, Rdna2, Rdna3] {
+        assert!(arch.has_vid_and_voltage_offset());
+        assert!(arch.has_thermal_limits_array());
+    }
+}

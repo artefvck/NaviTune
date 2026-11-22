@@ -140,6 +140,14 @@ impl PptArch {
         }
     }
 
+    pub fn has_vid_and_voltage_offset(self) -> bool {
+        matches!(self, Self::Vega20 | Self::Rdna1 | Self::Rdna2 | Self::Rdna3)
+    }
+
+    pub fn has_thermal_limits_array(self) -> bool {
+        matches!(self, Self::Vega20 | Self::Rdna1 | Self::Rdna2 | Self::Rdna3)
+    }
+
     pub fn has_vf_curve_points(self) -> bool {
         matches!(self, Self::Vega20 | Self::Rdna1 | Self::Rdna2 | Self::Rdna3)
     }
