@@ -304,6 +304,22 @@ impl AtomVega20PowerPlayTable {
         Some(unsafe { &*(buf.as_ptr() as *const Self) })
     }
 
+    pub fn from_bytes_padded(buf: &[u8]) -> Option<Self> {
+        if buf.len() < 1500 || buf.get(2) != Some(&0x0B) {
+            return None;
+        }
+        let mut raw = [0u8; size_of::<Self>()];
+        let n = buf.len().min(size_of::<Self>());
+        raw[..n].copy_from_slice(&buf[..n]);
+        Some(unsafe { *(raw.as_ptr() as *const Self) })
+    }
+
+    pub fn write_back_to_slice(&self, dst: &mut [u8]) {
+        let src = unsafe { core::slice::from_raw_parts(self as *const Self as *const u8, size_of::<Self>()) };
+        let n = dst.len().min(size_of::<Self>());
+        dst[..n].copy_from_slice(&src[..n]);
+    }
+
     pub fn from_bytes_mut(buf: &mut [u8]) -> Option<&mut Self> {
         if buf.len() < size_of::<Self>() || buf.get(2) != Some(&0x0B) {
             return None;

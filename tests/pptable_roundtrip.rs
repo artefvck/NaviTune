@@ -477,3 +477,15 @@ fn test_field_box_spec_all_units() {
     assert_eq!(PptArch::field_box_spec("Power Limit (W)"), (0, 1000, 1.0, " W"));
     assert_eq!(PptArch::field_box_spec("TDC GFX (A)"), (0, 1000, 1.0, " A"));
 }
+
+#[test]
+fn test_vega20_1534_byte_vbios_pptable() {
+    let mut v20 = vec![0u8; 1534];
+    v20[0..2].copy_from_slice(&1534u16.to_le_bytes());
+    v20[2] = 0x0B;
+    assert_eq!(ppt_arch::PptArch::detect(&v20), ppt_arch::PptArch::Vega20);
+    let mut parsed = pptable_vega::AtomVega20PowerPlayTable::from_bytes_padded(&v20).expect("1534 B Vega 20 parse");
+    parsed.boost_power_limit = 250;
+    parsed.write_back_to_slice(&mut v20);
+    assert_eq!(pptable_vega::AtomVega20PowerPlayTable::from_bytes_padded(&v20).unwrap().boost_power_limit, 250);
+}

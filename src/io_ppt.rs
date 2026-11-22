@@ -368,7 +368,7 @@ impl PowerPlayApp {
             return;
         }
 
-        if let Some(v20) = crate::pptable_vega::AtomVega20PowerPlayTable::from_bytes(&b) {
+        if let Some(v20) = crate::pptable_vega::AtomVega20PowerPlayTable::from_bytes_padded(&b) {
             let did = self.vbios_buffer.as_deref()
                 .and_then(|vb| crate::vbios::inspect_vbios_info(vb, self.vbios_ppt_offset.unwrap_or(0)))
                 .map(|vi| vi.device_id)
@@ -834,7 +834,7 @@ impl PowerPlayApp {
             return;
         }
 
-        if let Some(v20) = crate::pptable_vega::AtomVega20PowerPlayTable::from_bytes_mut(&mut self.raw_buffer) {
+        if let Some(mut v20_val) = crate::pptable_vega::AtomVega20PowerPlayTable::from_bytes_padded(&self.raw_buffer) { let v20 = &mut v20_val;
             v20.boost_power_limit = self.power_limit_w.max(0) as u16;
             v20.socket_power_limit_ac[0] = self.power_limit_w.max(0) as u16;
             v20.tdc_limit_gfx = self.tdc_gfx.max(0) as u16;
@@ -894,6 +894,7 @@ impl PowerPlayApp {
             v20.od_feature_flags[8] = u8::from(self.fan_curve);
             v20.od_feature_flags[9] = u8::from(self.power_limit_feat);
             return;
+            v20_val.write_back_to_slice(&mut self.raw_buffer);
         }
 
         if let Some(pol) = crate::pptable_polaris::AtomPolarisPowerPlayTable::from_bytes_mut(&mut self.raw_buffer) {
