@@ -2,7 +2,7 @@ use eframe::egui;
 use crate::{AdvanceOsTab, PowerPlayApp};
 
 impl PowerPlayApp {
-    pub fn draw_advance_tab(&mut self, ui: &mut egui::Ui) {
+    pub fn draw_advance(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.selectable_value(&mut self.advance_os_tab, AdvanceOsTab::MacOS, "macOS");
             ui.selectable_value(&mut self.advance_os_tab, AdvanceOsTab::Windows, "Windows");
