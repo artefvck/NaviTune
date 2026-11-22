@@ -98,11 +98,9 @@ impl AtomPolarisPowerPlayTable {
     }
 
     pub fn resolved_hard_limit_offset(&self, buf: &[u8]) -> usize {
-        for cand in [{ self.hard_limit_table_offset }, { self.cac_tdp_table_offset }, { self.acp_table_offset }] {
-            let off = cand as usize;
-            if off >= 0x4D && off + 0x16 <= buf.len() && buf[off] >= 1 && buf[off + 1] >= 1 {
-                return off;
-            }
+        let off = ({ self.hard_limit_table_offset }) as usize;
+        if off >= 0x4D && off + 0x16 <= buf.len() && buf[off] >= 1 && buf[off + 1] >= 1 {
+            return off;
         }
         0
     }
