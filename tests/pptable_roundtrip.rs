@@ -351,3 +351,16 @@ fn test_features_to_run_all_six_architectures() {
     let decoded = Rdna3.decode_feature_bits((1u64 << 1) | (1u64 << 19));
     assert_eq!(decoded, vec![(1, "DPM_GFXCLK"), (19, "GFXOFF")]);
 }
+
+#[test]
+fn test_power_modes_and_acoustic_capabilities_all_six() {
+    use ppt_arch::PptArch::*;
+    for arch in [Polaris, Vega10, Vega20, Rdna1] {
+        assert!(!arch.has_multi_power_modes());
+        assert!(!arch.has_power_mode_acoustic());
+    }
+    assert!(Rdna2.has_multi_power_modes());
+    assert!(Rdna2.has_power_mode_acoustic());
+    assert!(Rdna3.has_multi_power_modes());
+    assert!(!Rdna3.has_power_mode_acoustic());
+}

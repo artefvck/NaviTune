@@ -72,6 +72,10 @@ impl PptArch {
         matches!(self, Self::Rdna2 | Self::Rdna3)
     }
 
+    pub fn has_power_mode_acoustic(self) -> bool {
+        matches!(self, Self::Rdna2)
+    }
+
     pub fn has_vf_curve_points(self) -> bool {
         matches!(self, Self::Vega20 | Self::Rdna1 | Self::Rdna2 | Self::Rdna3)
     }
