@@ -187,6 +187,8 @@ impl Default for PowerPlayApp {
 }
 impl eframe::App for PowerPlayApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // ppt_loaded_synced_from_raw_buffer
+        ctx.data_mut(|d| d.insert_temp(egui::Id::new(\"ppt_loaded\"), !self.raw_buffer.is_empty()));
         if let Some(rect) = ctx.input(|i| i.viewport().inner_rect) { crate::ui_theme::save_window_size(ctx, rect.size()); }
         ctx.data_mut(|d| {
             d.insert_temp(egui::Id::new("ppt_loaded"), !self.raw_buffer.is_empty());
