@@ -127,5 +127,10 @@ impl PowerPlayApp {
                 });
             }
         });
-    }
+    
+        crate::card_layout::draw_card(ui, "Interactive Fan Curve (Drag Points)", |ui| {
+            if self.raw_buffer.is_empty() { ui.disable(); }
+            self.draw_fan_curve_plot(ui);
+        });
+}
 }

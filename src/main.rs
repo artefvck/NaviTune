@@ -1,3 +1,4 @@
+mod curve_plot;
 mod save_diff_modal;
 mod cli;
 mod gpu_telemetry;
