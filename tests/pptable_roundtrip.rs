@@ -587,3 +587,17 @@ fn test_voltage_offset_verification_all_six() {
     assert_eq!({ r2_check.dctol_gfx }, -35);
     assert_eq!({ r2_check.dctol_soc }, -15);
 }
+
+#[test]
+fn test_polaris_rx580_platform_caps_0x01060000() {
+    use ppt_arch::PptArch::Polaris;
+    let decoded = Polaris.decode_feature_bits(0x01060000);
+    assert_eq!(
+        decoded,
+        vec![
+            (17, "DISABLE_VOLTAGE_ISLAND"),
+            (18, "ODN_AC_SUPPORT"),
+            (24, "FALCON_QUICK_TRANSITION"),
+        ]
+    );
+}

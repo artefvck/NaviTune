@@ -133,7 +133,7 @@ impl PowerPlayApp {
             (0..64usize).fold(0u64, |acc, bit| if self.smu_features[bit] { acc | (1u64 << bit) } else { acc })
         };
         let decoded_feats: Vec<String> = arch.decode_feature_bits(feat_mask).into_iter().map(|(bit, name)| format!("{}:{}", bit, name)).collect();
-        out.push_str(&format!("FeaturesToRun    : 0x{:016X} ({})\n", feat_mask, decoded_feats.join(", ")));
+        if arch.is_gcn_subtable() { out.push_str(&format!("PlatformCaps     : 0x{:08X} ({})\n", feat_mask as u32, decoded_feats.join(", "))); } else { out.push_str(&format!("FeaturesToRun    : 0x{:016X} ({})\n", feat_mask, decoded_feats.join(", "))); }
         out.push_str(&format!("Decoded Vars     : {} entries\n", vars.len()));
         for (k, v) in vars {
             out.push_str(&format!("  {} = {}\n", k, v));
