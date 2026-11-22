@@ -203,6 +203,54 @@ pub fn draw_check_grid(ui: &mut egui::Ui, id: &str, cols: usize, items: &mut [(&
         });
 }
 
+pub fn draw_tracked_check(
+    ui: &mut egui::Ui,
+    ctx: &egui::Context,
+    gen: u64,
+    scope: &str,
+    tag: &str,
+    label: &str,
+    flag: &mut bool,
+) -> bool {
+    let base_id = egui::Id::new((scope, gen, tag));
+    let base_val = ctx.data_mut(|d| {
+        if let Some(v) = d.get_temp::<bool>(base_id) {
+            v
+        } else {
+            d.insert_temp(base_id, *flag);
+            *flag
+        }
+    });
+    let mut changed = false;
+    ui.horizontal(|ui| {
+        let resp = crate::ui_theme::green_checkbox(ui, flag, label);
+        if resp.changed() {
+            ctx.data_mut(|d| d.insert_temp(egui::Id::new("ppt_dirty"), true));
+            changed = true;
+        }
+        if *flag != base_val {
+            ui.colored_label(egui::Color32::from_rgb(240, 70, 90), "●");
+        }
+    });
+    changed
+}
+
+pub fn draw_tracked_check_list(
+    ui: &mut egui::Ui,
+    ctx: &egui::Context,
+    gen: u64,
+    scope: &str,
+    items: &mut [(&mut bool, &str, &str, bool)],
+) {
+    ui.spacing_mut().item_spacing.y = 4.0;
+    for (flag, label, tag, supported) in items.iter_mut() {
+        if !*supported {
+            continue;
+        }
+        draw_tracked_check(ui, ctx, gen, scope, tag, label, flag);
+    }
+}
+
 pub fn draw_arch_note_card(ui: &mut egui::Ui, title: &str, body: &str) {
     draw_card(ui, title, |ui| {
         ui.colored_label(egui::Color32::from_rgb(235, 190, 95), body);
