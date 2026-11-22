@@ -154,7 +154,7 @@ impl AtomPolarisPowerPlayTable {
     pub fn read_polaris_dpm_and_powertune(&self, buf: &[u8]) -> (i32, i32, i32, i32, i32, i32, Vec<(i32, i32, i32)>) {
         let mut sclk_min = 0i32;
         let mut sclk_max = 0i32;
-        let soff = ({ self.sclk_dep_table_offset }) as usize;
+        let soff = if buf.len() >= 0x2F { u16::from_le_bytes([buf[0x2D], buf[0x2E]]) as usize } else { ({ self.sclk_dep_table_offset }) as usize };
         if soff >= 0x4D && soff + 2 <= buf.len() {
             let n = buf[soff + 1] as usize;
             let stride = 15usize;
@@ -170,7 +170,7 @@ impl AtomPolarisPowerPlayTable {
 
         let mut vddc_min = 0i32;
         let mut vddc_max = 0i32;
-        let voff = ({ self.vddc_lookup_table_offset }) as usize;
+        let voff = if buf.len() >= 0x31 { u16::from_le_bytes([buf[0x2F], buf[0x30]]) as usize } else { ({ self.vddc_lookup_table_offset }) as usize };
         if voff >= 0x4D && voff + 2 <= buf.len() {
             let n = buf[voff + 1] as usize;
             let stride = 8usize;
@@ -192,7 +192,7 @@ impl AtomPolarisPowerPlayTable {
         }
 
         let mut mclk_states = Vec::new();
-        let moff = ({ self.mclk_dep_table_offset }) as usize;
+        let moff = if buf.len() >= 0x2D { u16::from_le_bytes([buf[0x2B], buf[0x2C]]) as usize } else { ({ self.mclk_dep_table_offset }) as usize };
         if moff >= 0x4D && moff + 2 <= buf.len() {
             let n = buf[moff + 1] as usize;
             let stride = 13usize;
