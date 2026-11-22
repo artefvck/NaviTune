@@ -45,6 +45,18 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<(&'static str, V
             ("Fan", "stop / start / target / zero", 0x679, 32, format!("Stop={}C, Start={}C, Target={}C, MaxRPM={}, ZeroRPM={}", {t1.fan_stop_temp}, {t1.fan_start_temp}, {t1.fan_target_temperature}, {t1.fan_maximum_rpm}, t1.fan_zero_rpm_enable)),
         ]));
     }
+    if b.len() == 1534 && frev == 0x0B {
+        let u16_at = |o: usize| u16::from_le_bytes([b[o], b[o + 1]]);
+        let u32_at = |o: usize| u32::from_le_bytes([b[o], b[o + 1], b[o + 2], b[o + 3]]);
+        return Some(("Vega 20 Pro (0x0B · 1534B)", vec![
+            ("Header", "AtomCommonTableHeader", 0x000, 5, format!("size={}, rev=0x{:02X}.{:02X}.{:02X}", hdr_sz, frev, crev, trev)),
+            ("Power", "BoostPower / MaxCurrent", 0x016, 6, format!("Boost={}W, TDC_GFX={}A, TDC_Soc={}A", u16_at(0x016), u16_at(0x018), u16_at(0x01A))),
+            ("OD8", "od_settings_max (GFX/Mem)", 0x027, 8, format!("GFX={}MHz, Mem={}MHz", u32_at(0x027), u32_at(0x02B))),
+            ("Voltage", "GFX Vmin..Vmax (OD8)", 0x03B, 12, format!("GFX={}..{}mV (Ceiling={}mV)", u32_at(0x03B), u32_at(0x043), u32_at(0x047))),
+            ("Clocks", "freq_table_gfx[0..7]", 0x33A, 16, format!("GFX={}..{}MHz", u16_at(0x33A), u16_at(0x348))),
+            ("Memory", "freq_table_uclk[0..3]", 0x38A, 8, format!("UCLK={}..{}MHz", u16_at(0x38A), u16_at(0x390))),
+        ]));
+    }
     if let Some(v20) = crate::pptable_vega::AtomVega20PowerPlayTable::from_bytes(b) {
         let od_max = { v20.od_settings_max };
         let ppt_ac = { v20.socket_power_limit_ac };
