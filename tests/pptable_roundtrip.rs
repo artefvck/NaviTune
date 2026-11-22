@@ -274,3 +274,26 @@ fn test_cross_arch_gcn_and_rdna_detection() {
     assert!(ppt_arch::PptArch::Rdna2.gcn_subtable_hint("fan").is_none());
     assert_eq!(ppt_arch::PptArch::Polaris.default_table_size(), 384);
 }
+
+#[test]
+fn test_all_six_architectures_parity() {
+    let cases: &[(u16, u8, ppt_arch::PptArch)] = &[
+        (384, 0x07, ppt_arch::PptArch::Polaris),
+        (512, 0x08, ppt_arch::PptArch::Vega10),
+        (1924, 0x0B, ppt_arch::PptArch::Vega20),
+        (1924, 0x0D, ppt_arch::PptArch::Rdna1),
+        (2470, 0x0F, ppt_arch::PptArch::Rdna2),
+        (5424, 0x14, ppt_arch::PptArch::Rdna3),
+    ];
+    for &(sz, rev, expected) in cases {
+        let mut buf = vec![0u8; sz as usize];
+        buf[0..2].copy_from_slice(&sz.to_le_bytes());
+        buf[2] = rev;
+        assert_eq!(ppt_arch::PptArch::detect(&buf), expected);
+        assert_eq!(expected.default_table_size(), sz as usize);
+        let reg = export_formats::format_reg_ppt(&buf);
+        assert_eq!(import_formats::parse_reg_ppt(reg.as_bytes()).expect("reg roundtrip"), buf);
+        let plist = export_formats::format_opencore_plist(&buf, "PciRoot(0x0)/Pci(0x1,0x0)/Pci(0x0,0x0)");
+        assert_eq!(import_formats::parse_plist_ppt(plist.as_bytes()).expect("plist roundtrip"), buf);
+    }
+}
