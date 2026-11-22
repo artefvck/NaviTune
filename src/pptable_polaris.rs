@@ -225,8 +225,10 @@ impl AtomPolarisPowerPlayTable {
     }
 
     pub fn write_polaris_dpm_and_powertune(buf: &mut [u8], sclk_min: i32, sclk_max: i32, vddc_max: i32, pwr_w: i32, tdc_a: i32, mem_dpm_freq: &[[i32; 2]; 4], mem_dpm_volt: &[[i32; 2]; 4]) {
-        let Some(t) = Self::from_bytes(buf) else { return; };
-        let soff = ({ t.sclk_dep_table_offset }) as usize;
+        let (soff, voff, moff) = {
+            let Some(t) = Self::from_bytes(buf) else { return; };
+            (({ t.sclk_dep_table_offset }) as usize, ({ t.vddc_lookup_table_offset }) as usize, ({ t.mclk_dep_table_offset }) as usize)
+        };
         if soff >= 0x4D && soff + 2 <= buf.len() {
             let n = buf[soff + 1] as usize;
             let stride = 13usize;
@@ -240,7 +242,6 @@ impl AtomPolarisPowerPlayTable {
                 }
             }
         }
-        let voff = ({ t.vddc_lookup_table_offset }) as usize;
         if vddc_max > 0 && voff >= 0x4D && voff + 2 <= buf.len() {
             let n = buf[voff + 1] as usize;
             let stride = 8usize;
@@ -259,7 +260,6 @@ impl AtomPolarisPowerPlayTable {
                 }
             }
         }
-        let moff = ({ t.mclk_dep_table_offset }) as usize;
         if moff >= 0x4D && moff + 2 <= buf.len() {
             let n = buf[moff + 1] as usize;
             let stride = 15usize;
