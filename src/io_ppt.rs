@@ -606,16 +606,18 @@ impl PowerPlayApp {
 
             // PowerTune (0x042) & HardLimit (0x048)
             let pt_off = u16_at(0x042) as usize;
-            if pt_off > 0 && pt_off + 0x55 <= b.len() {
-                let tdp = u16_at(pt_off + 0x4F);
-                let max_p = u16_at(pt_off + 0x53);
-                self.power_limit_w = if max_p > 0 { max_p } else { tdp };
+            if pt_off > 0 && pt_off + 0x59 <= b.len() {
+                let tdc_v = u16_at(pt_off + 0x55);
+                let pwr_v = u16_at(pt_off + 0x57);
+                self.tdc_gfx = if (40..=400).contains(&tdc_v) { tdc_v } else { 144 };
+                self.power_limit_w = if (50..=450).contains(&pwr_v) { pwr_v } else { 150 };
                 self.power_limit_ac[0] = self.power_limit_w;
-                self.tdc_gfx = u16_at(pt_off + 0x51);
             }
             let hl_off = u16_at(0x048) as usize;
             if hl_off > 0 && hl_off + 0x16 <= b.len() {
-                self.temp_limits[0] = u16_at(hl_off + 0x14);
+                let t_hot = b[hl_off + 0x15] as i32;
+                let t_edge = b[hl_off + 0x13] as i32;
+                self.temp_limits[0] = if (60..=125).contains(&t_hot) { t_hot } else if (60..=125).contains(&t_edge) { t_edge } else { 105 };
             }
             self.status_msg = format!("Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B]", label, chip_v.display_name(), frev, crev, trev, b.len());
             self.baseline_buffer = b.clone();
@@ -1137,9 +1139,9 @@ impl PowerPlayApp {
                 }
             }
             let pt_off = u16_at(&self.raw_buffer, 0x042);
-            if pt_off > 0 && pt_off + 0x55 <= self.raw_buffer.len() {
-                self.raw_buffer[pt_off + 0x51..pt_off + 0x53].copy_from_slice(&(self.tdc_gfx.max(0) as u16).to_le_bytes());
-                self.raw_buffer[pt_off + 0x53..pt_off + 0x55].copy_from_slice(&(self.power_limit_w.max(0) as u16).to_le_bytes());
+            if pt_off > 0 && pt_off + 0x59 <= self.raw_buffer.len() {
+                self.raw_buffer[pt_off + 0x55..pt_off + 0x57].copy_from_slice(&(self.tdc_gfx.max(0) as u16).to_le_bytes());
+                self.raw_buffer[pt_off + 0x57..pt_off + 0x59].copy_from_slice(&(self.power_limit_w.max(0) as u16).to_le_bytes());
             }
             return;
         }
