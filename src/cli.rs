@@ -79,10 +79,10 @@ fn load_app_from_path(path: &str) -> Result<(PowerPlayApp, Option<usize>), Strin
     if let Ok((ppt, off)) = vbios::extract_ppt_from_rom(&data) {
         app.vbios_ppt_offset = Some(off);
         app.vbios_buffer = Some(data);
-        app.apply_ppt_bytes(ppt, path);
+        app.apply_loaded_buffer(ppt, path);
         Ok((app, Some(off)))
     } else {
-        app.apply_ppt_bytes(data, path);
+        app.apply_loaded_buffer(data, path);
         Ok((app, None))
     }
 }
