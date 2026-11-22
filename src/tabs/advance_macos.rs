@@ -71,7 +71,7 @@ impl PowerPlayApp {
             });
         
             draw_card(ui, "OpenCore Export", |ui| {
-                ui.label("Export or copy synced PP_PhmSoftPowerPlayTable for OpenCore DeviceProperties:");
+                ui.label("Export or copy synced PP,PhmSoftPowerPlayTable for OpenCore DeviceProperties:");
                 ui.add_space(8.0);
                 ui.horizontal_wrapped(|ui| {
                     if ui.button("Copy OpenCore Base64/Hex").clicked() {
