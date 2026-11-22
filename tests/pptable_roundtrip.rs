@@ -487,5 +487,5 @@ fn test_vega20_1534_byte_vbios_pptable() {
     let mut parsed = pptable_vega::AtomVega20PowerPlayTable::from_bytes_padded(&v20).expect("1534 B Vega 20 parse");
     parsed.boost_power_limit = 250;
     parsed.write_back_to_slice(&mut v20);
-    assert_eq!(pptable_vega::AtomVega20PowerPlayTable::from_bytes_padded(&v20).unwrap().boost_power_limit, 250);
+    assert_eq!({ pptable_vega::AtomVega20PowerPlayTable::from_bytes_padded(&v20).unwrap().boost_power_limit }, 250);
 }

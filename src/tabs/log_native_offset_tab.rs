@@ -102,7 +102,7 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<(&'static str, V
             ("MCLK DPM", "mclk_dep_table", ({ pol.mclk_dep_table_offset }) as usize, 17, m_desc),
             ("Fan SubTable", "ATOM_Tonga_Fan_Table", fan_off.min(b.len()), 29, fan_desc),
             ("PowerTune", "ATOM_Polaris_PowerTune", 0x2D1, 16, format!("MaxPwr={}W TDC={}A", pwr_w, tdc_a)),
-        ]);
+        ];
         if hard_off > 0 {
             pol_rows.push(("HardLimit SubTable", "ATOM_Polaris_Hard_Limit_Table", hard_off.min(b.len()), 14, hard_desc));
         }

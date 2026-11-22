@@ -63,7 +63,7 @@ impl PptArch {
             Self::Rdna2
         } else if crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(buf).is_some() {
             Self::Rdna1
-        } else if (buf.len() >= 1500 && buf.get(2) == Some(&0x0B)) {
+        } else if buf.len() >= 1500 && buf.get(2) == Some(&0x0B) {
             Self::Vega20
         } else if crate::pptable_vega::AtomVega10PowerPlayTable::from_bytes(buf).is_some() {
             Self::Vega10
