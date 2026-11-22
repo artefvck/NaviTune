@@ -553,11 +553,6 @@ impl PowerPlayApp {
             return;
         }
 
-        let Some(t) = AtomSmcDpmInfoV4_9::from_bytes(&b) else {
-            self.show_error("Invalid RDNA 2 PPTable", &format!("Expected at least {} bytes (AtomSmcDpmInfoV4_9), got {} bytes.", std::mem::size_of::<crate::pptable_rdna2::AtomSmcDpmInfoV4_9>(), b.len()));
-            return;
-        };
-
         // Clean all UI fields to default before populating from the newly loaded table
         let saved_vbios = self.vbios_buffer.take();
         let saved_voff = self.vbios_ppt_offset.take();
