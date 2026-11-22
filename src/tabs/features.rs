@@ -8,7 +8,7 @@ impl PowerPlayApp {
         let loaded = !self.raw_buffer.is_empty();
         let gen = ctx.data(|d| d.get_temp::<u64>(egui::Id::new("ppt_baseline_gen")).unwrap_or(0));
 
-        if arch.has_od8_and_smu_masks() {
+        if !arch.is_gcn_subtable() {
             ui.vertical_centered(|ui| {
                 let btn = egui::Button::new("PPTable Features").min_size(egui::vec2(180.0, 28.0));
                 if ui.add(btn).clicked() {
