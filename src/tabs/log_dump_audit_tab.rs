@@ -114,7 +114,7 @@ impl PowerPlayApp {
         } else if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(&self.raw_buffer) {
             t1.detect_chip(did).display_name()
         } else {
-            crate::pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer).map(|t| t.detect_chip(&self.raw_buffer).display_name()).unwrap_or("Unknown")
+            crate::pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer).map(|t| t.detect_chip(&self.raw_buffer).display_name()).unwrap_or(if crate::ppt_arch::PptArch::detect(&self.raw_buffer) == crate::ppt_arch::PptArch::Polaris { "Polaris (SMU 8.0, rev 0x07)" } else { "Unknown" })
         };
         out.push_str(&format!("Detected Silicon : {}\n", chip_name));
         let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
