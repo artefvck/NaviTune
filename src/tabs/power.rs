@@ -15,7 +15,7 @@ impl PowerPlayApp {
             ui.add_space(6.0);
         }
         let mut issues: Vec<&str> = Vec::new();
-        if self.volt_gfx[0] > self.volt_gfx[1] { issues.push("GFX Vmin > Vmax"); }
+        if self.volt_gfx[1] > 0 && self.volt_gfx[0] > self.volt_gfx[1] { issues.push("GFX Vmin > Vmax"); }
         if self.volt_soc[0] > self.volt_soc[1] { issues.push("Soc Vmin > Vmax"); }
         if arch.is_gcn_subtable() {
             if self.volt_gfx[1] <= 0 || self.volt_gfx[1] > 1350 { issues.push("HardLimit VDDC Max out of 1..1350 mV"); }
