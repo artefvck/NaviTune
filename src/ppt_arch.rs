@@ -76,7 +76,7 @@ impl PptArch {
         matches!(self, Self::Rdna2)
     }
 
-    pub fn od_offset_labels(self) -> (&x27static str, &x27static str, &x27static str, &x27static str, &x27static str) {
+    pub fn od_offset_labels(self) -> (&'static str, &'static str, &'static str, &'static str, &'static str) {
         match self {
             Self::Polaris | Self::Vega10 => (
                 "max_od_engine_clock (0x017)",
