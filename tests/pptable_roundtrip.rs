@@ -550,8 +550,8 @@ fn test_thermal_limits_verification_all_six() {
     }
 
     // Verify Vega 20 (1534 B) & RDNA 2 (2470 B) temp_limit round-trip
-    let mut v20 = vec![0u8; 1534];
-    v20[0..2].copy_from_slice(&1534u16.to_le_bytes());
+    let mut v20 = vec![0u8; 1924];
+    v20[0..2].copy_from_slice(&1924u16.to_le_bytes());
     v20[2] = 0x0B;
     let mut t20 = pptable_vega::AtomVega20PowerPlayTable::from_bytes_padded(&v20).unwrap();
     t20.temp_limit = [100, 110, 105, 115, 115, 115, 115];
