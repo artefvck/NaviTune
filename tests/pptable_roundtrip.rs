@@ -514,3 +514,27 @@ fn test_power_modes_verification_all_six() {
     assert_eq!({ r2_check.pm_turbo_limit }, 275);
     assert_eq!({ r2_check.pm_rage_limit & 0xFFFF }, 290);
 }
+
+#[test]
+fn test_power_mode_acoustic_verification_all_six() {
+    use ppt_arch::{PptArch::*, PptCard::PowerModeAcoustic};
+    for arch in [Polaris, Vega10, Vega20, Rdna1, Rdna3] {
+        assert!(!arch.supports_card(PowerModeAcoustic));
+    }
+    assert!(Rdna2.supports_card(PowerModeAcoustic));
+
+    // Verify RDNA 2 (V4_9) Power Mode Acoustic round-trip (ac_quiet..ac_rage @ 0x912..0x91E)
+    let mut r2 = vec![0u8; 2470];
+    r2[0..2].copy_from_slice(&2470u16.to_le_bytes());
+    r2[2] = 0x0F;
+    let t2 = pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes_mut(&mut r2).unwrap();
+    t2.ac_quiet = [1450, 28];
+    t2.ac_balanced = [1750, 35];
+    t2.ac_turbo = [2100, 45];
+    t2.ac_rage = [2400, 55];
+    let r2_check = pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(&r2).unwrap();
+    assert_eq!({ r2_check.ac_quiet }, [1450, 28]);
+    assert_eq!({ r2_check.ac_balanced }, [1750, 35]);
+    assert_eq!({ r2_check.ac_turbo }, [2100, 45]);
+    assert_eq!({ r2_check.ac_rage }, [2400, 55]);
+}
