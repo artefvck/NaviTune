@@ -469,11 +469,11 @@ fn test_all_cards_matrix_across_six_architectures() {
 
 #[test]
 fn test_field_box_spec_all_units() {
-    use ppt_arch::PptArch::field_box_spec;
-    assert_eq!(field_box_spec("VDDC Max (HardLimit)"), (0, 1600, 1.0, " mV"));
-    assert_eq!(field_box_spec("GFXCLK Max (HardLimit)"), (0, 4500, 5.0, " MHz"));
-    assert_eq!(field_box_spec("Fan Max RPM"), (0, 6000, 25.0, " RPM"));
-    assert_eq!(field_box_spec("Target Temp (°C)"), (0, 125, 1.0, " °C"));
-    assert_eq!(field_box_spec("Power Limit (W)"), (0, 1000, 1.0, " W"));
-    assert_eq!(field_box_spec("TDC GFX (A)"), (0, 1000, 1.0, " A"));
+    use ppt_arch::PptArch;
+    assert_eq!(PptArch::field_box_spec("VDDC Max (HardLimit)"), (0, 1600, 1.0, " mV"));
+    assert_eq!(PptArch::field_box_spec("GFXCLK Max (HardLimit)"), (0, 4500, 5.0, " MHz"));
+    assert_eq!(PptArch::field_box_spec("Fan Max RPM"), (0, 6000, 25.0, " RPM"));
+    assert_eq!(PptArch::field_box_spec("Target Temp (°C)"), (0, 125, 1.0, " °C"));
+    assert_eq!(PptArch::field_box_spec("Power Limit (W)"), (0, 1000, 1.0, " W"));
+    assert_eq!(PptArch::field_box_spec("TDC GFX (A)"), (0, 1000, 1.0, " A"));
 }
