@@ -134,5 +134,10 @@ impl PowerPlayApp {
                 });
             }
         });
-    }
+    
+        crate::card_layout::draw_card(ui, "Interactive V/F Curve (Drag Fmin/Vmin & Fmax/Vmax)", |ui| {
+            if self.raw_buffer.is_empty() { ui.disable(); }
+            self.draw_vf_curve_plot(ui);
+        });
+}
 }
