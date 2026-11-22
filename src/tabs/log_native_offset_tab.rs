@@ -54,7 +54,7 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<(&'static str, V
             ("OD8", "od_settings_max (GFX/Mem)", 0x027, 8, format!("GFX={}MHz, Mem={}MHz", u32_at(0x027), u32_at(0x02B))),
             ("Voltage", "GFX Vmin..Vmax (OD8)", 0x03B, 12, format!("GFX={}..{}mV (Ceiling={}mV)", u32_at(0x03B), u32_at(0x043), u32_at(0x047))),
             ("Clocks", "freq_table_gfx[0..7]", 0x33A, 16, format!("GFX={}..{}MHz", u16_at(0x33A), u16_at(0x348))),
-            ("Memory", "freq_table_uclk[0..3]", 0x38A, 8, format!("UCLK={}..{}MHz", u16_at(0x38A), u16_at(0x390))),
+            ("Memory", "freq_table_uclk[0..3]", 0x38A, 8, format!("UCLK={}..{}MHz", u16_at(0x3C4), u16_at(0x3CA))),
         ]));
     }
     if let Some(v20) = crate::pptable_vega::AtomVega20PowerPlayTable::from_bytes(b) {
