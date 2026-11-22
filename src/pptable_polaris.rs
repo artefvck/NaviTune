@@ -157,7 +157,7 @@ impl AtomPolarisPowerPlayTable {
         let soff = ({ self.sclk_dep_table_offset }) as usize;
         if soff >= 0x4D && soff + 2 <= buf.len() {
             let n = buf[soff + 1] as usize;
-            let stride = 13usize;
+            let stride = 15usize;
             if n > 0 && soff + 2 + n * stride <= buf.len() {
                 let first = soff + 2;
                 let last = soff + 2 + (n - 1) * stride;
@@ -232,7 +232,7 @@ impl AtomPolarisPowerPlayTable {
         };
         if soff >= 0x4D && soff + 2 <= buf.len() {
             let n = buf[soff + 1] as usize;
-            let stride = 13usize;
+            let stride = 15usize;
             if n > 0 && soff + 2 + n * stride <= buf.len() {
                 if sclk_min > 0 {
                     buf[soff + 5..soff + 9].copy_from_slice(&((sclk_min as u32) * 100).to_le_bytes());
