@@ -76,7 +76,8 @@ impl PowerPlayApp {
                     }
                 });
             }
-            }, |ui| {
+            }
+        }, |ui| {
                 if show_zerorpm {
                     draw_card(ui, "Zero RPM", |ui| {
                         ui.horizontal(|ui| {
