@@ -125,8 +125,8 @@ impl PowerPlayApp {
                             self.fan_curve_pwm[i] = pair[1];
                         }
                     }
-                });
-            }
+                );
+            
             });
 
     }
