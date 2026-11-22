@@ -489,3 +489,28 @@ fn test_vega20_1534_byte_vbios_pptable() {
     parsed.write_back_to_slice(&mut v20);
     assert_eq!({ pptable_vega::AtomVega20PowerPlayTable::from_bytes_padded(&v20).unwrap().boost_power_limit }, 250);
 }
+
+#[test]
+fn test_power_modes_verification_all_six() {
+    use ppt_arch::{PptArch::*, PptCard::PowerModes};
+    for arch in [Polaris, Vega10, Vega20, Rdna1] {
+        assert!(!arch.supports_card(PowerModes));
+    }
+    assert!(Rdna2.supports_card(PowerModes));
+    assert!(Rdna3.supports_card(PowerModes));
+
+    // Verify RDNA 2 (V4_9) Power Modes round-trip (Quiet/Balanced/Turbo/Rage W + Temp)
+    let mut r2 = vec![0u8; 2470];
+    r2[0..2].copy_from_slice(&2470u16.to_le_bytes());
+    r2[2] = 0x0F;
+    let t2 = pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes_mut(&mut r2).unwrap();
+    t2.pm_quiet_limit = 220; t2.pm_quiet_temp = 72;
+    t2.pm_balanced_limit = 250; t2.pm_balanced_temp = 78;
+    t2.pm_turbo_limit = 275; t2.pm_turbo_temp = 83;
+    t2.pm_rage_limit = 290; t2.pm_rage_temp = 86;
+    let r2_check = pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(&r2).unwrap();
+    assert_eq!({ r2_check.pm_quiet_limit }, 220);
+    assert_eq!({ r2_check.pm_balanced_limit }, 250);
+    assert_eq!({ r2_check.pm_turbo_limit }, 275);
+    assert_eq!({ r2_check.pm_rage_limit & 0xFFFF }, 290);
+}
