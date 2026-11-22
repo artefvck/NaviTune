@@ -1,3 +1,10 @@
+pub mod platform;
+pub use arch::smu_features as smu_features;
+pub use io::import as import_formats;
+pub use platform::advance_os as advance_os;
+pub use platform::gpu_telemetry as gpu_telemetry;
+pub use platform::macos_ioreg as macos_ioreg;
+pub use ui::more_popups as more_popups;
 pub mod ui;
 pub use ui::cards as card_layout;
 pub use ui::curve_plot as curve_plot;
@@ -16,13 +23,7 @@ pub use arch::rdna2 as pptable_rdna2;
 pub use arch::rdna3 as pptable_rdna3;
 pub use arch::vega as pptable_vega;
 mod cli;
-mod gpu_telemetry;
-mod advance_os;
 mod tabs;
-mod import_formats;
-mod macos_ioreg;
-mod more_popups;
-mod smu_features;
 
 use eframe::egui;
 use std::path::PathBuf;
