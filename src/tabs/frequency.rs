@@ -40,8 +40,8 @@ impl PowerPlayApp {
         }
 
 
-        let show_clocklimits = show_clocklimits;
-        let show_memorydpm = show_memorydpm;
+        let show_clocklimits = self.is_card_usable(crate::ppt_arch::PptCard::ClockLimits);
+        let show_memorydpm = self.is_card_usable(crate::ppt_arch::PptCard::MemoryDpm);
         two_col_cards(ui, "freq_cols", |ui| {
             if show_clocklimits {
                 draw_card(ui, arch.card_title(crate::ppt_arch::PptCard::ClockLimits), |ui| {

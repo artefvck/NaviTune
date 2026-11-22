@@ -58,11 +58,11 @@ impl PowerPlayApp {
                 "vddci_max / mvdd_max (0x0DF / 0x0E1)",
             ),
         };
-        let show_corevoltage = show_corevoltage;
-        let show_memoryvoltage = show_memoryvoltage;
-        let show_powerandcurrent = show_powerandcurrent;
-        let show_thermalvmin = show_thermalvmin;
-        let show_ulvvoltage = show_ulvvoltage;
+        let show_corevoltage = self.is_card_usable(crate::ppt_arch::PptCard::CoreVoltage);
+        let show_memoryvoltage = self.is_card_usable(crate::ppt_arch::PptCard::MemoryVoltage);
+        let show_powerandcurrent = self.is_card_usable(crate::ppt_arch::PptCard::PowerAndCurrent);
+        let show_thermalvmin = self.is_card_usable(crate::ppt_arch::PptCard::ThermalVmin);
+        let show_ulvvoltage = self.is_card_usable(crate::ppt_arch::PptCard::UlvVoltage);
         two_col_cards(ui, "pwr_cols", |ui| {
             if show_corevoltage {
                 draw_card(ui, arch.card_title(crate::ppt_arch::PptCard::CoreVoltage), |ui| {
