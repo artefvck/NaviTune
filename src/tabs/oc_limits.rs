@@ -31,7 +31,9 @@ impl PowerPlayApp {
             crate::card_layout::draw_arch_note_card(ui, &format!("{} — OverDrive Architecture", arch.label()), "This PPTable revision does not expose OverDrive ceiling sliders or multi-preset Power Modes.");
             return;
         }
-        two_col_cards_adaptive(ui, "oc_cols", true, true, |ui| {
+        let show_powermodes = self.is_card_usable(crate::ppt_arch::PptCard::PowerModes);
+        let show_powermodeacoustic = self.is_card_usable(crate::ppt_arch::PptCard::PowerModeAcoustic);
+        two_col_cards_adaptive(ui, "oc_cols", true, show_powermodes || show_powermodeacoustic, |ui| {
             draw_card(ui, arch.card_title(crate::ppt_arch::PptCard::OverDrive), |ui| {
                 let (gfx_tag, mem_tag, pwr_tag, fan_tag, ac_tag) = arch.od_offset_labels();
                 if !arch.has_od8_and_smu_masks() {
@@ -53,6 +55,7 @@ impl PowerPlayApp {
             });
         }, |ui| {
             if is_rdna3 {
+                if show_powermodes {
                 draw_card(ui, "Power Modes", |ui| {
                     ui.colored_label(
                         egui::Color32::from_rgb(160, 175, 195),
@@ -67,6 +70,8 @@ impl PowerPlayApp {
                     kv_row_2(ui, "Turbo", "pm_turbo_limit/temp (0x2E2)", &mut self.pm_turbo, 66.0);
                     kv_row_2(ui, "Rage", "pm_rage_limit/temp (0x2E6)", &mut self.pm_rage, 66.0);
                 });
+                }
+            if show_powermodeacoustic {
                 draw_card(ui, "Power Mode Acoustic", |ui| {
                     kv_header_2(ui, "Acoustic (RPM)", "Target (°C)", 66.0);
                     kv_row_2(ui, "Quiet", "ac_quiet (0x2F2)", &mut self.ac_quiet, 66.0);
@@ -74,6 +79,7 @@ impl PowerPlayApp {
                     kv_row_2(ui, "Turbo", "ac_turbo (0x2FA)", &mut self.ac_turbo, 66.0);
                     kv_row_2(ui, "Rage", "ac_rage (0x2FE)", &mut self.ac_rage, 66.0);
                 });
+            }
             }
         });
     }
