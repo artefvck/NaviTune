@@ -79,6 +79,13 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<(&'static str, V
         ]));
     }
     if let Some(pol) = crate::pptable_polaris::AtomPolarisPowerPlayTable::from_bytes(b) {
+        let (s_min, s_max, v_min, v_max, pwr_w, tdc_a, m_states) = pol.read_polaris_dpm_and_powertune(b);
+        rows.push(("VDDC Lookup", "vddc_lookup_table", ({ pol.vddc_lookup_table_offset }) as usize, 8, format!("VDDC={}..{} mV", v_min, v_max)));
+        rows.push(("SCLK DPM", "sclk_dep_table", ({ pol.sclk_dep_table_offset }) as usize, 8, format!("GFXCLK={}..{} MHz", s_min, s_max)));
+        let m_desc = m_states.iter().enumerate().map(|(i, (mc, vci, mvd))| format!("DPM{}:{}MHz({}/{}mV)", i, mc, vci, mvd)).collect::<Vec<_>>().join(", ");
+        rows.push(("MCLK DPM", "mclk_dep_table", ({ pol.mclk_dep_table_offset }) as usize, 8, m_desc));
+        rows.push(("Fan SubTable", "ATOM_Tonga_Fan_Table", ({ pol.fan_table_offset }) as usize, 8, format!("PWM={}% MaxRPM={} Tgt={}°C", self.fan_pwm_min, self.fan_max_rpm, self.fan_target_temp)));
+        rows.push(("PowerTune", "ATOM_Polaris_PowerTune", 0x2D1, 8, format!("MaxPwr={}W TDC={}A", pwr_w, tdc_a)));
         let hard_off = pol.resolved_hard_limit_offset(b);
         let hard_desc = if let Some((gfx_hi, mem_hi, vddc_hi)) = pol.read_hard_limits(b) {
             let (vddci, mvdd) = pol.read_hard_limit_mem_volt(b).unwrap_or((0, 0));
