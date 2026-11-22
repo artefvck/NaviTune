@@ -159,3 +159,9 @@ pub fn kv_header_2(ui: &mut egui::Ui, h1: &str, h2: &str, box_w: f32) {
         }
     });
 }
+
+pub fn draw_arch_note_card(ui: &mut egui::Ui, title: &str, body: &str) {
+    draw_card(ui, title, |ui| {
+        ui.colored_label(egui::Color32::from_rgb(235, 190, 95), body);
+    });
+}

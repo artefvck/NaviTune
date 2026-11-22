@@ -25,8 +25,8 @@ impl PowerPlayApp {
             draw_card(ui, "Voltage Curve (VID)", |ui| {
                 if is_rdna3 || is_rdna1 {
                     ui.colored_label(
-                        egui::Color32::from_rgb(160, 175, 195),
-                        "RDNA 3 (SMU 13.0) uses AVFS per-die fused V/F curves instead of static quadratic (a, b, c) coefficients.",
+                        egui::Color32::from_rgb(235, 190, 95),
+                        "This architecture uses AVFS per-die fused V/F curves instead of static quadratic (a, b, c) coefficients.",
                     );
                 } else {
                     let w2 = dynamic_box_w(ui, 76.0, 2);

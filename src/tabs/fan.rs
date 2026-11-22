@@ -46,6 +46,10 @@ impl PowerPlayApp {
 
 
         let show_zerorpm = self.is_card_usable(crate::ppt_arch::PptCard::ZeroRpm);
+        if !arch.supports_card(crate::ppt_arch::PptCard::FanSettingsAndLimits) && !show_zerorpm && !show_fancurve && !show_thermallimits {
+            crate::card_layout::draw_arch_note_card(ui, &format!("{} — Thermal & Fan Architecture", arch.label()), "No discrete fan or thermal sub-table is present in this PPTable revision.");
+            return;
+        }
         two_col_cards_adaptive(ui, "fan_cols", true, true, |ui| {
             draw_card(ui, "Fan Settings", |ui| {
                 kv_row_1(ui, "PWM Min (%)", "fan_pwm_min (0x716 / 0x86C)", &mut self.fan_pwm_min, 62.0);

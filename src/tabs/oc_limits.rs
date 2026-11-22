@@ -27,6 +27,10 @@ impl PowerPlayApp {
             ui.add_space(4.0);
         }
 
+        if !arch.supports_card(crate::ppt_arch::PptCard::OverDrive) && !self.is_card_usable(crate::ppt_arch::PptCard::PowerModes) && !self.is_card_usable(crate::ppt_arch::PptCard::PowerModeAcoustic) {
+            crate::card_layout::draw_arch_note_card(ui, &format!("{} — OverDrive Architecture", arch.label()), "This PPTable revision does not expose OverDrive ceiling sliders or multi-preset Power Modes.");
+            return;
+        }
         two_col_cards_adaptive(ui, "oc_cols", true, true, |ui| {
             draw_card(ui, arch.card_title(crate::ppt_arch::PptCard::OverDrive), |ui| {
                 let (gfx_tag, mem_tag, pwr_tag, fan_tag, ac_tag) = arch.od_offset_labels();

@@ -42,6 +42,10 @@ impl PowerPlayApp {
 
         let show_clocklimits = self.is_card_usable(crate::ppt_arch::PptCard::ClockLimits);
         let show_memorydpm = self.is_card_usable(crate::ppt_arch::PptCard::MemoryDpm);
+        if !show_clocklimits && !show_memorydpm && !show_pcieandlinkclocks {
+            crate::card_layout::draw_arch_note_card(ui, &format!("{} — Clock Architecture", arch.label()), "No standalone clock limit or PCIe link sub-tables are present in this PPTable revision.");
+            return;
+        }
         two_col_cards_adaptive(ui, "freq_cols", true, true, |ui| {
             if show_clocklimits {
                 draw_card(ui, arch.card_title(crate::ppt_arch::PptCard::ClockLimits), |ui| {
