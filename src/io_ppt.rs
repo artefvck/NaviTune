@@ -441,6 +441,18 @@ impl PowerPlayApp {
         }
 
         if let Some(pol) = crate::pptable_polaris::AtomPolarisPowerPlayTable::from_bytes(&b) {
+            // polaris_od_caps_loaded: decode ulPlatformCaps (0x013..0x017) into OverDrive Feature checkboxes
+            if b.len() >= 0x17 {
+                let pcaps = u32::from_le_bytes([b[0x13], b[0x14], b[0x15], b[0x16]]);
+                let odn_ac = (pcaps & (1 << 18)) != 0;
+                self.gpu_clock_limit = odn_ac;
+                self.memory_clock_limit = odn_ac;
+                self.power_limit_feat = odn_ac;
+                self.min_fan_speed = (pcaps & (1 << 11)) != 0 || self.fan_pwm_min > 0;
+                self.fan_target_temp_limit = self.fan_target_temp > 0;
+                self.operating_temp_limit = (pcaps & (1 << 2)) != 0;
+                self.zero_rpm = false;
+            }
             let did = self.vbios_buffer.as_deref()
                 .and_then(|vb| crate::vbios::inspect_vbios_info(vb, self.vbios_ppt_offset.unwrap_or(0)))
                 .map(|vi| vi.device_id)
@@ -933,6 +945,14 @@ impl PowerPlayApp {
             pol.max_od_memory_clock = (self.oc_mem_clock[1].max(0) * 100) as u32;
             pol.power_control_limit = self.oc_power_limit[1].max(0) as u16;
             crate::pptable_polaris::AtomPolarisPowerPlayTable::write_polaris_dpm_and_powertune(&mut self.raw_buffer, self.freq_gfx[0], self.freq_gfx[1], self.volt_gfx[1], self.power_limit_w, self.tdc_gfx, &self.mem_dpm_freq, &self.mem_dpm_volt);
+            // polaris_od_caps_saved: sync OverDrive Feature checkboxes back to ulPlatformCaps (0x013..0x017)
+            if self.raw_buffer.len() >= 0x17 {
+                let mut pcaps = u32::from_le_bytes([self.raw_buffer[0x13], self.raw_buffer[0x14], self.raw_buffer[0x15], self.raw_buffer[0x16]]);
+                if self.gpu_clock_limit || self.memory_clock_limit || self.power_limit_feat { pcaps |= 1 << 18; } else { pcaps &= !(1 << 18); }
+                if self.min_fan_speed { pcaps |= 1 << 11; } else { pcaps &= !(1 << 11); }
+                if self.operating_temp_limit { pcaps |= 1 << 2; } else { pcaps &= !(1 << 2); }
+                self.raw_buffer[0x13..0x17].copy_from_slice(&pcaps.to_le_bytes());
+            }
             crate::pptable_polaris::AtomPolarisPowerPlayTable::write_fan_subtable(
                 &mut self.raw_buffer,
                 self.fan_pwm_min,
