@@ -1,24 +1,20 @@
-# Vega 10 (`SMU 9.0`) & Vega 20 (`SMU 11.0`) PowerPlay Table Reference
+# Vega 10 (`SMU 9.0`, `rev 0x08`) & Vega 20 (`SMU 11.0`, `rev 0x0B`)
 
-NaviTune supports **AMD Vega 10** (`AtomVega10PowerPlayTable`, `table_format_revision` `0x08`) and **AMD Vega 20** (`AtomVega20PowerPlayTable`, `1,924` bytes, `table_format_revision` `0x0B`).
+## Vega 10 (`AtomVega10PowerPlayTable`, `rev 0x08`)
+- Uses `ATOM_Vega10_Fan_Table` (`rev 10+`) with `Zero RPM` (`Stop Temp` / `Start Temp`), `PWM Min`, `Max RPM`, and `Target Temp`.
+- Uses `ulPlatformCaps` (`0x013`, 32-bit `PHM_PlatformCaps_*` mask) rather than 64-bit `FeaturesToRun`.
+- Uses SCLK/MCLK DPM dependency tables rather than SMU 11/13 V-F curves.
 
-## Supported Silicon & PCI Device IDs
-* **Vega 10 (`0x08`)**: RX Vega 56, RX Vega 64, Radeon Vega Frontier Edition, Radeon Pro WX 8200 / WX 9100 (`0x6860`, `0x6863`, `0x687F`)
-* **Vega 20 (`0x0B`)**: Radeon VII, Radeon Pro Vega II / Vega II Duo (`0x66A0`, `0x66A1`, `0x66AF`)
-
-## Key Byte Offsets
-### Vega 10 (`AtomVega10PowerPlayTable`, `0x08`)
-* `0x017`: `max_od_engine_clock` (`10 kHz` units -> MHz * 100)
-* `0x01B`: `max_od_memory_clock` (`10 kHz` units -> MHz * 100)
-* `0x01F`: `power_control_limit` (+%)
-* `0x03B`: `fan_table_offset` -> `ATOM_Vega10_Fan_Table` (`PWM Min`, `Max RPM`, `Target Temp`, `Target GFX Clock`, V3 `Zero RPM`)
-* `0x04D`: `hard_limit_table_offset` -> `ATOM_Vega10_Hard_Limit_Table` (`SOCCLK`, `GFXCLK`, `MCLK`, `VDDC`)
-
-### Vega 20 (`AtomVega20PowerPlayTable`, `0x0B`, `1,924` bytes)
-* `0x055` / `0x0A9`: `od_settings_max[0..21]` / `od_settings_min[0..21]`
-* `0x11D`: `socket_power_limit_ac[0..4]` (`PPT0..PPT3` in W)
-* `0x13D` / `0x13F`: `tdc_limit_gfx` / `tdc_limit_soc` (A)
-* `0x159..0x15F`: `min_voltage_gfx`, `min_voltage_soc`, `max_voltage_gfx`, `max_voltage_soc` (`0.25 mV` units)
-* `0x165` / `0x1B5`: `freq_table_gfx[0..16]` / `freq_table_uclk[0..4]` (MHz)
-* `0x655`: `temp_limit[0..7]` (°C)
-* `0x663` / `0x675` / `0x681`: `fan_stop_temp`, `fan_start_temp`, `fan_pwm_min`, `fan_zero_rpm_enable`
+## Vega 20 (`AtomVega20PowerPlayTable`, `rev 0x0B`)
+- Verified against both compact workstation VBIOS PPTable slices (`1534 bytes`, e.g. Radeon Pro VII / Vega 20) and full `1924-byte` tables.
+- Automatically slices buffers `< 1924 B` safely (`from_bytes_padded` / `write_back_to_slice`) while preserving trailing VBIOS bytes untouched.
+- Key verified offsets:
+  - `0x019`: `boost_power_limit` (W)
+  - `0x055`: `od_settings_max` (GFX/Mem OverDrive ceilings)
+  - `0x11D`: `socket_power_limit_ac` (W)
+  - `0x13D`: `tdc_limit_gfx` / `tdc_limit_soc` (A)
+  - `0x159`: `min_voltage_gfx` / `max_voltage_gfx` (mV)
+  - `0x165`: `freq_table_gfx` (MHz)
+  - `0x1B5`: `freq_table_uclk` (MHz)
+  - `0x655`: `temp_limit[0..7]` (`°C`, present on full `1924 B` tables)
+- Syncs `od_feature_flags[0..16]` directly with the **OverDrive Features** checklist.
