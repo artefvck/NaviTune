@@ -423,6 +423,18 @@ impl PowerPlayApp {
             let tl = { v20.temp_limit };
             for i in 0..7 { self.temp_limits[i] = tl[i] as i32; }
 
+            // pol_caps_to_od_feat: map ulPlatformCaps (0x013) onto OverDrive Feature checkboxes
+            if b.len() >= 0x17 {
+                let pcaps = u32::from_le_bytes([b[0x13], b[0x14], b[0x15], b[0x16]]);
+                let odn_ac = (pcaps & (1 << 18)) != 0;
+                self.gpu_clock_limit = odn_ac;
+                self.memory_clock_limit = odn_ac;
+                self.power_limit_feat = odn_ac;
+                self.min_fan_speed = (pcaps & (1 << 11)) != 0 || self.fan_pwm_min > 0;
+                self.fan_target_temp_limit = self.fan_target_temp > 0;
+                self.operating_temp_limit = (pcaps & (1 << 2)) != 0;
+                self.zero_rpm = self.fan_zero_rpm_enable;
+            }
             self.status_msg = format!("Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B]", label, chip_v.display_name(), frev, crev, trev, b.len());
             self.raw_buffer = b;
             return;
@@ -903,6 +915,16 @@ impl PowerPlayApp {
             v20.od_feature_flags[8] = u8::from(self.fan_curve);
             v20.od_feature_flags[9] = u8::from(self.power_limit_feat);
             return;
+            v20.od_feature_flags = [
+                self.gpu_clock_limit as u8, self.gpu_clock_curve as u8,
+                self.memory_clock_limit as u8, self.zero_rpm as u8,
+                self.min_fan_speed as u8, self.fan_target_temp_limit as u8,
+                self.operating_temp_limit as u8, self.fan_acoustic_rpm as u8,
+                self.fan_curve as u8, self.power_limit_feat as u8,
+                self.timing_tuning as u8, self.power_mode as u8,
+                self.auto_undervolt_gpu as u8, self.auto_overclock_gpu as u8,
+                self.auto_overclock_mem as u8, self.auto_fan_acoustic_limit as u8,
+            ];
             v20_val.write_back_to_slice(&mut self.raw_buffer);
         }
 
