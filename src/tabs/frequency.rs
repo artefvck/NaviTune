@@ -46,7 +46,7 @@ impl PowerPlayApp {
             crate::card_layout::draw_arch_note_card(ui, &format!("{} — Clock Architecture", arch.label()), "No standalone clock limit or PCIe link sub-tables are present in this PPTable revision.");
             return;
         }
-        two_col_cards_adaptive(ui, "freq_cols", true, true, |ui| {
+        two_col_cards_adaptive(ui, "freq_cols", show_clocklimits || show_memorydpm, show_pcieandlinkclocks, |ui| {
             if show_clocklimits {
                 draw_card(ui, arch.card_title(crate::ppt_arch::PptCard::ClockLimits), |ui| {
                     if arch.has_hard_limit_subtable() {
@@ -95,12 +95,14 @@ impl PowerPlayApp {
                     }
                 });
             }
-            draw_card(ui, "PCIe & LCLK", |ui| {
-                kv_header_2(ui, "Min", "Max", 62.0);
-                kv_row_2(ui, "PCIe Gen", "pcie_gen_speed (0x6F6 / 0x810)", &mut self.pcie_gen_speed, 62.0);
-                kv_row_2(ui, "PCIe Lanes", "pcie_lane_count (0x6F8 / 0x813)", &mut self.pcie_lane_count, 62.0);
-                kv_row_2(ui, "LCLK (MHz)", "lclk_freq (0x6FA / 0x816)", &mut self.lclk_mhz, 62.0);
-            });
+            if show_pcieandlinkclocks {
+                draw_card(ui, "PCIe & LCLK", |ui| {
+                    kv_header_2(ui, "Min", "Max", 62.0);
+                    kv_row_2(ui, "PCIe Gen", "pcie_gen_speed (0x6F6 / 0x810)", &mut self.pcie_gen_speed, 62.0);
+                    kv_row_2(ui, "PCIe Lanes", "pcie_lane_count (0x6F8 / 0x813)", &mut self.pcie_lane_count, 62.0);
+                    kv_row_2(ui, "LCLK (MHz)", "lclk_freq (0x6FA / 0x816)", &mut self.lclk_mhz, 62.0);
+                });
+            }
         });
 
     }
