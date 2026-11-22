@@ -1,3 +1,10 @@
+pub mod platform;
+pub use arch::smu_features as smu_features;
+pub use io::import as import_formats;
+pub use platform::advance_os as advance_os;
+pub use platform::gpu_telemetry as gpu_telemetry;
+pub use platform::macos_ioreg as macos_ioreg;
+pub use ui::more_popups as more_popups;
 pub mod ui;
 pub use ui::cards as card_layout;
 pub use ui::curve_plot as curve_plot;
@@ -16,13 +23,7 @@ pub use arch::rdna2 as pptable_rdna2;
 pub use arch::rdna3 as pptable_rdna3;
 pub use arch::vega as pptable_vega;
 mod cli;
-mod gpu_telemetry;
-mod advance_os;
 mod tabs;
-mod import_formats;
-mod macos_ioreg;
-mod more_popups;
-mod smu_features;
 
 use eframe::egui;
 use std::path::PathBuf;
@@ -97,7 +98,7 @@ pub struct PowerPlayApp {
     pub probe_offset: String,
     pub probe_write_val: String,
     pub probe_write_type: usize,
-    pub debug_subtab: crate::tabs::more_tab::DebugSubTab,
+    pub debug_subtab: crate::tabs::more::DebugSubTab,
     pub debug_only_mismatch: bool,
     pub show_smu_features_window: bool,
     pub show_struct_inspector_window: bool,
@@ -163,7 +164,7 @@ impl Default for PowerPlayApp {
             baseline_gen: 0,
             vbios_buffer: None, vbios_ppt_offset: None, loaded_file: None,
             probe_offset: format!("0x{:03X}", std::mem::offset_of!(crate::pptable_rdna2::AtomSmcDpmInfoV4_9, socket_power_limit_ac)), probe_write_val: String::new(), probe_write_type: 1,
-            debug_subtab: crate::tabs::more_tab::DebugSubTab::Audit, debug_only_mismatch: false,
+            debug_subtab: crate::tabs::more::DebugSubTab::Audit, debug_only_mismatch: false,
             show_smu_features_window: false,
             show_struct_inspector_window: false,
             show_opencore_copy_modal: false, more_popups: crate::more_popups::MorePopupsState::default(),
@@ -448,10 +449,10 @@ impl eframe::App for PowerPlayApp {
                     Tab::Frequency => self.draw_frequency_tab(ui),
                     Tab::Curve => self.draw_curve_tab(ui),
                     Tab::Fan => self.draw_fan_tab(ui),
-                    Tab::Advance => self.draw_advance_tab(ui),
+                    Tab::Advance => self.draw_advance(ui),
                     Tab::SafeTune => self.draw_safe_tune_tab(ui),
-                    Tab::More => self.render_debug_more_tab(ui),
-                    Tab::Log => self.draw_log_tab(ui),
+                    Tab::More => self.render_debug_more(ui),
+                    Tab::Log => self.draw_log(ui),
                 }
             });
         });

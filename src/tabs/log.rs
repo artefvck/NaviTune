@@ -9,7 +9,7 @@ pub enum DebugSubTab {
 }
 
 impl PowerPlayApp {
-    pub fn draw_log_tab(&mut self, ui: &mut egui::Ui) {
+    pub fn draw_log(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.selectable_value(&mut self.debug_subtab, DebugSubTab::Audit, "1. Offset Audit");
             ui.selectable_value(&mut self.debug_subtab, DebugSubTab::CaptureLog, "2. Capture Log");

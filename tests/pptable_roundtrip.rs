@@ -31,7 +31,7 @@ mod vbios;
 mod export_formats;
 
 #[allow(dead_code)]
-#[path = "../src/import_formats.rs"]
+#[path = "../src/io/import.rs"]
 mod import_formats;
 
 use pptable_rdna2::AtomSmcDpmInfoV4_9;

@@ -1,9 +1,9 @@
-pub use crate::tabs::log_tab::DebugSubTab;
+pub use crate::tabs::log::DebugSubTab;
 use crate::PowerPlayApp;
 use eframe::egui;
 
 impl PowerPlayApp {
-    pub fn render_debug_more_tab(&mut self, ui: &mut egui::Ui) {
+    pub fn render_debug_more(&mut self, ui: &mut egui::Ui) {
         egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
             ui.columns(2, |cols| {
                 self.render_more_power_settings_card(&mut cols[0]);
