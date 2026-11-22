@@ -448,7 +448,7 @@ fn test_all_cards_matrix_across_six_architectures() {
     for arch in [Polaris, Vega10] {
         assert!(arch.supports_card(CoreVoltage));
         assert!(arch.supports_card(OverDrive));
-        assert!(!arch.supports_card(PowerAndCurrent));
+        assert_eq!(arch.supports_card(PowerAndCurrent), arch == Polaris);
         assert!(!arch.supports_card(PowerModes));
         assert!(!arch.supports_card(FanCurve));
         assert!(arch.card_title(CoreVoltage).contains("HardLimit"));
