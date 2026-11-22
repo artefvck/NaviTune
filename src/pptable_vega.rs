@@ -327,3 +327,188 @@ impl AtomVega20PowerPlayTable {
         Some(unsafe { &mut *(buf.as_mut_ptr() as *mut Self) })
     }
 }
+
+pub(crate) struct VegaParsedState {
+    pub power_limit_w: i32,
+    pub tdc_gfx: i32,
+    pub tdc_soc: i32,
+    pub oc_gfx_clock: [i32; 2],
+    pub oc_mem_clock: [i32; 2],
+    pub oc_power_limit: [i32; 2],
+    pub volt_gfx: [i32; 2],
+    pub volt_soc: [i32; 2],
+    pub freq_gfx: [i32; 2],
+    pub freq_soc: [i32; 2],
+    pub freq_fclk: [i32; 2],
+    pub mem_dpm_freq: [[i32; 2]; 4],
+    pub mem_dpm_volt: [[i32; 2]; 4],
+    pub fan_pwm_min: i32,
+    pub fan_max_rpm: i32,
+    pub fan_acoustic_limit: i32,
+    pub fan_throttling_rpm: i32,
+    pub fan_target_temp: i32,
+    pub fan_target_gfx_clock: i32,
+    pub fan_zero_rpm_enable: bool,
+    pub fan_stop_temp: i32,
+    pub fan_start_temp: i32,
+    pub temp_limit_0: i32,
+    pub caps: [bool; 7],
+}
+
+impl VegaParsedState {
+    pub fn parse(b: &[u8], frev: u8) -> Option<Self> {
+        let u16_at = |o: usize| u16::from_le_bytes([b[o], b[o + 1]]) as i32;
+        let u32_at = |o: usize| u32::from_le_bytes([b[o], b[o + 1], b[o + 2], b[o + 3]]) as i32;
+        if frev == 0x0B && b.len() == 1534 && b.len() >= 0x53C {
+            let fg = [u16_at(0x33A), u16_at(0x348)];
+            let (mut mf, mut mv) = ([[0, 1]; 4], [[0, 0]; 4]);
+            for i in 0..4 {
+                mf[i] = [u16_at(0x3C4 + i * 2), 1];
+                mv[i] = [u32_at(0x03B), u32_at(0x043)];
+            }
+            return Some(Self {
+                power_limit_w: u16_at(0x016), tdc_gfx: u16_at(0x018), tdc_soc: u16_at(0x01A),
+                oc_gfx_clock: [u32_at(0x04F), u32_at(0x027)], oc_mem_clock: [0, u32_at(0x02B)],
+                oc_power_limit: [-50, 20], volt_gfx: [u32_at(0x03B), u32_at(0x043)],
+                volt_soc: [u32_at(0x03B), u32_at(0x02F)], freq_gfx: fg,
+                freq_soc: [u16_at(0x38A), u16_at(0x390) + 500], freq_fclk: [u16_at(0x38A), u16_at(0x390) + 500],
+                mem_dpm_freq: mf, mem_dpm_volt: mv, fan_pwm_min: 20, fan_max_rpm: u16_at(0x53A),
+                fan_acoustic_limit: u16_at(0x536), fan_throttling_rpm: u16_at(0x538), fan_target_temp: 75,
+                fan_target_gfx_clock: fg[1], fan_zero_rpm_enable: false, fan_stop_temp: 50,
+                fan_start_temp: 60, temp_limit_0: 105, caps: [true, true, true, true, true, true, false],
+            });
+        }
+        if frev == 0x08 && b.len() >= 0x4A {
+            let mut st = Self {
+                power_limit_w: 150, tdc_gfx: 144, tdc_soc: 0,
+                oc_gfx_clock: [0, u32_at(0x017) / 100], oc_mem_clock: [0, u32_at(0x01B) / 100],
+                oc_power_limit: [-50, i16::from_le_bytes([b[0x01F], b[0x020]]) as i32],
+                volt_gfx: [800, 1000], volt_soc: [0, 0], freq_gfx: [852, 1200], freq_soc: [600, 1200],
+                freq_fclk: [0, 0], mem_dpm_freq: [[600, 1], [900, 1], [900, 1], [900, 1]],
+                mem_dpm_volt: [[900, 1200]; 4], fan_pwm_min: 20, fan_max_rpm: 3000,
+                fan_acoustic_limit: 0, fan_throttling_rpm: 0, fan_target_temp: 74,
+                fan_target_gfx_clock: 1200, fan_zero_rpm_enable: false, fan_stop_temp: 50,
+                fan_start_temp: 60, temp_limit_0: 115, caps: [true, true, true, true, true, true, false],
+            };
+            let vddc_off = u16_at(0x03E) as usize;
+            if vddc_off > 0 && vddc_off + 2 <= b.len() {
+                let cnt = b[vddc_off + 1] as usize;
+                let mut lut = Vec::new();
+                for i in 0..cnt {
+                    let eo = vddc_off + 2 + i * 2;
+                    if eo + 2 <= b.len() { lut.push(u16_at(eo)); }
+                }
+                if let (Some(&vmin), Some(&vmax)) = (lut.first(), lut.last()) { st.volt_gfx = [vmin, vmax]; }
+            }
+            let vmem_off = u16_at(0x040) as usize;
+            let (mut vddci_v, mut mvdd_v) = (900, 1200);
+            if vmem_off > 0 && vmem_off + 4 <= b.len() {
+                mvdd_v = u16_at(vmem_off + 2);
+                if vmem_off + 8 <= b.len() { vddci_v = u16_at(vmem_off + 6); }
+            }
+            let read_dep = |ptr_off: usize, lo: i32, hi: i32| -> Option<[i32; 2]> {
+                let off = u16_at(ptr_off) as usize;
+                if off == 0 || off + 2 > b.len() { return None; }
+                let cnt = b[off + 1] as usize;
+                let mut vals = Vec::new();
+                for i in 0..cnt {
+                    let eo = off + 2 + i * 13;
+                    if eo + 4 <= b.len() {
+                        let mhz = u32_at(eo) / 100;
+                        if (lo..=hi).contains(&mhz) { vals.push(mhz); }
+                    }
+                }
+                Some([*vals.first()?, *vals.last()?])
+            };
+            if let Some(g) = read_dep(0x03A, 100, 2500) { st.freq_gfx = g; }
+            if let Some(s) = read_dep(0x038, 100, 1800) { st.freq_soc = s; }
+            let uclk_off = u16_at(0x03C) as usize;
+            if uclk_off > 0 && uclk_off + 2 <= b.len() {
+                let cnt = b[uclk_off + 1] as usize;
+                let mut mclks = Vec::new();
+                for i in 0..cnt {
+                    let eo = uclk_off + 2 + i * 13;
+                    if eo + 4 <= b.len() {
+                        let mhz = u32_at(eo) / 100;
+                        if (100..=1600).contains(&mhz) { mclks.push(mhz); }
+                    }
+                }
+                for idx in 0..4 {
+                    let clk = mclks.get(idx).or_else(|| mclks.last()).copied().unwrap_or(0);
+                    st.mem_dpm_freq[idx] = [clk, 1];
+                    st.mem_dpm_volt[idx] = [vddci_v, mvdd_v];
+                }
+            }
+            if st.oc_gfx_clock[1] == 0 { st.oc_gfx_clock[1] = st.freq_gfx[1]; }
+            if st.oc_mem_clock[1] == 0 { st.oc_mem_clock[1] = st.mem_dpm_freq[3][0]; }
+            st.fan_target_gfx_clock = st.freq_gfx[1];
+            let hl_off = u16_at(0x048) as usize;
+            if hl_off > 0 && hl_off + 0x16 <= b.len() {
+                let t_hot = b[hl_off + 0x15] as i32;
+                if (60..=125).contains(&t_hot) { st.temp_limit_0 = t_hot; }
+                let t_op = b[hl_off + 0x0E] as i32;
+                if (50..=95).contains(&t_op) { st.fan_target_temp = t_op; }
+            }
+            let pt_off = u16_at(0x042) as usize;
+            if pt_off > 0 && pt_off + 0x59 <= b.len() {
+                let tdc_v = u16_at(pt_off + 0x55);
+                let pwr_v = u16_at(pt_off + 0x57);
+                if (40..=400).contains(&tdc_v) { st.tdc_gfx = tdc_v; }
+                if (50..=450).contains(&pwr_v) { st.power_limit_w = pwr_v; }
+            }
+            let pcaps = u32_at(0x013) as u32;
+            let odn_ac = (pcaps & (1 << 18)) != 0;
+            st.caps = [
+                odn_ac || st.oc_gfx_clock[1] > 0, odn_ac || st.oc_mem_clock[1] > 0,
+                odn_ac || st.oc_power_limit[1] > 0, (pcaps & (1 << 11)) != 0 || st.fan_pwm_min > 0,
+                (pcaps & (1 << 12)) != 0 || st.fan_target_temp > 0, (pcaps & (1 << 2)) != 0 || st.temp_limit_0 > 0,
+                (pcaps & (1 << 14)) != 0 || st.fan_zero_rpm_enable,
+            ];
+            return Some(st);
+        }
+        None
+    }
+    pub fn write_to_buf(&self, buf: &mut [u8]) -> bool {
+        let frev = buf.get(2).copied().unwrap_or(0);
+        if frev == 0x0B && buf.len() == 1534 && buf.len() >= 0x53C {
+            buf[0x016..0x018].copy_from_slice(&(self.power_limit_w.max(0) as u16).to_le_bytes());
+            buf[0x018..0x01A].copy_from_slice(&(self.tdc_gfx.max(0) as u16).to_le_bytes());
+            buf[0x01A..0x01C].copy_from_slice(&(self.tdc_soc.max(0) as u16).to_le_bytes());
+            buf[0x027..0x02B].copy_from_slice(&(self.oc_gfx_clock[1].max(0) as u32).to_le_bytes());
+            buf[0x02B..0x02F].copy_from_slice(&(self.oc_mem_clock[1].max(0) as u32).to_le_bytes());
+            buf[0x03B..0x03F].copy_from_slice(&(self.volt_gfx[0].max(0) as u32).to_le_bytes());
+            buf[0x043..0x047].copy_from_slice(&(self.volt_gfx[1].max(0) as u32).to_le_bytes());
+            buf[0x04F..0x053].copy_from_slice(&(self.oc_gfx_clock[0].max(0) as u32).to_le_bytes());
+            buf[0x33A..0x33C].copy_from_slice(&(self.freq_gfx[0].max(0) as u16).to_le_bytes());
+            buf[0x348..0x34A].copy_from_slice(&(self.freq_gfx[1].max(0) as u16).to_le_bytes());
+            for i in 0..4 {
+                let off = 0x3C4 + i * 2;
+                buf[off..off + 2].copy_from_slice(&(self.mem_dpm_freq[i][0].max(0) as u16).to_le_bytes());
+            }
+            buf[0x536..0x538].copy_from_slice(&(self.fan_acoustic_limit.max(0) as u16).to_le_bytes());
+            buf[0x538..0x53A].copy_from_slice(&(self.fan_throttling_rpm.max(0) as u16).to_le_bytes());
+            buf[0x53A..0x53C].copy_from_slice(&(self.fan_max_rpm.max(0) as u16).to_le_bytes());
+            return true;
+        }
+        if frev == 0x08 && buf.len() >= 0x4A {
+            let u16_at = |b: &[u8], o: usize| u16::from_le_bytes([b[o], b[o + 1]]) as usize;
+            let mut pcaps = u32::from_le_bytes([buf[0x013], buf[0x014], buf[0x015], buf[0x016]]);
+            if self.caps[0] || self.caps[1] || self.caps[2] { pcaps |= 1 << 18; } else { pcaps &= !(1 << 18); }
+            if self.caps[3] { pcaps |= 1 << 11; } else { pcaps &= !(1 << 11); }
+            if self.caps[4] { pcaps |= 1 << 12; } else { pcaps &= !(1 << 12); }
+            if self.caps[5] { pcaps |= 1 << 2; } else { pcaps &= !(1 << 2); }
+            if self.caps[6] { pcaps |= 1 << 14; } else { pcaps &= !(1 << 14); }
+            buf[0x013..0x017].copy_from_slice(&pcaps.to_le_bytes());
+            buf[0x017..0x01B].copy_from_slice(&((self.oc_gfx_clock[1].max(0) * 100) as u32).to_le_bytes());
+            buf[0x01B..0x01F].copy_from_slice(&((self.oc_mem_clock[1].max(0) * 100) as u32).to_le_bytes());
+            buf[0x01F..0x021].copy_from_slice(&(self.oc_power_limit[1] as i16).to_le_bytes());
+            let pt_off = u16_at(buf, 0x042);
+            if pt_off > 0 && pt_off + 0x59 <= buf.len() {
+                buf[pt_off + 0x55..pt_off + 0x57].copy_from_slice(&(self.tdc_gfx.max(0) as u16).to_le_bytes());
+                buf[pt_off + 0x57..pt_off + 0x59].copy_from_slice(&(self.power_limit_w.max(0) as u16).to_le_bytes());
+            }
+            return true;
+        }
+        false
+    }
+}
