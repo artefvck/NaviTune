@@ -1,3 +1,4 @@
+mod safe_presets;
 mod curve_plot;
 mod save_diff_modal;
 mod cli;

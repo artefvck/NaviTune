@@ -138,6 +138,22 @@ impl PowerPlayApp {
                 ui.colored_label(egui::Color32::from_rgb(245, 185, 65), format!("Summary: {} Warning(s), {} Risk(s)", warn_cnt, risk_cnt));
             }
         });
+        ui.add_space(4.0);
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new("Quick Safe Presets:").strong().size(12.0));
+            if ui.button("Quiet Undervolt").clicked() {
+                self.apply_safe_preset(crate::safe_presets::SafePresetKind::QuietUndervolt);
+                ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("ppt_dirty"), true));
+            }
+            if ui.button("Balanced OC").clicked() {
+                self.apply_safe_preset(crate::safe_presets::SafePresetKind::BalancedOc);
+                ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("ppt_dirty"), true));
+            }
+            if ui.button("Auto-Fix Risks").clicked() {
+                self.apply_safe_preset(crate::safe_presets::SafePresetKind::AutoFixRisks);
+                ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("ppt_dirty"), true));
+            }
+        });
         ui.add_space(6.0);
 
         let avail_w = ui.available_width();
