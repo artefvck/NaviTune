@@ -46,11 +46,13 @@ impl PowerPlayApp {
 
 
         let show_zerorpm = self.is_card_usable(crate::ppt_arch::PptCard::ZeroRpm);
+        let show_fancurve = self.is_card_usable(crate::ppt_arch::PptCard::FanCurve);
+        let show_thermallimits = self.is_card_usable(crate::ppt_arch::PptCard::ThermalLimits);
         if !arch.supports_card(crate::ppt_arch::PptCard::FanSettingsAndLimits) && !show_zerorpm && !self.is_card_usable(crate::ppt_arch::PptCard::FanCurve) && !self.is_card_usable(crate::ppt_arch::PptCard::ThermalLimits) {
             crate::card_layout::draw_arch_note_card(ui, &format!("{} — Thermal & Fan Architecture", arch.label()), "No discrete fan or thermal sub-table is present in this PPTable revision.");
             return;
         }
-        two_col_cards_adaptive(ui, "fan_cols", true, true, |ui| {
+        two_col_cards_adaptive(ui, "fan_cols", true, show_zerorpm || show_fancurve || show_thermallimits, |ui| {
             draw_card(ui, "Fan Settings", |ui| {
                 kv_row_1(ui, "PWM Min (%)", "fan_pwm_min (0x716 / 0x86C)", &mut self.fan_pwm_min, 62.0);
                 kv_row_1(ui, "Acoustic Limit (RPM)", "fan_acoustic_limit (0x718 / 0x86E)", &mut self.fan_acoustic_limit, 62.0);
@@ -102,6 +104,7 @@ impl PowerPlayApp {
                 });
             }
             if arch.has_fan_curve_points() {
+                if show_fancurve {
                 draw_card(ui, "Fan Curve", |ui| {
                     if is_rdna3 || is_rdna1 {
                         ui.colored_label(
@@ -118,6 +121,7 @@ impl PowerPlayApp {
                         }
                     }
                 });
+            }
             }
         });
 
