@@ -23,22 +23,7 @@ pub(crate) fn write_gcn_hard_limit_full(buf: &mut [u8], off: usize, has_soc: boo
     buf[base + 16..base + 20].copy_from_slice(&(mvdd.max(0) as u32).to_le_bytes());
 }
 
-pub(crate) fn read_gcn_hard_limit_entry(buf: &[u8], off: usize) -> Option<(i32, i32, i32, i32)> {
-    if off == 0 || off + 0x12 > buf.len() || buf[off + 1] == 0 { return None; }
-    let soc = (u32::from_le_bytes([buf[off + 0x02], buf[off + 0x03], buf[off + 0x04], buf[off + 0x05]]) / 100) as i32;
-    let gfx = (u32::from_le_bytes([buf[off + 0x06], buf[off + 0x07], buf[off + 0x08], buf[off + 0x09]]) / 100) as i32;
-    let mem = (u32::from_le_bytes([buf[off + 0x0A], buf[off + 0x0B], buf[off + 0x0C], buf[off + 0x0D]]) / 100) as i32;
-    let vddc = u32::from_le_bytes([buf[off + 0x0E], buf[off + 0x0F], buf[off + 0x10], buf[off + 0x11]]) as i32;
-    Some((soc, gfx, mem, vddc))
-}
 
-pub(crate) fn write_gcn_hard_limit_entry(buf: &mut [u8], off: usize, soc: Option<i32>, gfx: i32, mem: i32, vddc: i32) {
-    if off == 0 || off + 0x12 > buf.len() || buf[off + 1] == 0 { return; }
-    if let Some(s) = soc { buf[off + 0x02..off + 0x06].copy_from_slice(&((s.max(0) as u32) * 100).to_le_bytes()); }
-    buf[off + 0x06..off + 0x0A].copy_from_slice(&((gfx.max(0) as u32) * 100).to_le_bytes());
-    buf[off + 0x0A..off + 0x0E].copy_from_slice(&((mem.max(0) as u32) * 100).to_le_bytes());
-    buf[off + 0x0E..off + 0x12].copy_from_slice(&(vddc.max(0) as u32).to_le_bytes());
-}
 
 pub(crate) fn read_gcn_fan_subtable(buf: &[u8], off: usize) -> Option<(i32, i32, i32, i32, bool, i32, i32)> {
     if off == 0 || off + 0x1C > buf.len() { return None; }
