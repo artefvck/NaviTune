@@ -471,6 +471,9 @@ impl VegaParsedState {
     pub fn write_to_buf(&self, buf: &mut [u8]) -> bool {
         let frev = buf.get(2).copied().unwrap_or(0);
         if frev == 0x0B && buf.len() == 1534 && buf.len() >= 0x53C {
+            for i in 0..7 {
+                buf[0x00D + i] = if self.caps[i] { 1 } else { 0 };
+            }
             buf[0x016..0x018].copy_from_slice(&(self.power_limit_w.max(0) as u16).to_le_bytes());
             buf[0x018..0x01A].copy_from_slice(&(self.tdc_gfx.max(0) as u16).to_le_bytes());
             buf[0x01A..0x01C].copy_from_slice(&(self.tdc_soc.max(0) as u16).to_le_bytes());
