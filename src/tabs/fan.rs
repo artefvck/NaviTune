@@ -55,8 +55,10 @@ impl PowerPlayApp {
         two_col_cards_adaptive(ui, "fan_cols", true, show_zerorpm || show_fancurve, |ui| {
             draw_card(ui, "Fan Settings", |ui| {
                 kv_row_1(ui, "PWM Min (%)", "fan_pwm_min (0x716 / 0x86C)", &mut self.fan_pwm_min, 62.0);
-                kv_row_1(ui, "Acoustic Limit (RPM)", "fan_acoustic_limit (0x718 / 0x86E)", &mut self.fan_acoustic_limit, 62.0);
-                kv_row_1(ui, "Throttling RPM", "fan_throttling_rpm (0x71A / 0x86A)", &mut self.fan_throttling_rpm, 62.0);
+                if !arch.is_gcn_subtable() {
+                    kv_row_1(ui, "Acoustic Limit (RPM)", "fan_acoustic_limit (0x718 / 0x86E)", &mut self.fan_acoustic_limit, 62.0);
+                    kv_row_1(ui, "Throttling RPM", "fan_throttling_rpm (0x71A / 0x86A)", &mut self.fan_throttling_rpm, 62.0);
+                }
                 kv_row_1(ui, "Max RPM", "fan_max_rpm (0x71C / 0x870)", &mut self.fan_max_rpm, 62.0);
                 kv_row_1(ui, "Target Temp (°C)", "fan_target_temp (0x720 / 0x878)", &mut self.fan_target_temp, 62.0);
                 kv_row_1(ui, "Target GFX Clock", "fan_target_gfx_clock (0x722 / 0x876)", &mut self.fan_target_gfx_clock, 62.0);
