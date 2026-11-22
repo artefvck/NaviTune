@@ -10,19 +10,33 @@ pub struct IoregGpuEntry {
 fn parse_hex_angle(line: &str) -> Option<Vec<u8>> {
     let s = line.find('<')? + 1;
     let e = line[s..].find('>')? + s;
-    let hex_str = &line[s..e];
+    let hex_str: String = line[s..e].chars().filter(|c| !c.is_whitespace()).collect();
     let bytes: Vec<u8> = (0..hex_str.len())
         .step_by(2)
         .filter_map(|i| hex_str.get(i..i + 2).and_then(|h| u8::from_str_radix(h, 16).ok()))
         .collect();
-    if bytes.len() >= 64 { Some(bytes) } else { None }
+    if bytes.is_empty() { None } else { Some(bytes) }
+}
+
+#[cfg(target_os = "macos")]
+fn parse_model_value(raw: &str) -> String {
+    let v = raw.trim_start_matches(r#""model" = "#).trim();
+    if v.starts_with('<') {
+        if let Some(bytes) = parse_hex_angle(v) {
+            let txt = String::from_utf8_lossy(&bytes).trim_end_matches('\0').trim().to_string();
+            if !txt.is_empty() {
+                return txt;
+            }
+        }
+    }
+    v.trim_matches(&['<', '>', '"', ' ']).to_string()
 }
 
 #[cfg(target_os = "macos")]
 pub fn scan_ioreg_gpus() -> Vec<IoregGpuEntry> {
     let mut results: Vec<IoregGpuEntry> = Vec::new();
     let out = match Command::new("ioreg")
-        .args(["-r", "-k", "PP_PhmSoftPowerPlayTable", "-l"])
+        .args(["-r", "-c", "IOPCIDevice", "-l"])
         .output()
     {
         Ok(o) => String::from_utf8_lossy(&o.stdout).into_owned(),
@@ -32,6 +46,43 @@ pub fn scan_ioreg_gpus() -> Vec<IoregGpuEntry> {
     let mut cur_node = String::new();
     let mut cur_model = String::new();
     let mut cur_pci = String::new();
+    let mut is_amd_vendor = false;
+    let mut is_audio_fn = false;
+    let mut cur_ppt: Option<Vec<u8>> = None;
+
+    let flush = |results: &mut Vec<IoregGpuEntry>,
+                 is_amd: bool,
+                 is_audio: bool,
+                 node: &str,
+                 model: &str,
+                 pci: &str,
+                 ppt: &Option<Vec<u8>>| {
+        if !is_amd || is_audio {
+            return;
+        }
+        let gpu_name = if model.is_empty() {
+            "AMD Radeon GPU".to_string()
+        } else {
+            model.to_string()
+        };
+        let loc = match (node.is_empty(), pci.is_empty()) {
+            (false, false) => format!(" ({} / {})", node, pci),
+            (false, true) => format!(" ({})", node),
+            (true, false) => format!(" ({})", pci),
+            (true, true) => String::new(),
+        };
+        let label = format!("{}{}", gpu_name, loc);
+        if let Some(existing) = results.iter_mut().find(|r| r.label == label) {
+            if existing.ppt_bytes.is_none() && ppt.is_some() {
+                existing.ppt_bytes = ppt.clone();
+            }
+        } else {
+            results.push(IoregGpuEntry {
+                label,
+                ppt_bytes: ppt.clone(),
+            });
+        }
+    };
 
     for line in out.lines() {
         let trimmed = line.trim().trim_start_matches('|').trim();
@@ -42,43 +93,39 @@ pub fn scan_ioreg_gpus() -> Vec<IoregGpuEntry> {
                 .next()
                 .unwrap_or("")
                 .to_string();
-            if !node_name.starts_with("AMD") && !node_name.starts_with("ATY") {
+            if !node_name.starts_with("AMD") && !node_name.starts_with("ATY") && !node_name.starts_with("IO") {
+                flush(&mut results, is_amd_vendor, is_audio_fn, &cur_node, &cur_model, &cur_pci, &cur_ppt);
                 cur_node = node_name;
                 cur_model.clear();
                 cur_pci.clear();
+                is_amd_vendor = false;
+                is_audio_fn = false;
+                cur_ppt = None;
+            }
+        } else if trimmed.starts_with(r#""vendor-id" = "#) {
+            is_amd_vendor = trimmed.contains("<02100000>");
+        } else if trimmed.starts_with(r#""class-code" = "#) {
+            // Audio device class 0x040300 -> <00030400>
+            if trimmed.contains("<00030400>") {
+                is_audio_fn = true;
             }
         } else if trimmed.starts_with(r#""model" = "#) {
-            cur_model = trimmed
-                .trim_start_matches(r#""model" = "#)
-                .trim_matches(&['<', '>', '"', ' '])
-                .to_string();
+            cur_model = parse_model_value(trimmed);
         } else if trimmed.starts_with(r#""pcidebug" = "#) {
             cur_pci = trimmed
                 .trim_start_matches(r#""pcidebug" = "#)
                 .trim_matches('"')
                 .to_string();
-        } else if let Some(pos) = trimmed.find(r#""PP_PhmSoftPowerPlayTable""#) {
-            if let Some(bytes) = parse_hex_angle(&trimmed[pos..]) {
-                if !results.iter().any(|r| r.ppt_bytes.as_deref() == Some(bytes.as_slice())) {
-                    let gpu_name = if cur_model.is_empty() {
-                        "AMD Radeon GPU".to_string()
-                    } else {
-                        cur_model.clone()
-                    };
-                    let loc = match (cur_node.is_empty(), cur_pci.is_empty()) {
-                        (false, false) => format!(" ({} / {})", cur_node, cur_pci),
-                        (false, true) => format!(" ({})", cur_node),
-                        (true, false) => format!(" ({})", cur_pci),
-                        (true, true) => String::new(),
-                    };
-                    results.push(IoregGpuEntry {
-                        label: format!("{}{}", gpu_name, loc),
-                        ppt_bytes: Some(bytes),
-                    });
-                }
+        } else if let Some(pos) = trimmed
+            .find(r#""PP,PhmSoftPowerPlayTable""#)
+            .or_else(|| trimmed.find(r#""PP_PhmSoftPowerPlayTable""#))
+        {
+            if let Some(bytes) = parse_hex_angle(&trimmed[pos..]).filter(|b| b.len() >= 64) {
+                cur_ppt = Some(bytes);
             }
         }
     }
+    flush(&mut results, is_amd_vendor, is_audio_fn, &cur_node, &cur_model, &cur_pci, &cur_ppt);
     results
 }
 
