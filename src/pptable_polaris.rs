@@ -97,29 +97,59 @@ impl AtomPolarisPowerPlayTable {
         Some(unsafe { &mut *(buf.as_mut_ptr() as *mut Self) })
     }
 
+    pub fn resolved_hard_limit_offset(&self, buf: &[u8]) -> usize {
+        for cand in [{ self.hard_limit_table_offset }, { self.cac_tdp_table_offset }, { self.acp_table_offset }] {
+            let off = cand as usize;
+            if off >= 0x4D && off + 0x16 <= buf.len() && buf[off] >= 1 && buf[off + 1] >= 1 {
+                return off;
+            }
+        }
+        { self.hard_limit_table_offset } as usize
+    }
+
     pub fn read_hard_limits(&self, buf: &[u8]) -> Option<(i32, i32, i32)> {
-        let (_, gfx, mem, vddc, _, _) = crate::pptable_vega::read_gcn_hard_limit_full(buf, { self.hard_limit_table_offset } as usize, false)?;
+        let (_, gfx, mem, vddc, _, _) = crate::pptable_vega::read_gcn_hard_limit_full(buf, self.resolved_hard_limit_offset(buf), false)?;
         Some((gfx, mem, vddc))
     }
 
     pub fn read_hard_limit_mem_volt(&self, buf: &[u8]) -> Option<(i32, i32)> {
-        let (_, _, _, _, vddci, mvdd) = crate::pptable_vega::read_gcn_hard_limit_full(buf, { self.hard_limit_table_offset } as usize, false)?;
+        let (_, _, _, _, vddci, mvdd) = crate::pptable_vega::read_gcn_hard_limit_full(buf, self.resolved_hard_limit_offset(buf), false)?;
         Some((vddci, mvdd))
     }
 
     pub fn write_hard_limits_full(buf: &mut [u8], gfx: i32, mem: i32, vddc: i32, vddci: i32, mvdd: i32) {
         if let Some(t) = Self::from_bytes(buf) {
-            crate::pptable_vega::write_gcn_hard_limit_full(buf, { t.hard_limit_table_offset } as usize, false, 0, gfx, mem, vddc, vddci, mvdd);
+            let off = t.resolved_hard_limit_offset(buf);
+            crate::pptable_vega::write_gcn_hard_limit_full(buf, off, false, 0, gfx, mem, vddc, vddci, mvdd);
         }
     }
 
     pub fn read_fan_subtable(&self, buf: &[u8]) -> Option<(i32, i32, i32, i32, bool, i32, i32)> {
-        crate::pptable_vega::read_gcn_fan_subtable(buf, { self.fan_table_offset } as usize)
+        let off = { self.fan_table_offset } as usize;
+        if off == 0 || off + 0x1D > buf.len() { return None; }
+        let rev = buf[off];
+        if rev >= 10 {
+            return crate::pptable_vega::read_gcn_fan_subtable(buf, off);
+        }
+        let pwm_min = (u16::from_le_bytes([buf[off + 0x08], buf[off + 0x09]]) / 100) as i32;
+        let max_rpm = u16::from_le_bytes([buf[off + 0x15], buf[off + 0x16]]) as i32;
+        let tgt_gfx = (u32::from_le_bytes([buf[off + 0x17], buf[off + 0x18], buf[off + 0x19], buf[off + 0x1A]]) / 100) as i32;
+        let tgt_temp = buf[off + 0x1B] as i32;
+        Some((pwm_min, max_rpm, tgt_temp, tgt_gfx, false, 0, 0))
     }
 
     pub fn write_fan_subtable(buf: &mut [u8], pwm_min: i32, max_rpm: i32, tgt_temp: i32, tgt_gfx: i32, zrpm: bool, stop_t: i32, start_t: i32) {
-        if let Some(t) = Self::from_bytes(buf) {
-            crate::pptable_vega::write_gcn_fan_subtable(buf, { t.fan_table_offset } as usize, pwm_min, max_rpm, tgt_temp, tgt_gfx, zrpm, stop_t, start_t);
+        let Some(t) = Self::from_bytes(buf) else { return; };
+        let off = { t.fan_table_offset } as usize;
+        if off == 0 || off + 0x1D > buf.len() { return; }
+        let rev = buf[off];
+        if rev >= 10 {
+            crate::pptable_vega::write_gcn_fan_subtable(buf, off, pwm_min, max_rpm, tgt_temp, tgt_gfx, zrpm, stop_t, start_t);
+            return;
         }
+        buf[off + 0x08..off + 0x0A].copy_from_slice(&((pwm_min.max(0) as u16) * 100).to_le_bytes());
+        buf[off + 0x15..off + 0x17].copy_from_slice(&(max_rpm.max(0) as u16).to_le_bytes());
+        buf[off + 0x17..off + 0x1B].copy_from_slice(&((tgt_gfx.max(0) as u32) * 100).to_le_bytes());
+        buf[off + 0x1B] = tgt_temp.clamp(0, 255) as u8;
     }
 }

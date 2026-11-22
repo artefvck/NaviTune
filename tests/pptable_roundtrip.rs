@@ -253,9 +253,9 @@ fn test_polaris_roundtrip() {
     assert_eq!(parsed.read_hard_limit_mem_volt(&pol), Some((950, 1000)));
     let fan_off: usize = 0x130;
     pptable_polaris::AtomPolarisPowerPlayTable::from_bytes_mut(&mut pol).unwrap().fan_table_offset = fan_off as u16;
-    pol[fan_off] = 11;
-    pptable_polaris::AtomPolarisPowerPlayTable::write_fan_subtable(&mut pol, 20, 2200, 72, 1350, true, 52, 60);
-    assert_eq!(pptable_polaris::AtomPolarisPowerPlayTable::from_bytes(&pol).unwrap().read_fan_subtable(&pol), Some((20, 2200, 72, 1350, true, 52, 60)));
+    pol[fan_off] = 9;
+    pptable_polaris::AtomPolarisPowerPlayTable::write_fan_subtable(&mut pol, 20, 2200, 75, 910, false, 0, 0);
+    assert_eq!(pptable_polaris::AtomPolarisPowerPlayTable::from_bytes(&pol).unwrap().read_fan_subtable(&pol), Some((20, 2200, 75, 910, false, 0, 0)));
     assert_eq!(ppt_arch::PptArch::detect(&pol), ppt_arch::PptArch::Polaris);
     let reg_pol = export_formats::format_reg_ppt(&pol);
     assert_eq!(import_formats::parse_reg_ppt(reg_pol.as_bytes()).expect("parse pol reg"), pol);
