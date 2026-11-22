@@ -601,3 +601,29 @@ fn test_polaris_rx580_platform_caps_0x01060000() {
         ]
     );
 }
+
+#[test]
+fn test_hide_unusable_cards_all_six_architectures() {
+    use ppt_arch::{PptArch::*, PptCard::*};
+    // Polaris hides ZeroRpm, UlvVoltage, ThermalVmin, PcieAndLinkClocks, PowerModes, PowerModeAcoustic, VfCurve, VidCurveAndOffset, FanCurve, ThermalLimits
+    assert!(!Polaris.supports_card(ZeroRpm));
+    assert!(!Polaris.supports_card(PowerModes));
+    assert!(!Polaris.supports_card(FanCurve));
+    assert!(Polaris.supports_card(PowerAndCurrent));
+    // Vega 10 supports ZeroRpm (rev >= 10) and hides PowerAndCurrent & RDNA-only cards
+    assert!(Vega10.supports_card(ZeroRpm));
+    assert!(!Vega10.supports_card(PowerAndCurrent));
+    assert!(!Vega10.supports_card(PowerModes));
+    // Vega 20 & RDNA 1 hide RDNA 2/3-only cards (PowerModes, PowerModeAcoustic, ThermalVmin)
+    for arch in [Vega20, Rdna1] {
+        assert!(arch.supports_card(PowerAndCurrent));
+        assert!(arch.supports_card(FanCurve));
+        assert!(!arch.supports_card(PowerModes));
+        assert!(!arch.supports_card(PowerModeAcoustic));
+        assert!(!arch.supports_card(ThermalVmin));
+    }
+    // RDNA 3 hides RDNA 2-only ThermalVmin and PowerModeAcoustic
+    assert!(Rdna3.supports_card(PowerModes));
+    assert!(!Rdna3.supports_card(PowerModeAcoustic));
+    assert!(!Rdna3.supports_card(ThermalVmin));
+}

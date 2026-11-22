@@ -450,8 +450,10 @@ impl PptArch {
 
     pub fn supports_card(self, card: PptCard) -> bool {
         match card {
-            PptCard::CoreVoltage | PptCard::MemoryVoltage | PptCard::ClockLimits | PptCard::MemoryDpm | PptCard::OverDrive | PptCard::FanSettingsAndLimits | PptCard::ZeroRpm => true,
-            PptCard::PowerAndCurrent | PptCard::UlvVoltage | PptCard::PcieAndLinkClocks => !self.is_gcn_subtable(),
+            PptCard::CoreVoltage | PptCard::MemoryVoltage | PptCard::ClockLimits | PptCard::MemoryDpm | PptCard::OverDrive | PptCard::FanSettingsAndLimits => true,
+            PptCard::ZeroRpm => !matches!(self, Self::Polaris),
+            PptCard::PowerAndCurrent => !matches!(self, Self::Vega10),
+            PptCard::UlvVoltage | PptCard::PcieAndLinkClocks => !self.is_gcn_subtable(),
             PptCard::VfCurve => self.has_vf_curve_points(),
             PptCard::VidCurveAndOffset => self.has_vid_and_voltage_offset(),
             PptCard::FanCurve => self.has_fan_curve_points() && self.has_fan_acoustic_and_throttling(),
