@@ -123,6 +123,64 @@ impl PowerPlayApp {
                 });
         });
 
+        if self.show_smu_features_window {
+            let vp_id = egui::ViewportId::from_hash_of("smu_ppt_features_viewport");
+            let builder = egui::ViewportBuilder::default()
+                .with_title("PPTable Features (FeaturesToRun)")
+                .with_inner_size([420.0, 500.0])
+                .with_resizable(true);
+            ui.ctx().show_viewport_immediate(vp_id, builder, |ctx, _class| {
+                if ctx.input(|i| i.viewport().close_requested()) {
+                    self.show_smu_features_window = false;
+                }
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    if self.raw_buffer.is_empty() {
+                        ui.centered_and_justified(|ui| {
+                            ui.label("Load a PPTable first to inspect SMU features.");
+                        });
+                        return;
+                    }
+                    let mut live_mask = 0u64;
+                    for (bit, &en) in self.smu_features.iter().enumerate() {
+                        if en { live_mask |= 1u64 << bit; }
+                    }
+                    let arch = crate::smu_features::detect_silicon_arch(&self.raw_buffer);
+                    let active_cnt = live_mask.count_ones();
+                    ui.horizontal(|ui| {
+                        ui.strong("FeaturesToRun:");
+                        ui.monospace(format!("0x{:016X}", live_mask));
+                        ui.separator();
+                        ui.colored_label(
+                            egui::Color32::from_rgb(72, 235, 148),
+                            egui::RichText::new(format!("{} [{}] ({} active)", arch.label(), arch.mask_tag(), active_cnt)).strong(),
+                        );
+                    });
+                    ui.separator();
+                    egui::ScrollArea::vertical()
+                        .id_salt("smu_vp_scroll")
+                        .auto_shrink([false, false])
+                        .max_height(ui.available_height())
+                        .show(ui, |ui| {
+                        ui.spacing_mut().item_spacing.y = 4.0;
+                        for def in &crate::smu_features::SMU_FEATURE_DEFS {
+                            let (tag, supported) = crate::smu_features::arch_badge(def, arch);
+                            ui.horizontal(|ui| {
+                                crate::ui_theme::green_checkbox(ui, &mut self.smu_features[def.bit], format!("{:02}: {}", def.bit, def.name));
+                                let badge_col = if supported {
+                                    egui::Color32::from_rgb(72, 235, 148)
+                                } else {
+                                    egui::Color32::from_rgb(130, 145, 170)
+                                };
+                                ui.colored_label(
+                                    badge_col,
+                                    egui::RichText::new(format!("[smu_feat_{:02} | {}]", def.bit, tag)).monospace().small(),
+                                );
+                            });
+                        }
+                    });
+                });
+            });
+        }
             crate::card_layout::draw_card(ui, "VBIOS & Table Header", |ui| {
                 let info = self
                     .vbios_buffer
