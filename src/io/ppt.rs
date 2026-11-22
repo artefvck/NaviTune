@@ -1036,20 +1036,19 @@ impl PowerPlayApp {
         t.ac_turbo = [self.ac_turbo[0] as u16, self.ac_turbo[1] as u16];
         t.ac_rage = [self.ac_rage[0] as u16, self.ac_rage[1] as u16];
 
-        t.min_voltage_gfx = (self.volt_gfx[0] * 4) as u16; t.max_voltage_gfx = (self.volt_gfx[1] * 4) as u16;
-        t.min_voltage_soc = (self.volt_soc[0] * 4) as u16; t.max_voltage_soc = (self.volt_soc[1] * 4) as u16;
-        let pwr = self.power_limit_w as u16;
-        t.socket_power_limit_ac[0] = pwr;
-        t.socket_power_limit_dc = pwr;
-        t.tdc_limit_gfx = self.tdc_gfx as u16; t.tdc_limit_soc = self.tdc_soc as u16;
-        t.ulv_voltage_vmin_gfx = (self.ulv_gfx[0] * 4) as u16; t.ulv_voltage_offset_gfx = (self.ulv_gfx[1] * 4) as u16;
-        t.ulv_voltage_vmin_soc = (self.ulv_soc[0] * 4) as u16; t.ulv_voltage_offset_soc = (self.ulv_soc[1] * 4) as u16;
+        let qmv = |ui_mv: i32, orig: u16| -> u16 {
+            if (orig / 4) as i32 == ui_mv { orig } else { (ui_mv.max(0) * 4) as u16 }
+        };
+        t.min_voltage_gfx = qmv(self.volt_gfx[0], t.min_voltage_gfx);
+        t.min_voltage_soc = qmv(self.volt_soc[0], t.min_voltage_soc);
+        t.max_voltage_gfx = qmv(self.volt_gfx[1], t.max_voltage_gfx);
+        t.max_voltage_soc = qmv(self.volt_soc[1], t.max_voltage_soc);
         t.tvmin_gfx = self.tvmin_gfx[0] as u16; t.tvmin_hyst_gfx = self.tvmin_gfx[1] as u16;
         t.tvmin_soc = self.tvmin_soc[0] as u16; t.tvmin_hyst_soc = self.tvmin_soc[1] as u16;
-        t.vmin_low_gfx = (self.vmin_lh_gfx[0] * 4) as u16;
-        t.vmin_high_gfx = (self.vmin_lh_gfx[1] * 4) as u16;
-        t.vmin_low_soc = (self.vmin_lh_soc[0] * 4) as u16;
-        t.vmin_high_soc = (self.vmin_lh_soc[1] * 4) as u16;
+        t.vmin_low_gfx = qmv(self.vmin_lh_gfx[0], t.vmin_low_gfx);
+        t.vmin_high_gfx = qmv(self.vmin_lh_gfx[1], t.vmin_high_gfx);
+        t.vmin_low_soc = qmv(self.vmin_lh_soc[0], t.vmin_low_soc);
+        t.vmin_high_soc = qmv(self.vmin_lh_soc[1], t.vmin_high_soc);
         for i in 0..4 {
             t.mem_vddci[i] = (self.mem_dpm_volt[i][0] * 4) as u16;
             t.mem_mvdd[i] = (self.mem_dpm_volt[i][1] * 4) as u16;
