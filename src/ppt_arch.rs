@@ -144,6 +144,50 @@ impl PptArch {
         matches!(self, Self::Vega20 | Self::Rdna1 | Self::Rdna2 | Self::Rdna3)
     }
 
+    pub fn has_fan_curve_points(self) -> bool {
+        matches!(self, Self::Vega20 | Self::Rdna1 | Self::Rdna2 | Self::Rdna3)
+    }
+
+    pub fn has_fan_acoustic_and_throttling(self) -> bool {
+        matches!(self, Self::Vega20 | Self::Rdna1 | Self::Rdna2 | Self::Rdna3)
+    }
+
+    pub fn fan_offset_labels(self) -> (&'static str, &'static str, &'static str, &'static str) {
+        match self {
+            Self::Polaris => (
+                "fan_table_offset PWM Min (%)",
+                "fan_table_offset Max RPM",
+                "fan_table_offset Target Temp (°C)",
+                "fan_table_offset Target GFX (MHz)",
+            ),
+            Self::Vega10 => (
+                "fan_table_offset PWM Min (%)",
+                "fan_table_offset Max RPM",
+                "fan_table_offset Target Temp (°C)",
+                "fan_table_offset Stop/Start Temp (°C)",
+            ),
+            Self::Vega20 | Self::Rdna1 => (
+                "fan_pwm_min (SMU 11.0)",
+                "fan_max_rpm (SMU 11.0)",
+                "fan_target_temp (SMU 11.0)",
+                "fan_zero_rpm_enable (SMU 11.0)",
+            ),
+            Self::Rdna2 => (
+                "fan_pwm_min (0x8B8)",
+                "fan_max_rpm (0x8BA)",
+                "fan_target_temp (0x8BE)",
+                "fan_zero_rpm_enable (0x8AC)",
+            ),
+            Self::Rdna3 => (
+                "fan_pwm_min (0x1438)",
+                "fan_max_rpm (0x143A)",
+                "fan_target_temp (0x143E)",
+                "fan_zero_rpm_enable (0x142C)",
+            ),
+            Self::Unknown => ("Fan PWM Min", "Fan Max RPM", "Fan Target Temp", "Zero RPM"),
+        }
+    }
+
     pub fn has_thermal_limits_array(self) -> bool {
         matches!(self, Self::Vega20 | Self::Rdna1 | Self::Rdna2 | Self::Rdna3)
     }

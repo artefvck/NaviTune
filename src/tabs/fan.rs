@@ -93,22 +93,24 @@ impl PowerPlayApp {
                 kv_row_1(ui, "Stop Temp (°C)", "fan_stop_temp (0x728 / 0x81E)", &mut self.fan_stop_temp, 62.0);
                 kv_row_1(ui, "Start Temp (°C)", "fan_start_temp (0x72A / 0x838)", &mut self.fan_start_temp, 62.0);
             });
-            draw_card(ui, "Fan Curve", |ui| {
-                if is_rdna3 || is_rdna1 {
-                    ui.colored_label(
-                        egui::Color32::from_rgb(160, 175, 195),
-                        "RDNA 3 (SMU 13.0) computes dynamic fan PWM from Target Temp (101°C) & Acoustic Limit; 5-point curve slots are RDNA 2 only.",
-                    );
-                } else {
-                    kv_header_2(ui, "Temp (°C)", "PWM (%)", 62.0);
-                    for i in 0..5 {
-                        let mut pair = [self.fan_curve_temp[i], self.fan_curve_pwm[i]];
-                        kv_row_2(ui, &format!("Point {}", i + 1), &format!("fan_pt_{}", i), &mut pair, 62.0);
-                        self.fan_curve_temp[i] = pair[0];
-                        self.fan_curve_pwm[i] = pair[1];
+            if arch.has_fan_curve_points() {
+                draw_card(ui, "Fan Curve", |ui| {
+                    if is_rdna3 || is_rdna1 {
+                        ui.colored_label(
+                            egui::Color32::from_rgb(160, 175, 195),
+                            "RDNA 3 (SMU 13.0) computes dynamic fan PWM from Target Temp (101°C) & Acoustic Limit; 5-point curve slots are RDNA 2 only.",
+                        );
+                    } else {
+                        kv_header_2(ui, "Temp (°C)", "PWM (%)", 62.0);
+                        for i in 0..5 {
+                            let mut pair = [self.fan_curve_temp[i], self.fan_curve_pwm[i]];
+                            kv_row_2(ui, &format!("Point {}", i + 1), &format!("fan_pt_{}", i), &mut pair, 62.0);
+                            self.fan_curve_temp[i] = pair[0];
+                            self.fan_curve_pwm[i] = pair[1];
+                        }
                     }
-                }
-            });
+                });
+            }
         });
 
     }

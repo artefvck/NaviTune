@@ -413,3 +413,20 @@ fn test_vid_voltage_offset_and_thermal_limits_all_six() {
         assert!(arch.has_thermal_limits_array());
     }
 }
+
+#[test]
+fn test_fan_cards_all_six_architectures() {
+    use ppt_arch::PptArch::*;
+    for arch in [Polaris, Vega10] {
+        assert!(!arch.has_fan_curve_points());
+        assert!(!arch.has_fan_acoustic_and_throttling());
+    }
+    for arch in [Vega20, Rdna1, Rdna2, Rdna3] {
+        assert!(arch.has_fan_curve_points());
+        assert!(arch.has_fan_acoustic_and_throttling());
+    }
+    assert!(Polaris.fan_offset_labels().0.contains("fan_table_offset"));
+    assert!(Vega10.fan_offset_labels().3.contains("Stop/Start"));
+    assert!(Rdna2.fan_offset_labels().0.contains("0x8B8"));
+    assert!(Rdna3.fan_offset_labels().0.contains("0x1438"));
+}
