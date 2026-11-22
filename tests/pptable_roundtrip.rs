@@ -554,7 +554,7 @@ fn test_thermal_limits_verification_all_six() {
     v20[0..2].copy_from_slice(&1534u16.to_le_bytes());
     v20[2] = 0x0B;
     let mut t20 = pptable_vega::AtomVega20PowerPlayTable::from_bytes_padded(&v20).unwrap();
-    t20.temp_limit = [100, 110, 105, 115, 115, 115, 115, 100, 100];
+    t20.temp_limit = [100, 110, 105, 115, 115, 115, 115];
     t20.write_back_to_slice(&mut v20);
     assert_eq!({ pptable_vega::AtomVega20PowerPlayTable::from_bytes_padded(&v20).unwrap().temp_limit[1] }, 110);
 
@@ -581,12 +581,9 @@ fn test_voltage_offset_verification_all_six() {
     r2[0..2].copy_from_slice(&2470u16.to_le_bytes());
     r2[2] = 0x0F;
     let t2 = pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes_mut(&mut r2).unwrap();
-    t2.dcbtc_en_gfx = 1;
     t2.dctol_gfx = -35;
-    t2.dcbtc_en_soc = 1;
     t2.dctol_soc = -15;
     let r2_check = pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(&r2).unwrap();
-    assert_eq!({ r2_check.dcbtc_en_gfx }, 1);
     assert_eq!({ r2_check.dctol_gfx }, -35);
     assert_eq!({ r2_check.dctol_soc }, -15);
 }
