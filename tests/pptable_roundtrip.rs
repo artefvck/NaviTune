@@ -480,8 +480,8 @@ fn test_field_box_spec_all_units() {
 
 #[test]
 fn test_vega20_1534_byte_vbios_pptable() {
-    let mut v20 = vec![0u8; 1534];
-    v20[0..2].copy_from_slice(&1534u16.to_le_bytes());
+    let mut v20 = vec![0u8; 1924];
+    v20[0..2].copy_from_slice(&1924u16.to_le_bytes());
     v20[2] = 0x0B;
     assert_eq!(ppt_arch::PptArch::detect(&v20), ppt_arch::PptArch::Vega20);
     let mut parsed = pptable_vega::AtomVega20PowerPlayTable::from_bytes_padded(&v20).expect("1534 B Vega 20 parse");
