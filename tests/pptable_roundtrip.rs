@@ -298,3 +298,19 @@ fn test_all_six_architectures_parity() {
         assert_eq!(import_formats::parse_plist_ppt(plist.as_bytes()).expect("plist roundtrip"), buf);
     }
 }
+
+#[test]
+fn test_new_blank_table_all_six_archs() {
+    for arch in [
+        ppt_arch::PptArch::Polaris,
+        ppt_arch::PptArch::Vega10,
+        ppt_arch::PptArch::Vega20,
+        ppt_arch::PptArch::Rdna1,
+        ppt_arch::PptArch::Rdna2,
+        ppt_arch::PptArch::Rdna3,
+    ] {
+        let buf = arch.new_blank_table();
+        assert_eq!(buf.len(), arch.default_table_size());
+        assert_eq!(ppt_arch::PptArch::detect(&buf), arch);
+    }
+}

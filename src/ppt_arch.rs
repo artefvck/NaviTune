@@ -70,6 +70,22 @@ impl PptArch {
         }
     }
 
+    pub fn new_blank_table(self) -> Vec<u8> {
+        let (sz, rev) = match self {
+            Self::Polaris => (384u16, 0x07u8),
+            Self::Vega10 => (512u16, 0x08u8),
+            Self::Vega20 => (1924u16, 0x0Bu8),
+            Self::Rdna1 => (1924u16, 0x0Du8),
+            Self::Rdna2 => (2470u16, 0x0Fu8),
+            Self::Rdna3 => (5424u16, 0x14u8),
+            Self::Unknown => return Vec::new(),
+        };
+        let mut buf = vec![0u8; sz as usize];
+        buf[0..2].copy_from_slice(&sz.to_le_bytes());
+        buf[2] = rev;
+        buf
+    }
+
     pub fn gcn_subtable_hint(self, tab: &str) -> Option<&'static str> {
         match (self, tab) {
             (Self::Polaris, "power") => Some("Polaris (SMU 8.0, rev 0x07): GFX Vmax edits HardLimit VDDC (hard_limit_table_offset); use OC Limits for Power Control (+%)."),
