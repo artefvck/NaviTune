@@ -8,7 +8,7 @@ impl PowerPlayApp {
         let painter = ui.painter_at(rect);
 
         painter.rect_filled(rect, 6.0, egui::Color32::from_rgb(18, 23, 33));
-        painter.rect_stroke(rect, 6.0, egui::Stroke::new(1.0, egui::Color32::from_rgb(52, 66, 92)));
+        painter.rect_stroke(rect, 6.0, egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(52, 66, 92)));
 
         let plot = egui::Rect::from_min_max(
             egui::pos2(rect.left() + 36.0, rect.top() + 14.0),
@@ -30,12 +30,12 @@ impl PowerPlayApp {
 
         for pct in [0, 25, 50, 75, 100] {
             let y = to_screen(t_min, pct as f32).y;
-            painter.line_segment([egui::pos2(plot.left(), y), egui::pos2(plot.right(), y)], egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(120, 145, 185, 28)));
+            painter.line_segment([egui::pos2(plot.left(), y), egui::pos2(plot.right(), y)], egui::Stroke::new(1.0_f32, egui::Color32::from_rgba_unmultiplied(120, 145, 185, 28)));
             painter.text(egui::pos2(rect.left() + 4.0, y), egui::Align2::LEFT_CENTER, format!("{}%", pct), egui::FontId::proportional(10.0), egui::Color32::from_rgb(145, 165, 195));
         }
         for deg in [30, 50, 70, 90, 105] {
             let x = to_screen(deg as f32, 0.0).x;
-            painter.line_segment([egui::pos2(x, plot.top()), egui::pos2(x, plot.bottom())], egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(120, 145, 185, 28)));
+            painter.line_segment([egui::pos2(x, plot.top()), egui::pos2(x, plot.bottom())], egui::Stroke::new(1.0_f32, egui::Color32::from_rgba_unmultiplied(120, 145, 185, 28)));
             painter.text(egui::pos2(x, rect.bottom() - 4.0), egui::Align2::CENTER_BOTTOM, format!("{}°C", deg), egui::FontId::proportional(10.0), egui::Color32::from_rgb(145, 165, 195));
         }
 
@@ -57,7 +57,7 @@ impl PowerPlayApp {
         }
 
         for w in pts.windows(2) {
-            painter.line_segment([w[0], w[1]], egui::Stroke::new(2.2, egui::Color32::from_rgb(72, 185, 255)));
+            painter.line_segment([w[0], w[1]], egui::Stroke::new(2.2_f32, egui::Color32::from_rgb(72, 185, 255)));
         }
 
         let drag_id = egui::Id::new("fan_curve_active_handle");
@@ -87,7 +87,7 @@ impl PowerPlayApp {
 
         for (_, hp, tag) in &handles {
             painter.circle_filled(*hp, 5.5, egui::Color32::from_rgb(255, 195, 70));
-            painter.circle_stroke(*hp, 5.5, egui::Stroke::new(1.2, egui::Color32::from_rgb(18, 23, 33)));
+            painter.circle_stroke(*hp, 5.5, egui::Stroke::new(1.2_f32, egui::Color32::from_rgb(18, 23, 33)));
             painter.text(egui::pos2(hp.x, hp.y - 9.0), egui::Align2::CENTER_BOTTOM, *tag, egui::FontId::proportional(10.0), egui::Color32::from_rgb(225, 235, 250));
         }
     }
@@ -98,7 +98,7 @@ impl PowerPlayApp {
         let painter = ui.painter_at(rect);
 
         painter.rect_filled(rect, 6.0, egui::Color32::from_rgb(18, 23, 33));
-        painter.rect_stroke(rect, 6.0, egui::Stroke::new(1.0, egui::Color32::from_rgb(52, 66, 92)));
+        painter.rect_stroke(rect, 6.0, egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(52, 66, 92)));
 
         let plot = egui::Rect::from_min_max(
             egui::pos2(rect.left() + 44.0, rect.top() + 14.0),
@@ -123,7 +123,7 @@ impl PowerPlayApp {
 
         for mv in [650, 800, 950, 1100, 1200] {
             let y = to_screen(f_axis_min, mv as f32).y;
-            painter.line_segment([egui::pos2(plot.left(), y), egui::pos2(plot.right(), y)], egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(120, 145, 185, 28)));
+            painter.line_segment([egui::pos2(plot.left(), y), egui::pos2(plot.right(), y)], egui::Stroke::new(1.0_f32, egui::Color32::from_rgba_unmultiplied(120, 145, 185, 28)));
             painter.text(egui::pos2(rect.left() + 4.0, y), egui::Align2::LEFT_CENTER, format!("{}mV", mv), egui::FontId::proportional(10.0), egui::Color32::from_rgb(145, 165, 195));
         }
 
@@ -142,7 +142,7 @@ impl PowerPlayApp {
             curve_pts.push(to_screen(f, v));
         }
         for w in curve_pts.windows(2) {
-            painter.line_segment([w[0], w[1]], egui::Stroke::new(2.2, egui::Color32::from_rgb(95, 225, 150)));
+            painter.line_segment([w[0], w[1]], egui::Stroke::new(2.2_f32, egui::Color32::from_rgb(95, 225, 150)));
         }
 
         let handles = [(0usize, to_screen(f0, v0), "Fmin / Vmin"), (1usize, to_screen(f1, v1), "Fmax / Vmax")];
@@ -172,7 +172,7 @@ impl PowerPlayApp {
 
         for (_, hp, tag) in &handles {
             painter.circle_filled(*hp, 5.5, egui::Color32::from_rgb(255, 195, 70));
-            painter.circle_stroke(*hp, 5.5, egui::Stroke::new(1.2, egui::Color32::from_rgb(18, 23, 33)));
+            painter.circle_stroke(*hp, 5.5, egui::Stroke::new(1.2_f32, egui::Color32::from_rgb(18, 23, 33)));
             painter.text(egui::pos2(hp.x, hp.y - 9.0), egui::Align2::CENTER_BOTTOM, *tag, egui::FontId::proportional(10.0), egui::Color32::from_rgb(225, 235, 250));
         }
     }

@@ -1,33 +1,33 @@
 #[allow(dead_code)]
-#[path = "../src/pptable_polaris.rs"]
+#[path = "../src/arch/polaris.rs"]
 mod pptable_polaris;
 
 #[allow(dead_code)]
-#[path = "../src/ppt_arch.rs"]
+#[path = "../src/arch/detect.rs"]
 mod ppt_arch;
 
 #[allow(dead_code)]
-#[path = "../src/pptable_vega.rs"]
+#[path = "../src/arch/vega.rs"]
 mod pptable_vega;
 
 #[allow(dead_code)]
-#[path = "../src/pptable_rdna1.rs"]
+#[path = "../src/arch/rdna1.rs"]
 mod pptable_rdna1;
 
 #[allow(dead_code)]
-#[path = "../src/pptable_rdna2.rs"]
+#[path = "../src/arch/rdna2.rs"]
 mod pptable_rdna2;
 
 #[allow(dead_code)]
-#[path = "../src/pptable_rdna3.rs"]
+#[path = "../src/arch/rdna3.rs"]
 mod pptable_rdna3;
 
 #[allow(dead_code)]
-#[path = "../src/vbios.rs"]
+#[path = "../src/io/vbios.rs"]
 mod vbios;
 
 #[allow(dead_code)]
-#[path = "../src/export_formats.rs"]
+#[path = "../src/io/export.rs"]
 mod export_formats;
 
 #[allow(dead_code)]

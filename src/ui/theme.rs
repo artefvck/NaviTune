@@ -371,11 +371,11 @@ pub fn apply_agave_fonts(ctx: &egui::Context) {
     let mut fonts = egui::FontDefinitions::default();
     fonts.font_data.insert(
         "agave_propo".to_owned(),
-        egui::FontData::from_static(include_bytes!("../assets/fonts/AgaveNerdFontPropo-Regular.ttf")).into(),
+        egui::FontData::from_static(include_bytes!("../../assets/fonts/AgaveNerdFontPropo-Regular.ttf")).into(),
     );
     fonts.font_data.insert(
         "agave_mono".to_owned(),
-        egui::FontData::from_static(include_bytes!("../assets/fonts/AgaveNerdFontMono-Regular.ttf")).into(),
+        egui::FontData::from_static(include_bytes!("../../assets/fonts/AgaveNerdFontMono-Regular.ttf")).into(),
     );
     fonts.families.entry(egui::FontFamily::Proportional).or_default().insert(0, "agave_propo".to_owned());
     fonts.families.entry(egui::FontFamily::Monospace).or_default().insert(0, "agave_mono".to_owned());

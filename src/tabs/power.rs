@@ -1,5 +1,4 @@
 use eframe::egui;
-use crate::pptable_rdna3::AtomSmcDpmInfoV4_12;
 use crate::PowerPlayApp;
 
 impl PowerPlayApp {
@@ -8,7 +7,7 @@ impl PowerPlayApp {
 
         let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
         let is_rdna3 = arch.is_rdna3();
-        let is_rdna2 = arch.is_rdna2();
+        let _is_rdna2 = arch.is_rdna2();
         let is_rdna1 = arch.is_rdna1() || arch.is_vega() || arch.is_gcn_subtable();
         if let Some(hint) = arch.gcn_subtable_hint("power") {
             ui.colored_label(egui::Color32::from_rgb(235, 190, 95), hint);
@@ -32,7 +31,7 @@ impl PowerPlayApp {
             ui.add_space(4.0);
         }
 
-        let (vg_tag, vs_tag, ppt_tag, tdcg_tag, tdcs_tag, memv_tag) = match arch {
+        let (_vg_tag, _vs_tag, ppt_tag, tdcg_tag, tdcs_tag, _memv_tag) = match arch {
             crate::ppt_arch::PptArch::Vega20 => (
                 "vmin/vmax_gfx (0x159 / 0x15D)",
                 "vmin/vmax_soc (0x15B / 0x15F)",

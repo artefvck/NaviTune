@@ -1,6 +1,4 @@
 use eframe::egui;
-use crate::pptable_rdna2::AtomSmcDpmInfoV4_9;
-use crate::pptable_rdna3::AtomSmcDpmInfoV4_12;
 use crate::PowerPlayApp;
 
 impl PowerPlayApp {

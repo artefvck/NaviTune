@@ -64,7 +64,7 @@ impl PowerPlayApp {
             }
         };
 
-        let is_gcn = crate::ppt_arch::PptArch::detect(&self.raw_buffer).is_gcn_subtable();
+        let _is_gcn = crate::ppt_arch::PptArch::detect(&self.raw_buffer).is_gcn_subtable();
         let mut checks: Vec<(&str, &str, String, String, u8, &str)> = Vec::new();
 
         let gfx_ok = self.freq_gfx[0] > 0 && self.freq_gfx[0] < self.freq_gfx[1] && (self.oc_gfx_clock[1] == 0 || self.freq_gfx[1] <= self.oc_gfx_clock[1]);

@@ -1,3 +1,4 @@
+pub use crate::ppt_arch::PptArch;
 use core::mem::{offset_of, size_of};
 
 #[repr(C, packed)]
@@ -8,7 +9,6 @@ pub struct AtomCommonTableHeaderR1 {
     pub table_content_revision: u8,
 }
 
-pub use crate::ppt_arch::PptArch;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NaviRDNA1Chip {
