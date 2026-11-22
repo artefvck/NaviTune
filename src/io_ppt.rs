@@ -564,6 +564,11 @@ impl PowerPlayApp {
         self.loaded_file = saved_file;
         self.selected_gpu = saved_gpu;
 
+        let Some(t) = AtomSmcDpmInfoV4_9::from_bytes(&b) else {
+            self.show_error("Invalid RDNA 2 PPTable", &format!("Expected at least {} bytes (AtomSmcDpmInfoV4_9), got {} bytes.", std::mem::size_of::<crate::pptable_rdna2::AtomSmcDpmInfoV4_9>(), b.len()));
+            return;
+        };
+
         let f = t.od_feature_flags;
         self.gpu_clock_limit = f[0] != 0; self.gpu_clock_curve = f[1] != 0;
         self.memory_clock_limit = f[2] != 0; self.zero_rpm = f[3] != 0;
