@@ -1,3 +1,4 @@
+mod save_diff_modal;
 mod cli;
 mod gpu_telemetry;
 mod advance_os;
@@ -81,6 +82,8 @@ pub struct PowerPlayApp {
     active_tab: Tab,
     pub advance_os_tab: AdvanceOsTab,
     pub raw_buffer: Vec<u8>,
+    pub baseline_buffer: Vec<u8>,
+    pub show_save_diff_modal: bool,
     pub baseline_gen: u64,
     pub vbios_buffer: Option<Vec<u8>>,
     pub vbios_ppt_offset: Option<usize>,
@@ -150,6 +153,8 @@ impl Default for PowerPlayApp {
             telemetry_data: std::sync::Arc::new(std::sync::Mutex::new(crate::gpu_telemetry::GpuTelemetry::default())),
             active_tab: Tab::Features,
             advance_os_tab: AdvanceOsTab::MacOS, raw_buffer: Vec::new(),
+            baseline_buffer: Vec::new(),
+            show_save_diff_modal: false,
             baseline_gen: 0,
             vbios_buffer: None, vbios_ppt_offset: None, loaded_file: None,
             probe_offset: format!("0x{:03X}", std::mem::offset_of!(crate::pptable_rdna2::AtomSmcDpmInfoV4_9, socket_power_limit_ac)), probe_write_val: String::new(), probe_write_type: 1,
@@ -245,7 +250,8 @@ impl eframe::App for PowerPlayApp {
                     if ui.ctx().input(|i| i.pointer.hover_pos().is_some()) {
                         let hov = ui.ctx().data(|d| d.get_temp::<String>(egui::Id::new("hovered_field_banner")).unwrap_or_default());
                         if !hov.is_empty() {
-                            ui.separator();
+                            if !self.raw_buffer.is_empty() && ui.button("Diff & Save").clicked() { self.show_save_diff_modal = true; }
+                ui.separator();
                             ui.colored_label(egui::Color32::from_rgb(165, 195, 235), egui::RichText::new(hov).small().monospace());
                         }
                     }
@@ -283,6 +289,7 @@ impl eframe::App for PowerPlayApp {
                 });
             });
 
+        self.draw_save_diff_modal(ctx);
         egui::CentralPanel::default().show(ctx, |ui| {
             crate::ui_theme::card_frame(ui).inner_margin(6.0).show(ui, |ui| {
                 ui.horizontal(|ui| {
