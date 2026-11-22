@@ -1,7 +1,7 @@
 use std::path::Path;
 
 #[allow(dead_code)]
-#[path = "../src/vbios.rs"]
+#[path = "../src/io/vbios.rs"]
 mod vbios;
 
 #[test]

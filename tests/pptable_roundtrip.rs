@@ -23,11 +23,11 @@ mod pptable_rdna2;
 mod pptable_rdna3;
 
 #[allow(dead_code)]
-#[path = "../src/vbios.rs"]
+#[path = "../src/io/vbios.rs"]
 mod vbios;
 
 #[allow(dead_code)]
-#[path = "../src/export_formats.rs"]
+#[path = "../src/io/export.rs"]
 mod export_formats;
 
 #[allow(dead_code)]

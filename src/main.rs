@@ -1,3 +1,7 @@
+pub mod io;
+pub use io::export as export_formats;
+pub use io::ppt as io_ppt;
+pub use io::vbios as vbios;
 pub mod arch;
 pub use arch::detect as ppt_arch;
 pub use arch::polaris as pptable_polaris;
@@ -13,14 +17,11 @@ mod gpu_telemetry;
 mod advance_os;
 mod card_layout;
 mod tabs;
-mod export_formats;
 mod import_formats;
-mod io_ppt;
 mod macos_ioreg;
 mod more_popups;
 mod smu_features;
 mod ui_theme;
-mod vbios;
 
 use eframe::egui;
 use std::path::PathBuf;
