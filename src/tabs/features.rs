@@ -336,4 +336,3 @@ impl PowerPlayApp {
             });
         }
     }
-}
