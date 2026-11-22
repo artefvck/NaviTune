@@ -291,6 +291,7 @@ fn test_all_six_architectures_parity() {
         buf[2] = rev;
         assert_eq!(ppt_arch::PptArch::detect(&buf), expected);
         assert_eq!(expected.default_table_size(), sz as usize);
+        assert_ne!(expected.smu_generation(), "Unknown");
         let reg = export_formats::format_reg_ppt(&buf);
         assert_eq!(import_formats::parse_reg_ppt(reg.as_bytes()).expect("reg roundtrip"), buf);
         let plist = export_formats::format_opencore_plist(&buf, "PciRoot(0x0)/Pci(0x1,0x0)/Pci(0x0,0x0)");
