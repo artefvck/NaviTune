@@ -42,8 +42,8 @@ impl PowerPlayApp {
             let frev_v = self.raw_buffer.get(2).copied().unwrap_or(0);
             let vchip = crate::pptable_vega::VegaChip::from_did_and_rev(did, frev_v);
             match vchip {
-                crate::pptable_vega::VegaChip::Vega20 => (vchip.display_name(), false, 1100, 1250, 200, 320, 280, 42, 1050, 95, 1950, 1200, 16),
-                _ => (vchip.display_name(), false, 1000, 1150, 180, 300, 260, 40, 1100, 90, 1750, 1100, 8),
+                crate::pptable_vega::VegaChip::Vega20 => (vchip.display_name(), false, 1150, 1250, 140, 320, 280, 180, 1150, 95, 1100, 1000, 16),
+                _ => (vchip.display_name(), false, 1150, 1150, 120, 300, 260, 40, 1100, 90, 0, 0, 16),
             }
         } else if crate::ppt_arch::PptArch::detect(&self.raw_buffer) == crate::ppt_arch::PptArch::Polaris {
             let pchip = crate::pptable_polaris::PolarisChip::from_did(did);
@@ -64,6 +64,7 @@ impl PowerPlayApp {
             }
         };
 
+        let is_gcn = crate::ppt_arch::PptArch::detect(&self.raw_buffer).is_gcn_subtable();
         let mut checks: Vec<(&str, &str, String, String, u8, &str)> = Vec::new();
 
         let gfx_ok = self.freq_gfx[0] > 0 && self.freq_gfx[0] < self.freq_gfx[1] && (self.oc_gfx_clock[1] == 0 || self.freq_gfx[1] <= self.oc_gfx_clock[1]);
@@ -76,12 +77,14 @@ impl PowerPlayApp {
 
         let is_gcn = crate::ppt_arch::PptArch::detect(&self.raw_buffer).is_gcn_subtable();
         let eff_vmax_gfx = (self.volt_gfx[1] as f32 + self.static_off_c[0] as f32 * 1000.0).round() as i32;
-        let v_gfx_sev = if self.volt_gfx[1] > 0 && (self.volt_gfx[0] > self.volt_gfx[1] || eff_vmax_gfx > max_gfx_v + 50 || eff_vmax_gfx < 650) { 2 } else if self.volt_gfx[0] < 675 || (self.volt_gfx[1] > 0 && eff_vmax_gfx > max_gfx_v) { 1 } else { 0 };
+        let v_gfx_sev = if self.volt_gfx[1] > 0 && (self.volt_gfx[0] > self.volt_gfx[1] || eff_vmax_gfx > max_gfx_v + 50 || (!is_rdna3 && eff_vmax_gfx < 650)) { 2 } else if self.volt_gfx[0] < 675 || (self.volt_gfx[1] > 0 && eff_vmax_gfx > max_gfx_v) { 1 } else { 0 };
         checks.push(("Voltage", "GFX Vmin / Vmax (+Offset)", format!("{} / {} mV (Eff Max: {} mV)", self.volt_gfx[0], self.volt_gfx[1], eff_vmax_gfx), format!("700..{} mV (Min <= Max)", max_gfx_v), v_gfx_sev, "Effective Vmax includes Static Voltage Offset (c); keep within silicon safe bounds."));
 
         if !is_gcn {
-            let v_soc_sev = if self.volt_soc[0] > self.volt_soc[1] || self.volt_soc[1] > max_soc_v + 50 { 2 } else if self.volt_soc[0] < 675 || self.volt_soc[1] > max_soc_v { 1 } else { 0 };
+            if !is_gcn && (self.volt_soc[0] > 0 || self.volt_soc[1] > 0) {
+        let v_soc_sev = if self.volt_soc[0] > self.volt_soc[1] || self.volt_soc[1] > max_soc_v + 50 { 2 } else if self.volt_soc[0] < 675 || self.volt_soc[1] > max_soc_v { 1 } else { 0 };
             checks.push(("Voltage", "Soc Vmin / Vmax", format!("{} / {} mV", self.volt_soc[0], self.volt_soc[1]), format!("700..{} mV (Min <= Max)", max_soc_v), v_soc_sev, "Keep SoC voltage within silicon spec for Infinity Cache & memory controller stability."));
+        }
         }
 
         let pwr_sev = if self.power_limit_w <= 0 || self.tdc_gfx <= 0 || self.power_limit_w > max_w + 50 { 2 } else if self.power_limit_w < min_w || self.power_limit_w > max_w || self.tdc_gfx > max_tdc_gfx || self.tdc_soc > max_tdc_soc { 1 } else { 0 };
@@ -105,18 +108,24 @@ impl PowerPlayApp {
 
         let fclk_sev = if self.freq_fclk[0] > self.freq_fclk[1] || self.freq_soc[0] > self.freq_soc[1] { 2 } else if self.freq_fclk[1] < min_fclk || self.freq_soc[1] < min_soc { 1 } else { 0 };
         if !is_gcn {
+        if !is_gcn && (self.freq_fclk[1] > 0 || self.freq_soc[1] > 0) {
         checks.push(("Fabric", "FCLK & SoC Max Coupling", format!("FCLK {} MHz | SoC {} MHz", self.freq_fclk[1], self.freq_soc[1]), format!("FCLK >= {} MHz | SoC >= {} MHz", min_fclk, min_soc), fclk_sev, "Factory RDNA 2 runs ~1800 MHz FCLK; factory RDNA 3 runs ~1500 MHz FCLK / 2400+ MHz SoC."));
+        }
 
         let min_gen = if is_rdna3 { 3 } else { 4 };
         let pcie_sev = if self.pcie_gen_speed[1] > 4 || self.pcie_lane_count[1] > expected_lanes { 2 } else if self.pcie_gen_speed[1] < min_gen || self.pcie_lane_count[1] < expected_lanes { 1 } else { 0 };
+        if !is_gcn && (self.pcie_gen_speed[1] > 0 || self.pcie_lane_count[1] > 0) {
         checks.push(("PCIe Bus", "Link Gen & Lane Width", format!("Gen {} x{} lanes", self.pcie_gen_speed[1], self.pcie_lane_count[1]), format!("Gen 4 x{} lanes (Silicon Native)", expected_lanes), pcie_sev, "Navi 21/22/31/32 use PCIe 4.0 x16; Navi 23/33 use x8; Navi 24 uses x4."));
+        }
 
         let prot_ok = if is_rdna3 {
             self.smu_features.get(17).copied().unwrap_or(true) && self.smu_features.get(20).copied().unwrap_or(true)
         } else {
             self.smu_features.get(32).copied().unwrap_or(true) && self.smu_features.get(33).copied().unwrap_or(true) && self.smu_features.get(34).copied().unwrap_or(true)
         };
+        if !is_gcn {
         checks.push(("SMU Safety", "PPT / TDC / Thermal Guards", if prot_ok { "Enabled (Hardware Guards ON)".to_string() } else { "DISABLED (Protection Bit Off!)".to_string() }, "PPT + TDC + Thermal ON".to_string(), if prot_ok { 0 } else { 2 }, "Never disable SMU PPT, TDC, or Thermal throttle bits on daily hardware."));
+        }
         }
 
         let warn_cnt = checks.iter().filter(|c| c.4 == 1).count();
