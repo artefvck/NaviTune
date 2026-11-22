@@ -253,6 +253,7 @@ impl PowerPlayApp {
                 "Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B{}]",
                 label, chip.display_name(), frev, crev, trev, b.len(), vbios_tag
             );
+            self.baseline_buffer = b.clone();
             self.raw_buffer = b;
             return;
         }
@@ -364,6 +365,7 @@ impl PowerPlayApp {
                 "Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B{}]",
                 label, chip1.display_name(), frev, crev, trev, b.len(), vbios_tag
             );
+            self.baseline_buffer = b.clone();
             self.raw_buffer = b;
             return;
         }
@@ -451,6 +453,7 @@ impl PowerPlayApp {
                 self.zero_rpm = self.fan_zero_rpm_enable;
             }
             self.status_msg = format!("Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B]", label, chip_v.display_name(), frev, crev, trev, b.len());
+            self.baseline_buffer = b.clone();
             self.raw_buffer = b;
             return;
         }
@@ -517,6 +520,7 @@ impl PowerPlayApp {
                 self.zero_rpm = false;
             }
             self.status_msg = format!("Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B]", label, chip_p.display_name(), frev, crev, trev, b.len());
+            self.baseline_buffer = b.clone();
             self.raw_buffer = b;
             return;
         }
@@ -584,6 +588,7 @@ impl PowerPlayApp {
             }
             for i in 0..9 { self.temp_limits[i] = 0; }
             self.status_msg = format!("Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B]", label, chip_v.display_name(), frev, crev, trev, b.len());
+            self.baseline_buffer = b.clone();
             self.raw_buffer = b;
             return;
         }
@@ -726,7 +731,8 @@ impl PowerPlayApp {
             String::new()
         };
         self.status_msg = format!("Loaded {} [{} | rev 0x{:02X}.{:02X} | {} B{}]", label, arch_label, frev, crev, b.len(), vbios_tag);
-        self.raw_buffer = b;
+        self.baseline_buffer = b.clone();
+            self.raw_buffer = b;
     }
 
     pub fn sync_fields_to_buffer(&mut self) {
