@@ -496,3 +496,42 @@ impl PptArch {
 
 
 }
+
+#[cfg(test)]
+mod arch_matrix_tests {
+    use super::{PptArch, PptCard};
+
+    #[test]
+    fn test_six_arch_tab_and_card_matrix() {
+        // Polaris & Vega 10 hide Curve tab and RDNA/SMU11-only cards
+        for gcn in [PptArch::Polaris, PptArch::Vega10] {
+            assert!(gcn.supports_tab(0));
+            assert!(!gcn.supports_tab(4));
+            assert!(gcn.supports_card(PptCard::OverDrive));
+            assert!(!gcn.supports_card(PptCard::PowerModes));
+            assert!(!gcn.supports_card(PptCard::PowerModeAcoustic));
+            assert!(!gcn.supports_card(PptCard::PcieAndLinkClocks));
+            assert!(!gcn.supports_card(PptCard::VfCurve));
+            assert!(!gcn.supports_card(PptCard::ThermalVmin));
+        }
+        assert!(!PptArch::Polaris.supports_card(PptCard::ZeroRpm));
+        assert!(PptArch::Vega10.supports_card(PptCard::ZeroRpm));
+
+        // Vega 20, RDNA 1, RDNA 2, RDNA 3 show Curve tab and SMU 11/13 cards
+        for modern in [PptArch::Vega20, PptArch::Rdna1, PptArch::Rdna2, PptArch::Rdna3] {
+            assert!(modern.supports_tab(4));
+            assert!(modern.supports_card(PptCard::PcieAndLinkClocks));
+            assert!(modern.supports_card(PptCard::VfCurve));
+            assert!(modern.supports_card(PptCard::ZeroRpm));
+        }
+
+        // RDNA 2 exclusive cards vs RDNA 3
+        assert!(PptArch::Rdna2.supports_card(PptCard::PowerModes));
+        assert!(PptArch::Rdna2.supports_card(PptCard::PowerModeAcoustic));
+        assert!(PptArch::Rdna2.supports_card(PptCard::ThermalVmin));
+
+        assert!(PptArch::Rdna3.supports_card(PptCard::PowerModes));
+        assert!(!PptArch::Rdna3.supports_card(PptCard::PowerModeAcoustic));
+        assert!(!PptArch::Rdna3.supports_card(PptCard::ThermalVmin));
+    }
+}
