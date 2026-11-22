@@ -94,7 +94,7 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<(&'static str, V
         } else {
             format!("off=0x{:03X} (absent in rev 0x{:02X}.{:02X})", hard_off, frev, crev)
         };
-        return Some(("Polaris (0x07)", vec![
+        let mut pol_rows = vec![
             ("Header", "AtomCommonTableHeader", 0x000, 5, format!("size={}, rev=0x{:02X}.{:02X}.{:02X}", hdr_sz, frev, crev, trev)),
             ("OverDrive", "max_od_engine / memory / pwr", 0x017, 10, format!("GFX={}MHz, Mem={}MHz, Pwr=+{}%", {pol.max_od_engine_clock}/100, {pol.max_od_memory_clock}/100, {pol.power_control_limit})),
             ("VDDC Lookup", "vddc_lookup_table", ({ pol.vddc_lookup_table_offset }) as usize, 10, format!("VDDC={}..{} mV", v_min, v_max)),
@@ -102,8 +102,11 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<(&'static str, V
             ("MCLK DPM", "mclk_dep_table", ({ pol.mclk_dep_table_offset }) as usize, 17, m_desc),
             ("Fan SubTable", "ATOM_Tonga_Fan_Table", fan_off.min(b.len()), 29, fan_desc),
             ("PowerTune", "ATOM_Polaris_PowerTune", 0x2D1, 16, format!("MaxPwr={}W TDC={}A", pwr_w, tdc_a)),
-            ("HardLimit SubTable", "ATOM_Polaris_Hard_Limit_Table", hard_off.min(b.len()), 14, hard_desc),
-        ]));
+        ]);
+        if hard_off > 0 {
+            pol_rows.push(("HardLimit SubTable", "ATOM_Polaris_Hard_Limit_Table", hard_off.min(b.len()), 14, hard_desc));
+        }
+        return Some(("Polaris (0x07)", pol_rows));
     }
     let t = AtomSmcDpmInfoV4_9::from_bytes(b)?;
     Some(("RDNA 2 (V4_9)", vec![

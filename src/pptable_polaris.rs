@@ -195,7 +195,7 @@ impl AtomPolarisPowerPlayTable {
         let moff = ({ self.mclk_dep_table_offset }) as usize;
         if moff >= 0x4D && moff + 2 <= buf.len() {
             let n = buf[moff + 1] as usize;
-            let stride = 15usize;
+            let stride = 13usize;
             if n > 0 && moff + 2 + n * stride <= buf.len() {
                 for i in 0..n.min(4) {
                     let eoff = moff + 2 + i * stride;
@@ -263,7 +263,7 @@ impl AtomPolarisPowerPlayTable {
         }
         if moff >= 0x4D && moff + 2 <= buf.len() {
             let n = buf[moff + 1] as usize;
-            let stride = 15usize;
+            let stride = 13usize;
             if n > 0 && moff + 2 + n * stride <= buf.len() {
                 for i in 0..n.min(4) {
                     let eoff = moff + 2 + i * stride;
