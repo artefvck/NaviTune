@@ -65,7 +65,8 @@ impl PowerPlayApp {
                     kv_row_1(ui, "Hyst / Ctrl", "fan_hyst_ctrl (0x71F)", &mut self.fan_hyst_ctrl, 62.0);
                 }
             });
-            draw_card(ui, "Fan Limits", |ui| {
+            if show_thermallimits {
+                draw_card(ui, "Fan Limits", |ui| {
                 kv_header_2(ui, "Min", "Max", 62.0);
                 kv_row_2(ui, "Fan RPM", "od_fan_min/max (0x106 / 0x113)", &mut self.oc_fan_rpm, 62.0);
                 kv_row_2(ui, "Acoustic RPM", "od_acoustic_min/max (0x10A / 0x117)", &mut self.oc_fan_acoustic_rpm, 62.0);
@@ -104,7 +105,8 @@ impl PowerPlayApp {
                 });
             }
             if arch.has_fan_curve_points() {
-                if show_fancurve {
+                }
+            if show_fancurve {
                 draw_card(ui, "Fan Curve", |ui| {
                     if is_rdna3 || is_rdna1 {
                         ui.colored_label(
