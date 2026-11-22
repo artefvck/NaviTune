@@ -159,8 +159,9 @@ impl AtomPolarisPowerPlayTable {
             let n = buf[soff + 1] as usize;
             let stride = 13usize;
             if n > 0 && soff + 2 + n * stride <= buf.len() {
-                let c0 = u32::from_le_bytes([buf[soff + 3], buf[soff + 4], buf[soff + 5], buf[soff + 6]]) / 100;
+                let first = soff + 2;
                 let last = soff + 2 + (n - 1) * stride;
+                let c0 = u32::from_le_bytes([buf[first + 3], buf[first + 4], buf[first + 5], buf[first + 6]]) / 100;
                 let cn = u32::from_le_bytes([buf[last + 3], buf[last + 4], buf[last + 5], buf[last + 6]]) / 100;
                 sclk_min = c0 as i32;
                 sclk_max = cn as i32;
@@ -234,7 +235,7 @@ impl AtomPolarisPowerPlayTable {
             let stride = 13usize;
             if n > 0 && soff + 2 + n * stride <= buf.len() {
                 if sclk_min > 0 {
-                    buf[soff + 3..soff + 7].copy_from_slice(&((sclk_min as u32) * 100).to_le_bytes());
+                    buf[soff + 5..soff + 9].copy_from_slice(&((sclk_min as u32) * 100).to_le_bytes());
                 }
                 if sclk_max > 0 {
                     let last = soff + 2 + (n - 1) * stride;
