@@ -1,4 +1,4 @@
-use crate::tabs::log_native_offset_tab::collect_native_struct_entries;
+use crate::tabs::native_offset::collect_native_struct_entries;
 use crate::PowerPlayApp;
 use eframe::egui;
 
