@@ -31,7 +31,7 @@ impl PowerPlayApp {
         for (bit, &en) in self.smu_features.iter().enumerate() {
             if en { smu_mask |= 1u64 << bit; }
         }
-        let enabled_bits: Vec<String> = (0..64)
+        let _enabled_bits: Vec<String> = (0..64)
             .filter(|&b| self.smu_features[b])
             .map(|b| format!("{:02}", b))
             .collect();

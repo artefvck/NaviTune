@@ -1,6 +1,4 @@
 use eframe::egui;
-use crate::pptable_rdna2::AtomSmcDpmInfoV4_9;
-use crate::pptable_rdna3::AtomSmcDpmInfoV4_12;
 use crate::PowerPlayApp;
 
 impl PowerPlayApp {
@@ -47,7 +45,7 @@ impl PowerPlayApp {
 
         let show_zerorpm = self.is_card_usable(crate::ppt_arch::PptCard::ZeroRpm);
         let show_fancurve = self.is_card_usable(crate::ppt_arch::PptCard::FanCurve);
-        let show_thermallimits = self.is_card_usable(crate::ppt_arch::PptCard::ThermalLimits);
+        let _show_thermallimits = self.is_card_usable(crate::ppt_arch::PptCard::ThermalLimits);
         if !arch.supports_card(crate::ppt_arch::PptCard::FanSettingsAndLimits) && !show_zerorpm && !self.is_card_usable(crate::ppt_arch::PptCard::FanCurve) && !self.is_card_usable(crate::ppt_arch::PptCard::ThermalLimits) {
             crate::card_layout::draw_arch_note_card(ui, &format!("{} — Thermal & Fan Architecture", arch.label()), "No discrete fan or thermal sub-table is present in this PPTable revision.");
             return;
