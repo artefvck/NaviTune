@@ -427,7 +427,8 @@ impl PowerPlayApp {
                 self.volt_gfx = [u32_at(0x03B), u32_at(0x043)];
                 self.freq_gfx = [u16_at(0x33A), u16_at(0x33A + 14)];
                 for i in 0..4 {
-                    self.mem_dpm_freq[i] = [u16_at(0x38A + i * 2), 1];
+                    self.mem_dpm_freq[i] = [u16_at(0x3C4 + i * 2), 1];
+                    self.mem_dpm_volt[i] = [u32_at(0x03B), u32_at(0x043)];
                 }
             }
             self.fan_zero_rpm_enable = v20.fan_zero_rpm_enable != 0;
@@ -451,6 +452,12 @@ impl PowerPlayApp {
                 self.fan_target_temp_limit = self.fan_target_temp > 0;
                 self.operating_temp_limit = (pcaps & (1 << 2)) != 0;
                 self.zero_rpm = self.fan_zero_rpm_enable;
+            }
+            if b.len() == 1534 && b.len() >= 0x53C {
+                let u16_at = |o: usize| u16::from_le_bytes([b[o], b[o + 1]]) as i32;
+                self.fan_acoustic_limit = u16_at(0x536);
+                self.fan_throttling_rpm = u16_at(0x538);
+                self.fan_max_rpm = u16_at(0x53A);
             }
             self.status_msg = format!("Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B]", label, chip_v.display_name(), frev, crev, trev, b.len());
             self.baseline_buffer = b.clone();
@@ -525,6 +532,96 @@ impl PowerPlayApp {
             return;
         }
 
+        if b.len() >= 0x4A && frev == 0x08 {
+            let did = self.vbios_buffer.as_deref()
+                .and_then(|vb| crate::vbios::inspect_vbios_info(vb, self.vbios_ppt_offset.unwrap_or(0)))
+                .map(|vi| vi.device_id)
+                .unwrap_or(0);
+            let chip_v = crate::pptable_vega::VegaChip::from_did_and_rev(did, frev);
+            let u16_at = |o: usize| u16::from_le_bytes([b[o], b[o + 1]]) as i32;
+            let u32_at = |o: usize| u32::from_le_bytes([b[o], b[o + 1], b[o + 2], b[o + 3]]) as i32;
+
+            self.oc_gfx_clock = [0, u32_at(0x017) / 100];
+            self.oc_mem_clock = [0, u32_at(0x01B) / 100];
+            let pwr_pct = i16::from_le_bytes([b[0x01F], b[0x020]]) as i32;
+            self.oc_power_limit = [-50, pwr_pct];
+
+            // VddcLookup (0x03E): rev(1), count(1), entries of u16 mV
+            let vddc_off = u16_at(0x03E) as usize;
+            let mut vddc_lut = Vec::new();
+            if vddc_off > 0 && vddc_off + 2 <= b.len() {
+                let cnt = b[vddc_off + 1] as usize;
+                for i in 0..cnt {
+                    let eo = vddc_off + 2 + i * 2;
+                    if eo + 2 <= b.len() { vddc_lut.push(u16_at(eo)); }
+                }
+            }
+            if let (Some(&vmin), Some(&vmax)) = (vddc_lut.first(), vddc_lut.last()) {
+                self.volt_gfx = [vmin, vmax];
+            }
+
+            // VddmemLookup (0x040)
+            let vmem_off = u16_at(0x040) as usize;
+            let (mut vddci_v, mut mvdd_v) = (900, 1200);
+            if vmem_off > 0 && vmem_off + 4 <= b.len() {
+                mvdd_v = u16_at(vmem_off + 2);
+                if vmem_off + 8 <= b.len() { vddci_v = u16_at(vmem_off + 6); }
+            }
+
+            // GfxclkDep (0x03A): rev(1), count(1), 13-byte entries (u32 clk_10khz at +0, u8 vidx at +4)
+            let gfx_off = u16_at(0x03A) as usize;
+            if gfx_off > 0 && gfx_off + 2 <= b.len() {
+                let cnt = b[gfx_off + 1] as usize;
+                let mut gclks = Vec::new();
+                for i in 0..cnt {
+                    let eo = gfx_off + 2 + i * 13;
+                    if eo + 5 <= b.len() {
+                        let mhz = u32_at(eo) / 100;
+                        if (100..=2500).contains(&mhz) { gclks.push(mhz); }
+                    }
+                }
+                if let (Some(&gmin), Some(&gmax)) = (gclks.first(), gclks.last()) {
+                    self.freq_gfx = [gmin, gmax];
+                }
+            }
+
+            // UclkDep (0x03C): rev(1), count(1), 13-byte entries (u32 clk_10khz at +0)
+            let uclk_off = u16_at(0x03C) as usize;
+            if uclk_off > 0 && uclk_off + 2 <= b.len() {
+                let cnt = b[uclk_off + 1] as usize;
+                let mut mclks = Vec::new();
+                for i in 0..cnt {
+                    let eo = uclk_off + 2 + i * 13;
+                    if eo + 4 <= b.len() {
+                        let mhz = u32_at(eo) / 100;
+                        if (100..=1600).contains(&mhz) { mclks.push(mhz); }
+                    }
+                }
+                for idx in 0..4 {
+                    let clk = mclks.get(idx).or_else(|| mclks.last()).copied().unwrap_or(0);
+                    self.mem_dpm_freq[idx] = [clk, 1];
+                    self.mem_dpm_volt[idx] = [vddci_v, mvdd_v];
+                }
+            }
+
+            // PowerTune (0x042) & HardLimit (0x048)
+            let pt_off = u16_at(0x042) as usize;
+            if pt_off > 0 && pt_off + 0x55 <= b.len() {
+                let tdp = u16_at(pt_off + 0x4F);
+                let max_p = u16_at(pt_off + 0x53);
+                self.power_limit_w = if max_p > 0 { max_p } else { tdp };
+                self.power_limit_ac[0] = self.power_limit_w;
+                self.tdc_gfx = u16_at(pt_off + 0x51);
+            }
+            let hl_off = u16_at(0x048) as usize;
+            if hl_off > 0 && hl_off + 0x16 <= b.len() {
+                self.temp_limits[0] = u16_at(hl_off + 0x14);
+            }
+            self.status_msg = format!("Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B]", label, chip_v.display_name(), frev, crev, trev, b.len());
+            self.baseline_buffer = b.clone();
+            self.raw_buffer = b;
+            return;
+        }
         if let Some(v10) = crate::pptable_vega::AtomVega10PowerPlayTable::from_bytes(&b) {
             let did = self.vbios_buffer.as_deref()
                 .and_then(|vb| crate::vbios::inspect_vbios_info(vb, self.vbios_ppt_offset.unwrap_or(0)))
@@ -900,7 +997,7 @@ impl PowerPlayApp {
             self.raw_buffer[0x33A..0x33C].copy_from_slice(&(self.freq_gfx[0].max(0) as u16).to_le_bytes());
             self.raw_buffer[0x348..0x34A].copy_from_slice(&(self.freq_gfx[1].max(0) as u16).to_le_bytes());
             for i in 0..4 {
-                let off = 0x38A + i * 2;
+                let off = 0x3C4 + i * 2;
                 self.raw_buffer[off..off + 2].copy_from_slice(&(self.mem_dpm_freq[i][0].max(0) as u16).to_le_bytes());
             }
             return;
@@ -1012,6 +1109,40 @@ impl PowerPlayApp {
             return;
         }
 
+        if self.raw_buffer.len() >= 0x4A && self.raw_buffer.get(2).copied() == Some(0x08) {
+            let u16_at = |buf: &[u8], o: usize| u16::from_le_bytes([buf[o], buf[o + 1]]) as usize;
+            self.raw_buffer[0x017..0x01B].copy_from_slice(&((self.oc_gfx_clock[1].max(0) * 100) as u32).to_le_bytes());
+            self.raw_buffer[0x01B..0x01F].copy_from_slice(&((self.oc_mem_clock[1].max(0) * 100) as u32).to_le_bytes());
+            self.raw_buffer[0x01F..0x021].copy_from_slice(&(self.oc_power_limit[1] as i16).to_le_bytes());
+            let vddc_off = u16_at(&self.raw_buffer, 0x03E);
+            if vddc_off > 0 && vddc_off + 2 <= self.raw_buffer.len() {
+                let cnt = self.raw_buffer[vddc_off + 1] as usize;
+                if cnt > 0 && vddc_off + 4 <= self.raw_buffer.len() {
+                    self.raw_buffer[vddc_off + 2..vddc_off + 4].copy_from_slice(&(self.volt_gfx[0].max(0) as u16).to_le_bytes());
+                    let last = vddc_off + 2 + (cnt - 1) * 2;
+                    if last + 2 <= self.raw_buffer.len() {
+                        self.raw_buffer[last..last + 2].copy_from_slice(&(self.volt_gfx[1].max(0) as u16).to_le_bytes());
+                    }
+                }
+            }
+            let gfx_off = u16_at(&self.raw_buffer, 0x03A);
+            if gfx_off > 0 && gfx_off + 2 <= self.raw_buffer.len() {
+                let cnt = self.raw_buffer[gfx_off + 1] as usize;
+                if cnt > 0 && gfx_off + 6 <= self.raw_buffer.len() {
+                    self.raw_buffer[gfx_off + 2..gfx_off + 6].copy_from_slice(&((self.freq_gfx[0].max(0) * 100) as u32).to_le_bytes());
+                    let last = gfx_off + 2 + (cnt - 1) * 13;
+                    if last + 4 <= self.raw_buffer.len() {
+                        self.raw_buffer[last..last + 4].copy_from_slice(&((self.freq_gfx[1].max(0) * 100) as u32).to_le_bytes());
+                    }
+                }
+            }
+            let pt_off = u16_at(&self.raw_buffer, 0x042);
+            if pt_off > 0 && pt_off + 0x55 <= self.raw_buffer.len() {
+                self.raw_buffer[pt_off + 0x51..pt_off + 0x53].copy_from_slice(&(self.tdc_gfx.max(0) as u16).to_le_bytes());
+                self.raw_buffer[pt_off + 0x53..pt_off + 0x55].copy_from_slice(&(self.power_limit_w.max(0) as u16).to_le_bytes());
+            }
+            return;
+        }
         if let Some(v10) = crate::pptable_vega::AtomVega10PowerPlayTable::from_bytes_mut(&mut self.raw_buffer) {
             v10.max_od_engine_clock = (self.oc_gfx_clock[1].max(0) * 100) as u32;
             v10.max_od_memory_clock = (self.oc_mem_clock[1].max(0) * 100) as u32;
