@@ -127,7 +127,13 @@ impl PowerPlayApp {
         } else if let Some(v10) = crate::pptable_vega::AtomVega10PowerPlayTable::from_bytes(&self.raw_buffer) {
             out.push_str(&format!("Vega 10 Offsets  : OD_GFX={}MHz (0x017), OD_MEM={}MHz (0x01B), FanOff=0x{:03X}, HardLimOff=0x{:03X}\n", {v10.max_od_engine_clock}/100, {v10.max_od_memory_clock}/100, {v10.fan_table_offset}, {v10.hard_limit_table_offset}));
         }
-        out.push_str(&format!("SMU Enabled Bits : [{}]\n", enabled_bits.join(", ")));
+        let feat_mask: u64 = if arch.is_gcn_subtable() && self.raw_buffer.len() >= 0x17 {
+            u32::from_le_bytes([self.raw_buffer[0x13], self.raw_buffer[0x14], self.raw_buffer[0x15], self.raw_buffer[0x16]]) as u64
+        } else {
+            (0..64usize).fold(0u64, |acc, bit| if self.smu_features[bit] { acc | (1u64 << bit) } else { acc })
+        };
+        let decoded_feats: Vec<String> = arch.decode_feature_bits(feat_mask).into_iter().map(|(bit, name)| format!("{}:{}", bit, name)).collect();
+        out.push_str(&format!("FeaturesToRun    : 0x{:016X} ({})\n", feat_mask, decoded_feats.join(", ")));
         out.push_str(&format!("Decoded Vars     : {} entries\n", vars.len()));
         for (k, v) in vars {
             out.push_str(&format!("  {} = {}\n", k, v));

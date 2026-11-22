@@ -337,3 +337,17 @@ fn test_ppt_arch_capability_matrix_all_six() {
         assert!(arch.has_vf_curve_points());
     }
 }
+
+#[test]
+fn test_features_to_run_all_six_architectures() {
+    use ppt_arch::PptArch::*;
+    assert_eq!(Polaris.feature_bit_name(0), "POWER_CONTAINMENT");
+    assert_eq!(Vega10.feature_bit_name(11), "FAN_SPEED_IN_RPM");
+    assert_eq!(Vega20.feature_bit_name(17), "GFXOFF");
+    assert_eq!(Rdna1.feature_bit_name(30), "FAN_CONTROL");
+    assert_eq!(Rdna2.feature_bit_name(36), "OUT_OF_BAND_MONITOR");
+    assert_eq!(Rdna3.feature_bit_name(19), "GFXOFF");
+    assert_eq!(Rdna3.feature_bit_name(30), "FAN_CONTROL");
+    let decoded = Rdna3.decode_feature_bits((1u64 << 1) | (1u64 << 19));
+    assert_eq!(decoded, vec![(1, "DPM_GFXCLK"), (19, "GFXOFF")]);
+}
