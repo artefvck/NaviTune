@@ -16,7 +16,7 @@ impl PowerPlayApp {
             ui.add_space(6.0);
         }
         let mut issues: Vec<&'static str> = Vec::new();
-        if arch.is_gcn_subtable() {
+        if arch.has_hard_limit_subtable() {
             if self.freq_gfx[1] <= 0 { issues.push("HardLimit GFXCLK Max <= 0 MHz"); }
             if self.mem_dpm_freq[3][0] <= 0 { issues.push("HardLimit MCLK Max <= 0 MHz"); }
         } else {
@@ -24,7 +24,7 @@ impl PowerPlayApp {
             if self.freq_soc[0] > self.freq_soc[1] { issues.push("Soc Min > Max"); }
             if self.freq_fclk[0] > self.freq_fclk[1] { issues.push("FCLK Min > Max"); }
         }
-        if !arch.is_gcn_subtable() {
+        if arch.has_pcie_and_lclk_limits() {
         for i in 1..4 {
             if self.mem_dpm_freq[i][0] > 0 && self.mem_dpm_freq[i][0] < self.mem_dpm_freq[i - 1][0] {
                 issues.push("Memory UCLK DPM states not ascending");
@@ -42,7 +42,7 @@ impl PowerPlayApp {
 
         two_col_cards(ui, "freq_cols", |ui| {
             draw_card(ui, "Clock Limits", |ui| {
-                if arch.is_gcn_subtable() {
+                if arch.has_hard_limit_subtable() {
                     kv_row_1(ui, "GFXCLK Max (HardLimit)", "hard_limit_table_offset GFXCLK (MHz)", &mut self.freq_gfx[1], 62.0);
                     if arch == crate::ppt_arch::PptArch::Vega10 {
                         kv_row_1(ui, "SOCCLK Max (HardLimit)", "hard_limit_table_offset SOCCLK (MHz)", &mut self.freq_soc[1], 62.0);

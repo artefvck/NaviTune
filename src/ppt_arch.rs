@@ -76,6 +76,25 @@ impl PptArch {
         matches!(self, Self::Rdna2)
     }
 
+    pub fn has_pcie_and_lclk_limits(self) -> bool {
+        matches!(self, Self::Vega20 | Self::Rdna1 | Self::Rdna2 | Self::Rdna3)
+    }
+
+    pub fn clock_limit_offset_labels(self) -> (&'static str, &'static str, &'static str) {
+        match self {
+            Self::Polaris | Self::Vega10 => (
+                "hard_limit_table_offset GFXCLK (MHz)",
+                "hard_limit_table_offset SOCCLK (MHz)",
+                "N/A (GCN4/5)",
+            ),
+            Self::Vega20 => ("freq_table_gfx (0x185)", "freq_table_socclk (0x195)", "freq_table_fclk (0x1C5)"),
+            Self::Rdna1 => ("freq_table_gfx (0x11F)", "freq_table_socclk (0x12F)", "freq_table_fclk (0x15F)"),
+            Self::Rdna2 => ("freq_gfx (0x52E)", "freq_soc (0x56E)", "freq_fclk (0x5D6)"),
+            Self::Rdna3 => ("freq_gfx (0x5EC)", "freq_soc (0x60E)", "freq_fclk (0x62C)"),
+            Self::Unknown => ("GFX Clock", "Soc Clock", "FCLK"),
+        }
+    }
+
     pub fn core_voltage_offset_labels(self) -> (&'static str, &'static str) {
         match self {
             Self::Polaris | Self::Vega10 => ("hard_limit_table_offset VDDC (mV)", "N/A (GCN4/5)"),

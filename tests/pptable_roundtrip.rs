@@ -386,3 +386,17 @@ fn test_core_voltage_offset_labels_all_six_architectures() {
     assert!(Rdna2.core_voltage_offset_labels().0.contains("0x378"));
     assert!(Rdna3.core_voltage_offset_labels().1.contains("0x3C0"));
 }
+
+#[test]
+fn test_frequency_cards_all_six_architectures() {
+    use ppt_arch::PptArch::*;
+    assert!(!Polaris.has_pcie_and_lclk_limits());
+    assert!(!Vega10.has_pcie_and_lclk_limits());
+    for arch in [Vega20, Rdna1, Rdna2, Rdna3] {
+        assert!(arch.has_pcie_and_lclk_limits());
+    }
+    assert!(Vega20.clock_limit_offset_labels().0.contains("0x185"));
+    assert!(Rdna1.clock_limit_offset_labels().1.contains("0x12F"));
+    assert!(Rdna2.clock_limit_offset_labels().2.contains("0x5D6"));
+    assert!(Rdna3.clock_limit_offset_labels().0.contains("0x5EC"));
+}
