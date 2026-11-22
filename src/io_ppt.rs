@@ -413,6 +413,21 @@ impl PowerPlayApp {
             self.fan_target_gfx_clock = { v20.fan_target_gfxclk } as i32;
             self.ulv_gfx = [{ v20.min_voltage_ulv_gfx } as i32 / 4, 0];
             self.ulv_soc = [{ v20.min_voltage_ulv_soc } as i32 / 4, 0];
+            if b.len() == 1534 && b.len() >= 0x392 {
+                let u16_at = |o: usize| u16::from_le_bytes([b[o], b[o + 1]]) as i32;
+                let u32_at = |o: usize| u32::from_le_bytes([b[o], b[o + 1], b[o + 2], b[o + 3]]) as i32;
+                self.power_limit_w = u16_at(0x016);
+                self.power_limit_ac[0] = self.power_limit_w;
+                self.tdc_gfx = u16_at(0x018);
+                self.tdc_soc = u16_at(0x01A);
+                self.oc_gfx_clock = [u32_at(0x04F), u32_at(0x027)];
+                self.oc_mem_clock = [0, u32_at(0x02B)];
+                self.volt_gfx = [u32_at(0x03B), u32_at(0x043)];
+                self.freq_gfx = [u16_at(0x33A), u16_at(0x33A + 14)];
+                for i in 0..4 {
+                    self.mem_dpm_freq[i] = [u16_at(0x38A + i * 2), 1];
+                }
+            }
             self.fan_zero_rpm_enable = v20.fan_zero_rpm_enable != 0;
             self.fan_stop_temp = { v20.fan_stop_temp } as i32;
             self.fan_start_temp = { v20.fan_start_temp } as i32;
@@ -867,6 +882,23 @@ impl PowerPlayApp {
             return;
         }
 
+        if self.raw_buffer.len() == 1534 && self.raw_buffer.get(2).copied() == Some(0x0B) {
+            self.raw_buffer[0x016..0x018].copy_from_slice(&(self.power_limit_w.max(0) as u16).to_le_bytes());
+            self.raw_buffer[0x018..0x01A].copy_from_slice(&(self.tdc_gfx.max(0) as u16).to_le_bytes());
+            self.raw_buffer[0x01A..0x01C].copy_from_slice(&(self.tdc_soc.max(0) as u16).to_le_bytes());
+            self.raw_buffer[0x027..0x02B].copy_from_slice(&(self.oc_gfx_clock[1].max(0) as u32).to_le_bytes());
+            self.raw_buffer[0x02B..0x02F].copy_from_slice(&(self.oc_mem_clock[1].max(0) as u32).to_le_bytes());
+            self.raw_buffer[0x03B..0x03F].copy_from_slice(&(self.volt_gfx[0].max(0) as u32).to_le_bytes());
+            self.raw_buffer[0x043..0x047].copy_from_slice(&(self.volt_gfx[1].max(0) as u32).to_le_bytes());
+            self.raw_buffer[0x04F..0x053].copy_from_slice(&(self.oc_gfx_clock[0].max(0) as u32).to_le_bytes());
+            self.raw_buffer[0x33A..0x33C].copy_from_slice(&(self.freq_gfx[0].max(0) as u16).to_le_bytes());
+            self.raw_buffer[0x348..0x34A].copy_from_slice(&(self.freq_gfx[1].max(0) as u16).to_le_bytes());
+            for i in 0..4 {
+                let off = 0x38A + i * 2;
+                self.raw_buffer[off..off + 2].copy_from_slice(&(self.mem_dpm_freq[i][0].max(0) as u16).to_le_bytes());
+            }
+            return;
+        }
         if let Some(mut v20_val) = crate::pptable_vega::AtomVega20PowerPlayTable::from_bytes_padded(&self.raw_buffer) { let v20 = &mut v20_val;
             v20.boost_power_limit = self.power_limit_w.max(0) as u16;
             v20.socket_power_limit_ac[0] = self.power_limit_w.max(0) as u16;
