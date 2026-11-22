@@ -3,6 +3,7 @@ use crate::PowerPlayApp;
 
 impl PowerPlayApp {
     pub fn draw_features_tab(&mut self, ui: &mut egui::Ui) {
+        let ctx = ui.ctx().clone();
         let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
         let loaded = !self.raw_buffer.is_empty();
         let gen = ctx.data(|d| d.get_temp::<u64>(egui::Id::new("ppt_baseline_gen")).unwrap_or(0));
