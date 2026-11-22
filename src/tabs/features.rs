@@ -122,5 +122,218 @@ impl PowerPlayApp {
                     }
                 });
         });
+
+            crate::card_layout::draw_card(ui, "VBIOS & Table Header", |ui| {
+                let info = self
+                    .vbios_buffer
+                    .as_ref()
+                    .and_then(|rom| crate::vbios::inspect_vbios_info(rom, self.vbios_ppt_offset.unwrap_or(0)));
+
+                egui::Grid::new("vbios_header_grid")
+                    .num_columns(2)
+                    .spacing([14.0, 6.0])
+                    .show(ui, |ui| {
+                        let (src_part, vbios_part) = if let Some((left, right)) = self.status_msg.split_once(" | VBIOS ROM:") {
+                            (left.trim(), Some(right.trim()))
+                        } else if let Some((left, right)) = self.status_msg.split_once(" | ") {
+                            (left.trim(), Some(right.trim()))
+                        } else {
+                            (self.status_msg.as_str(), None)
+                        };
+                        ui.label("Loaded Source:");
+                        ui.colored_label(
+                            egui::Color32::from_rgb(165, 195, 235),
+                            egui::RichText::new(src_part).monospace(),
+                        );
+                        ui.end_row();
+
+                        if let Some(vb_txt) = vbios_part {
+                            ui.label("");
+                            ui.colored_label(
+                                egui::Color32::from_rgb(165, 195, 235),
+                                egui::RichText::new(vb_txt).monospace(),
+                            );
+                            ui.end_row();
+                        }
+
+                        ui.label("Silicon Family:");
+                        let did = info.as_ref().map(|vi| vi.device_id).unwrap_or(0);
+                        if let Some(t3) = crate::pptable_rdna3::AtomSmcDpmInfoV4_12::from_bytes(&self.raw_buffer) {
+                            ui.colored_label(
+                                egui::Color32::from_rgb(95, 200, 145),
+                                egui::RichText::new(t3.detect_chip(did).display_name()).strong(),
+                            );
+                        } else if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(&self.raw_buffer) {
+                            ui.colored_label(
+                                egui::Color32::from_rgb(95, 200, 145),
+                                egui::RichText::new(t1.detect_chip(did).display_name()).strong(),
+                            );
+                        } else if crate::ppt_arch::PptArch::detect(&self.raw_buffer) == crate::ppt_arch::PptArch::Polaris {
+                            let pchip = crate::pptable_polaris::PolarisChip::from_did(did);
+                            ui.colored_label(
+                                egui::Color32::from_rgb(95, 200, 145),
+                                egui::RichText::new(pchip.display_name()).strong(),
+                            );
+                        } else if matches!(crate::ppt_arch::PptArch::detect(&self.raw_buffer), crate::ppt_arch::PptArch::Vega10 | crate::ppt_arch::PptArch::Vega20) {
+                            let frev_v = self.raw_buffer.get(2).copied().unwrap_or(0);
+                            let vchip = crate::pptable_vega::VegaChip::from_did_and_rev(did, frev_v);
+                            ui.colored_label(
+                                egui::Color32::from_rgb(95, 200, 145),
+                                egui::RichText::new(vchip.display_name()).strong(),
+                            );
+                        } else if let Some(t) = crate::pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer) {
+                            let chip = t.detect_chip(&self.raw_buffer);
+                            ui.colored_label(
+                                egui::Color32::from_rgb(95, 200, 145),
+                                egui::RichText::new(chip.display_name()).strong(),
+                            );
+                        } else {
+                            ui.weak("Not detected");
+                        }
+                        ui.end_row();
+
+                        ui.label("VBIOS ROM:");
+                        if let Some(ref vi) = info {
+                            ui.vertical(|ui| {
+                                ui.spacing_mut().item_spacing.y = 2.0;
+                                ui.monospace(format!(
+                                    "{} [{:04X}:{:04X}]",
+                                    vi.device_name,
+                                    vi.vendor_id,
+                                    vi.device_id,
+                                ));
+                                ui.monospace(format!(
+                                    "{} B (Legacy {} B, PPTable @ 0x{:X}, {} B)",
+                                    vi.total_size,
+                                    vi.legacy_size,
+                                    vi.ppt_offset,
+                                    vi.ppt_size
+                                ));
+                            });
+                        } else {
+                            ui.weak("Standalone PPTable / Registry buffer (no full ROM)");
+                        }
+                        ui.end_row();
+
+                        if let Some(ref vi) = info {
+                            ui.label("AIB / Subsys:");
+                            ui.monospace(format!(
+                                "{} [{:04X}:{:04X}] | {}",
+                                vi.vendor_name, vi.subvendor_id, vi.subdevice_id, vi.pci_vendor_name
+                            ));
+                            ui.end_row();
+
+                            ui.label("BIOS Version:");
+                            ui.monospace(format!(
+                                "{}{}",
+                                vi.bios_version,
+                                vi.bios_ver_offset
+                                    .map(|o| format!(" (@ 0x{:X})", o))
+                                    .unwrap_or_default()
+                            ));
+                            ui.end_row();
+
+                            ui.label("$PSP Security:");
+                            if let Some(psp_off) = vi.psp_dir_offset {
+                                let signed_info = match (vi.psp_signed_size, vi.rsa_sig_offset, vi.rsa_sig_size) {
+                                    (Some(ssz), Some(roff), Some(rsz)) => {
+                                        format!("Signed ({} B) | RSA Sig @ 0x{:X} ({} B)", ssz, roff, rsz)
+                                    }
+                                    (Some(ssz), _, _) => format!("Signed ({} B)", ssz),
+                                    _ => "Present (unsigned or partial)".to_string(),
+                                };
+                                ui.colored_label(
+                                    egui::Color32::from_rgb(240, 180, 60),
+                                    egui::RichText::new(format!("ACTIVE @ 0x{:X}: {}", psp_off, signed_info)).monospace(),
+                                );
+                            } else {
+                                ui.colored_label(
+                                    egui::Color32::from_rgb(80, 210, 120),
+                                    "No $PSP directory (unsigned / legacy)",
+                                );
+                            }
+                            ui.end_row();
+
+                            ui.label("AtomBIOS Chain:");
+                            if let (Some(ah), Some(md)) = (vi.atom_header_offset, vi.master_data_offset) {
+                                ui.monospace(format!("ATOM @ 0x{:X} -> MasterData @ 0x{:X}", ah, md));
+                            } else {
+                                ui.weak("N/A (SPI / Raw Table)");
+                            }
+                            ui.end_row();
+
+                            ui.label("$PSP Dir:");
+                            if let Some(psp_off) = vi.psp_dir_offset {
+                                let pk = vi
+                                    .psp_pubkey_offset
+                                    .map(|o| format!(" | PubKey @ 0x{:X}", o))
+                                    .unwrap_or_default();
+                                ui.monospace(format!("Offset 0x{:X} | {} entries{}", psp_off, vi.psp_entry_count, pk));
+                            } else {
+                                ui.weak("None");
+                            }
+                            ui.end_row();
+
+                            ui.label("ROM Checksum:");
+                            if !vi.has_legacy_opt_rom {
+                                ui.colored_label(
+                                    egui::Color32::from_rgb(138, 162, 198),
+                                    egui::RichText::new("N/A (SPI Flash)").monospace(),
+                                );
+                            } else if vi.checksum_sum == 0 {
+                                let txt = format!("VALID (0x{:02X})", vi.checksum_byte);
+                                ui.colored_label(egui::Color32::from_rgb(80, 210, 120), egui::RichText::new(txt).monospace());
+                            } else {
+                                ui.horizontal(|ui| {
+                                    let txt = format!("INVALID (0x{:02X}, sum 0x{:02X})", vi.checksum_byte, vi.checksum_sum);
+                                    ui.colored_label(egui::Color32::from_rgb(245, 75, 95), egui::RichText::new(txt).monospace());
+                                    if ui.small_button("Recalc").clicked() {
+                                        if let Some(rom) = self.vbios_buffer.as_mut() {
+                                            crate::vbios::recalc_vbios_checksum(rom);
+                                            self.status_msg = "Recalculated VBIOS 8-bit Option ROM checksum (byte[0x21]).".into();
+                                        }
+                                    }
+                                });
+                            }
+                            ui.end_row();
+                        }
+
+                        ui.label("Header Verification:");
+                        let hdr_info = if let Some(t3) = crate::pptable_rdna3::AtomSmcDpmInfoV4_12::from_bytes(&self.raw_buffer) {
+                            Some(("V4_12", { t3.header.structure_size }, { t3.header.format_revision }, { t3.header.content_revision }, { t3.header.table_revision }))
+                        } else if let Some(t) = crate::pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer) {
+                            Some(("V4_9", { t.header.structure_size }, { t.header.format_revision }, { t.header.content_revision }, { t.table_revision }))
+                        } else {
+                            None
+                        };
+                        if let Some((ver, sz, fmt_rev, cnt_rev, tbl_rev)) = hdr_info {
+                            let ok = sz as usize == self.raw_buffer.len();
+                            let msg = format!(
+                                "{} ({}) | size={} B | rev=0x{:02X}.{:02X}.{:02X}",
+                                if ok { "VALID" } else { "SIZE MISMATCH" },
+                                ver,
+                                sz,
+                                fmt_rev,
+                                cnt_rev,
+                                tbl_rev
+                            );
+                            if ok {
+                                ui.colored_label(egui::Color32::from_rgb(80, 210, 120), egui::RichText::new(msg).monospace());
+                            } else {
+                                ui.colored_label(egui::Color32::from_rgb(245, 75, 95), egui::RichText::new(msg).monospace());
+                            }
+                        } else {
+                            ui.weak(match crate::ppt_arch::PptArch::detect(&self.raw_buffer) {
+                            crate::ppt_arch::PptArch::Polaris => "Valid Polaris (SMU 8.0, rev 0x07) table loaded",
+                            crate::ppt_arch::PptArch::Vega10 => "Valid Vega 10 (SMU 9.0, rev 0x08) table loaded",
+                            crate::ppt_arch::PptArch::Vega20 => "Valid Vega 20 (SMU 11.0, rev 0x0B) table loaded",
+                            crate::ppt_arch::PptArch::Rdna1 => "Valid RDNA 1 (SMU 11.0, V4_5) table loaded",
+                            _ => "No valid Polaris, Vega, or RDNA table loaded",
+                        });
+                        }
+                        ui.end_row();
+                    });
+            });
+        }
     }
 }
