@@ -962,7 +962,6 @@ impl PowerPlayApp {
             v20.od_feature_flags[7] = u8::from(self.fan_acoustic_rpm);
             v20.od_feature_flags[8] = u8::from(self.fan_curve);
             v20.od_feature_flags[9] = u8::from(self.power_limit_feat);
-            return;
             v20.od_feature_flags = [
                 self.gpu_clock_limit as u8, self.gpu_clock_curve as u8,
                 self.memory_clock_limit as u8, self.zero_rpm as u8,
