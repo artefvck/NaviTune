@@ -60,6 +60,16 @@ impl PptArch {
         matches!(self, Self::Polaris | Self::Vega10)
     }
 
+    pub fn smu_generation(self) -> &'static str {
+        match self {
+            Self::Polaris => "SMU 8.0",
+            Self::Vega10 => "SMU 9.0",
+            Self::Vega20 | Self::Rdna1 | Self::Rdna2 => "SMU 11.0",
+            Self::Rdna3 => "SMU 13.0",
+            Self::Unknown => "Unknown",
+        }
+    }
+
     pub fn gcn_subtable_hint(self, tab: &str) -> Option<&'static str> {
         match (self, tab) {
             (Self::Polaris, "power") => Some("Polaris (SMU 8.0, rev 0x07): GFX Vmax edits HardLimit VDDC (hard_limit_table_offset); use OC Limits for Power Control (+%)."),

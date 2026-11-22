@@ -117,6 +117,8 @@ impl PowerPlayApp {
             crate::pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer).map(|t| t.detect_chip(&self.raw_buffer).display_name()).unwrap_or("Unknown")
         };
         out.push_str(&format!("Detected Silicon : {}\n", chip_name));
+        let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
+        out.push_str(&format!("SMU Firmware     : {} (default {} B)\n", arch.smu_generation(), arch.default_table_size()));
         out.push_str(&format!("Encoded Size     : {} bytes\n", self.raw_buffer.len()));
         if let Some(v20) = crate::pptable_vega::AtomVega20PowerPlayTable::from_bytes(&self.raw_buffer) {
             out.push_str(&format!("Vega 20 Offsets  : PPT0={}W (0x11D), TDC={}/{}A (0x13D), GFX_V={}..{}mV (0x159)\n", {v20.socket_power_limit_ac[0]}, {v20.tdc_limit_gfx}, {v20.tdc_limit_soc}, {v20.min_voltage_gfx}/4, {v20.max_voltage_gfx}/4));
