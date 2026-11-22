@@ -8,6 +8,7 @@ impl PowerPlayApp {
         use crate::card_layout::*;
 
         let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
+        let _fan_tags = arch.fan_offset_labels();
         let is_rdna3 = arch.is_rdna3();
         let is_rdna2 = arch.is_rdna2();
         let is_rdna1 = arch.is_rdna1() || arch.is_vega() || arch.is_gcn_subtable();

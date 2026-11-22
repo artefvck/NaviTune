@@ -276,6 +276,7 @@ impl PptArch {
         }
     }
 
+    #[allow(dead_code)]
     pub fn new_blank_table(self) -> Vec<u8> {
         let (sz, rev) = match self {
             Self::Polaris => (384u16, 0x07u8),
@@ -435,9 +436,14 @@ impl PptArch {
     pub fn supports_card(self, card: PptCard) -> bool {
         match card {
             PptCard::CoreVoltage | PptCard::MemoryVoltage | PptCard::ClockLimits | PptCard::MemoryDpm | PptCard::OverDrive | PptCard::FanSettingsAndLimits | PptCard::ZeroRpm => true,
-            PptCard::PowerAndCurrent | PptCard::UlvVoltage | PptCard::PcieAndLinkClocks | PptCard::VfCurve | PptCard::VidCurveAndOffset | PptCard::FanCurve | PptCard::ThermalLimits => !self.is_gcn_subtable(),
-            PptCard::ThermalVmin | PptCard::PowerModeAcoustic => matches!(self, Self::Rdna2),
-            PptCard::PowerModes => matches!(self, Self::Rdna2 | Self::Rdna3),
+            PptCard::PowerAndCurrent | PptCard::UlvVoltage | PptCard::PcieAndLinkClocks => !self.is_gcn_subtable(),
+            PptCard::VfCurve => self.has_vf_curve_points(),
+            PptCard::VidCurveAndOffset => self.has_vid_and_voltage_offset(),
+            PptCard::FanCurve => self.has_fan_curve_points() && self.has_fan_acoustic_and_throttling(),
+            PptCard::ThermalLimits => self.has_thermal_limits_array(),
+            PptCard::ThermalVmin => matches!(self, Self::Rdna2),
+            PptCard::PowerModeAcoustic => self.has_power_mode_acoustic(),
+            PptCard::PowerModes => self.has_multi_power_modes(),
         }
     }
 
