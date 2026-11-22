@@ -410,6 +410,15 @@ impl eframe::App for PowerPlayApp {
                     (Tab::More, "More"),
                     (Tab::Log, "Log"),
                 ] {
+                    let cur_arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
+                    if !self.raw_buffer.is_empty() && cur_arch.is_gcn_subtable() {
+                        if self.active_tab == Tab::Curve {
+                            self.active_tab = Tab::Features;
+                        }
+                        if tab == Tab::Curve {
+                            continue;
+                        }
+                    }
                     ui.selectable_value(&mut self.active_tab, tab, label);
                 }
             });
