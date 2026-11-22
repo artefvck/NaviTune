@@ -314,3 +314,26 @@ fn test_new_blank_table_all_six_archs() {
         assert_eq!(ppt_arch::PptArch::detect(&buf), arch);
     }
 }
+
+#[test]
+fn test_ppt_arch_capability_matrix_all_six() {
+    use ppt_arch::PptArch::*;
+    for arch in [Polaris, Vega10] {
+        assert!(arch.has_hard_limit_subtable());
+        assert!(!arch.has_od8_and_smu_masks());
+        assert!(!arch.has_multi_power_modes());
+        assert!(!arch.has_vf_curve_points());
+    }
+    for arch in [Vega20, Rdna1] {
+        assert!(!arch.has_hard_limit_subtable());
+        assert!(arch.has_od8_and_smu_masks());
+        assert!(!arch.has_multi_power_modes());
+        assert!(arch.has_vf_curve_points());
+    }
+    for arch in [Rdna2, Rdna3] {
+        assert!(!arch.has_hard_limit_subtable());
+        assert!(arch.has_od8_and_smu_masks());
+        assert!(arch.has_multi_power_modes());
+        assert!(arch.has_vf_curve_points());
+    }
+}

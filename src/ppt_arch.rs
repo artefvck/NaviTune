@@ -60,6 +60,34 @@ impl PptArch {
         matches!(self, Self::Polaris | Self::Vega10)
     }
 
+    pub fn has_hard_limit_subtable(self) -> bool {
+        matches!(self, Self::Polaris | Self::Vega10)
+    }
+
+    pub fn has_od8_and_smu_masks(self) -> bool {
+        matches!(self, Self::Vega20 | Self::Rdna1 | Self::Rdna2 | Self::Rdna3)
+    }
+
+    pub fn has_multi_power_modes(self) -> bool {
+        matches!(self, Self::Rdna2 | Self::Rdna3)
+    }
+
+    pub fn has_vf_curve_points(self) -> bool {
+        matches!(self, Self::Vega20 | Self::Rdna1 | Self::Rdna2 | Self::Rdna3)
+    }
+
+    pub fn table_struct_name(self) -> &'static str {
+        match self {
+            Self::Polaris => "AtomPolarisPowerPlayTable",
+            Self::Vega10 => "AtomVega10PowerPlayTable",
+            Self::Vega20 => "AtomVega20PowerPlayTable",
+            Self::Rdna1 => "AtomSmcDpmInfoV4_5",
+            Self::Rdna2 => "AtomSmcDpmInfoV4_9",
+            Self::Rdna3 => "AtomSmcDpmInfoV4_12",
+            Self::Unknown => "Unknown",
+        }
+    }
+
     pub fn smu_generation(self) -> &'static str {
         match self {
             Self::Polaris => "SMU 8.0",
