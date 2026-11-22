@@ -31,6 +31,31 @@ pub enum PptArch {
 }
 
 impl PptArch {
+    pub fn field_box_spec(label: &str) -> (i32, i32, f64, &'static str) {
+        let l = label.to_ascii_lowercase();
+        if l.contains("mv") || l.contains("vddc") || l.contains("vddci") || l.contains("mvdd") || l.contains("vmin") || l.contains("voltage") {
+            (0, 1600, 1.0, " mV")
+        } else if l.contains("mhz") || l.contains("clk") || l.contains("clock") || l.contains("dpm ") {
+            (0, 4500, 5.0, " MHz")
+        } else if l.contains("rpm") {
+            (0, 6000, 25.0, " RPM")
+        } else if l.contains("pwm") || l.contains("%") || (l.contains("power limit") && l.contains("+")) {
+            (-100, 100, 1.0, " %")
+        } else if l.contains("temp") || l.contains("°c") || l.contains("hyst") {
+            (0, 125, 1.0, " °C")
+        } else if l.contains("(w)") || l.contains("quiet") || l.contains("balanced") || l.contains("turbo") || l.contains("rage") {
+            (0, 1000, 1.0, " W")
+        } else if l.contains("(a)") || l.contains("tdc") {
+            (0, 1000, 1.0, " A")
+        } else if l.contains("gen") {
+            (0, 5, 1.0, "")
+        } else if l.contains("lane") || l.contains("width") {
+            (0, 16, 1.0, "x")
+        } else {
+            (-100000, 100000, 1.0, "")
+        }
+    }
+
     pub fn detect(buf: &[u8]) -> Self {
         if crate::pptable_rdna3::AtomSmcDpmInfoV4_12::from_bytes(buf).is_some() {
             Self::Rdna3
@@ -405,31 +430,6 @@ impl PptArch {
             .filter(|&bit| (mask & (1u64 << bit)) != 0)
             .map(|bit| (bit, self.feature_bit_name(bit)))
             .collect()
-    }
-
-    pub fn field_box_spec(label: &str) -> (i32, i32, f64, &'static str) {
-        let l = label.to_ascii_lowercase();
-        if l.contains("mv") || l.contains("vddc") || l.contains("vddci") || l.contains("mvdd") || l.contains("vmin") || l.contains("voltage") {
-            (0, 1600, 1.0, " mV")
-        } else if l.contains("mhz") || l.contains("clk") || l.contains("clock") || l.contains("dpm ") {
-            (0, 4500, 5.0, " MHz")
-        } else if l.contains("rpm") {
-            (0, 6000, 25.0, " RPM")
-        } else if l.contains("pwm") || l.contains("%") || (l.contains("power limit") && l.contains("+")) {
-            (-100, 100, 1.0, " %")
-        } else if l.contains("temp") || l.contains("°c") || l.contains("hyst") {
-            (0, 125, 1.0, " °C")
-        } else if l.contains("(w)") || l.contains("quiet") || l.contains("balanced") || l.contains("turbo") || l.contains("rage") {
-            (0, 1000, 1.0, " W")
-        } else if l.contains("(a)") || l.contains("tdc") {
-            (0, 1000, 1.0, " A")
-        } else if l.contains("gen") {
-            (0, 5, 1.0, "")
-        } else if l.contains("lane") || l.contains("width") {
-            (0, 16, 1.0, "x")
-        } else {
-            (-100000, 100000, 1.0, "")
-        }
     }
 
     pub fn supports_card(self, card: PptCard) -> bool {
