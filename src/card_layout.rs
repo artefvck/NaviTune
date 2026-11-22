@@ -4,6 +4,30 @@ pub fn dynamic_box_w(_ui: &egui::Ui, min_w: f32, _cols: usize) -> f32 {
     min_w.max(86.0)
 }
 
+pub fn two_col_cards_adaptive(
+    ui: &mut egui::Ui,
+    id: &str,
+    left_visible: bool,
+    right_visible: bool,
+    left: impl FnOnce(&mut egui::Ui),
+    right: impl FnOnce(&mut egui::Ui),
+) {
+    match (left_visible, right_visible) {
+        (true, true) => two_col_cards(ui, id, left, right),
+        (true, false) => {
+            ui.push_id(id, |ui| {
+                left(ui);
+            });
+        }
+        (false, true) => {
+            ui.push_id(id, |ui| {
+                right(ui);
+            });
+        }
+        (false, false) => {}
+    }
+}
+
 pub fn two_col_cards(
     ui: &mut egui::Ui,
     id: &str,

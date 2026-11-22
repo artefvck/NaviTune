@@ -19,7 +19,7 @@ impl PowerPlayApp {
         let is_rdna1 = arch.is_rdna1() || arch.is_vega();
         let is_rdna2 = !is_rdna3 && AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer).is_some();
 
-        two_col_cards(ui, "crv_cols", |ui| {
+        two_col_cards_adaptive(ui, "crv_cols", true, true, |ui| {
             draw_card(ui, "Voltage Curve (VID)", |ui| {
                 if is_rdna3 || is_rdna1 {
                     ui.colored_label(

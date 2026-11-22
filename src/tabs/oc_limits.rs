@@ -27,7 +27,7 @@ impl PowerPlayApp {
             ui.add_space(4.0);
         }
 
-        two_col_cards(ui, "oc_cols", |ui| {
+        two_col_cards_adaptive(ui, "oc_cols", true, true, |ui| {
             draw_card(ui, arch.card_title(crate::ppt_arch::PptCard::OverDrive), |ui| {
                 let (gfx_tag, mem_tag, pwr_tag, fan_tag, ac_tag) = arch.od_offset_labels();
                 if !arch.has_od8_and_smu_masks() {

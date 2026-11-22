@@ -46,7 +46,7 @@ impl PowerPlayApp {
 
 
         let show_zerorpm = self.is_card_usable(crate::ppt_arch::PptCard::ZeroRpm);
-        two_col_cards(ui, "fan_cols", |ui| {
+        two_col_cards_adaptive(ui, "fan_cols", true, true, |ui| {
             draw_card(ui, "Fan Settings", |ui| {
                 kv_row_1(ui, "PWM Min (%)", "fan_pwm_min (0x716 / 0x86C)", &mut self.fan_pwm_min, 62.0);
                 kv_row_1(ui, "Acoustic Limit (RPM)", "fan_acoustic_limit (0x718 / 0x86E)", &mut self.fan_acoustic_limit, 62.0);

@@ -63,7 +63,7 @@ impl PowerPlayApp {
         let show_powerandcurrent = self.is_card_usable(crate::ppt_arch::PptCard::PowerAndCurrent);
         let show_thermalvmin = self.is_card_usable(crate::ppt_arch::PptCard::ThermalVmin);
         let show_ulvvoltage = self.is_card_usable(crate::ppt_arch::PptCard::UlvVoltage);
-        two_col_cards(ui, "pwr_cols", |ui| {
+        two_col_cards_adaptive(ui, "pwr_cols", true, true, |ui| {
             if show_corevoltage {
                 draw_card(ui, arch.card_title(crate::ppt_arch::PptCard::CoreVoltage), |ui| {
                     let (gfx_vtag, soc_vtag) = arch.core_voltage_offset_labels();
