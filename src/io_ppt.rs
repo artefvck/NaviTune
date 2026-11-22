@@ -459,6 +459,15 @@ impl PowerPlayApp {
                 self.freq_gfx = [0, 0];
                 self.freq_soc = [0, 0];
             }
+            let (s_min, s_max, v_min, v_max, pwr_w, tdc_a, m_states) = pol.read_polaris_dpm_and_powertune(&b);
+            if s_max > 0 { self.freq_gfx = [s_min, s_max]; }
+            if v_max > 0 { self.volt_gfx = [v_min, v_max]; }
+            if pwr_w > 0 { self.power_limit_w = pwr_w; self.power_limit_ac[0] = pwr_w; }
+            if tdc_a > 0 { self.tdc_gfx = tdc_a; }
+            for (idx, &(mc, vci, mvd)) in m_states.iter().enumerate() {
+                self.mem_dpm_freq[idx] = [mc, 1];
+                self.mem_dpm_volt[idx] = [vci, mvd];
+            }
             if let Some((pwm_min, max_rpm, tgt_temp, tgt_gfx, zrpm, stop_t, start_t)) = pol.read_fan_subtable(&b) {
                 self.fan_pwm_min = pwm_min;
                 self.fan_max_rpm = max_rpm;
@@ -901,6 +910,7 @@ impl PowerPlayApp {
             pol.max_od_engine_clock = (self.oc_gfx_clock[1].max(0) * 100) as u32;
             pol.max_od_memory_clock = (self.oc_mem_clock[1].max(0) * 100) as u32;
             pol.power_control_limit = self.oc_power_limit[1].max(0) as u16;
+            crate::pptable_polaris::AtomPolarisPowerPlayTable::write_polaris_dpm_and_powertune(&mut self.raw_buffer, self.freq_gfx[0], self.freq_gfx[1], self.volt_gfx[1], self.power_limit_w, self.tdc_gfx, &self.mem_dpm_freq, &self.mem_dpm_volt);
             crate::pptable_polaris::AtomPolarisPowerPlayTable::write_fan_subtable(
                 &mut self.raw_buffer,
                 self.fan_pwm_min,
