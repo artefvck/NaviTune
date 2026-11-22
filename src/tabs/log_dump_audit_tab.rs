@@ -114,11 +114,11 @@ impl PowerPlayApp {
         } else if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(&self.raw_buffer) {
             t1.detect_chip(did).display_name()
         } else {
-            crate::pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer).map(|t| t.detect_chip(&self.raw_buffer).display_name()).unwrap_or("Unknown")
+            crate::pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer).map(|t| t.detect_chip(&self.raw_buffer).display_name()).unwrap_or(if crate::ppt_arch::PptArch::detect(&self.raw_buffer) == crate::ppt_arch::PptArch::Polaris { "Polaris (SMU 8.0, rev 0x07)" } else { "Unknown" })
         };
         out.push_str(&format!("Detected Silicon : {}\n", chip_name));
         let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
-        out.push_str(&format!("SMU Firmware     : {} (default {} B)\n", arch.smu_generation(), arch.default_table_size()));
+        out.push_str(&format!("Table Struct     : {} ({}, default {} B)\n", arch.table_struct_name(), arch.smu_generation(), arch.default_table_size()));
         out.push_str(&format!("Encoded Size     : {} bytes\n", self.raw_buffer.len()));
         if let Some(v20) = crate::pptable_vega::AtomVega20PowerPlayTable::from_bytes(&self.raw_buffer) {
             out.push_str(&format!("Vega 20 Offsets  : PPT0={}W (0x11D), TDC={}/{}A (0x13D), GFX_V={}..{}mV (0x159)\n", {v20.socket_power_limit_ac[0]}, {v20.tdc_limit_gfx}, {v20.tdc_limit_soc}, {v20.min_voltage_gfx}/4, {v20.max_voltage_gfx}/4));
@@ -127,7 +127,13 @@ impl PowerPlayApp {
         } else if let Some(v10) = crate::pptable_vega::AtomVega10PowerPlayTable::from_bytes(&self.raw_buffer) {
             out.push_str(&format!("Vega 10 Offsets  : OD_GFX={}MHz (0x017), OD_MEM={}MHz (0x01B), FanOff=0x{:03X}, HardLimOff=0x{:03X}\n", {v10.max_od_engine_clock}/100, {v10.max_od_memory_clock}/100, {v10.fan_table_offset}, {v10.hard_limit_table_offset}));
         }
-        out.push_str(&format!("SMU Enabled Bits : [{}]\n", enabled_bits.join(", ")));
+        let feat_mask: u64 = if arch.is_gcn_subtable() && self.raw_buffer.len() >= 0x17 {
+            u32::from_le_bytes([self.raw_buffer[0x13], self.raw_buffer[0x14], self.raw_buffer[0x15], self.raw_buffer[0x16]]) as u64
+        } else {
+            (0..64usize).fold(0u64, |acc, bit| if self.smu_features[bit] { acc | (1u64 << bit) } else { acc })
+        };
+        let decoded_feats: Vec<String> = arch.decode_feature_bits(feat_mask).into_iter().map(|(bit, name)| format!("{}:{}", bit, name)).collect();
+        if arch.is_gcn_subtable() { out.push_str(&format!("PlatformCaps     : 0x{:08X} ({})\n", feat_mask as u32, decoded_feats.join(", "))); } else { out.push_str(&format!("FeaturesToRun    : 0x{:016X} ({})\n", feat_mask, decoded_feats.join(", "))); }
         out.push_str(&format!("Decoded Vars     : {} entries\n", vars.len()));
         for (k, v) in vars {
             out.push_str(&format!("  {} = {}\n", k, v));

@@ -64,9 +64,9 @@ pub fn resolve_master_powerplay_table(buf: &[u8]) -> Option<(usize, usize, usize
         let frev = buf[ppt_off + 2];
         let crev = buf[ppt_off + 3];
         let trev = buf[ppt_off + 4];
-        if (1500..=6144).contains(&ppt_size)
+        if (384..=6144).contains(&ppt_size)
             && ppt_off + ppt_size <= buf.len()
-            && matches!(frev, 0x0F | 0x10 | 0x11 | 0x12 | 0x13 | 0x14 | 0x15 | 0x16)
+            && matches!(frev, 0x07 | 0x08 | 0x0B | 0x0C | 0x0D | 0x0E | 0x0F | 0x10 | 0x11 | 0x12 | 0x13 | 0x14 | 0x15 | 0x16)
             && crev <= 0x10
             && trev <= 0x06
         {
@@ -78,7 +78,7 @@ pub fn resolve_master_powerplay_table(buf: &[u8]) -> Option<(usize, usize, usize
 
 fn scan_powerplay_signature(buf: &[u8]) -> Option<(usize, usize)> {
     let known_frev = [0x07u8, 0x08, 0x0B, 0x0C, 0x0F, 0x12, 0x13, 0x14, 0x15, 0x16];
-    for i in 0..buf.len().saturating_sub(8) {
+    for i in 0x400..buf.len().saturating_sub(8) {
         let sz = read_u16(buf, i)? as usize;
         let frev = buf[i + 2];
         let crev = buf[i + 3];

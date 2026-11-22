@@ -368,7 +368,7 @@ impl PowerPlayApp {
             return;
         }
 
-        if let Some(v20) = crate::pptable_vega::AtomVega20PowerPlayTable::from_bytes(&b) {
+        if let Some(v20) = crate::pptable_vega::AtomVega20PowerPlayTable::from_bytes_padded(&b) {
             let did = self.vbios_buffer.as_deref()
                 .and_then(|vb| crate::vbios::inspect_vbios_info(vb, self.vbios_ppt_offset.unwrap_or(0)))
                 .map(|vi| vi.device_id)
@@ -423,6 +423,18 @@ impl PowerPlayApp {
             let tl = { v20.temp_limit };
             for i in 0..7 { self.temp_limits[i] = tl[i] as i32; }
 
+            // pol_caps_to_od_feat: map ulPlatformCaps (0x013) onto OverDrive Feature checkboxes
+            if b.len() >= 0x17 {
+                let pcaps = u32::from_le_bytes([b[0x13], b[0x14], b[0x15], b[0x16]]);
+                let odn_ac = (pcaps & (1 << 18)) != 0;
+                self.gpu_clock_limit = odn_ac;
+                self.memory_clock_limit = odn_ac;
+                self.power_limit_feat = odn_ac;
+                self.min_fan_speed = (pcaps & (1 << 11)) != 0 || self.fan_pwm_min > 0;
+                self.fan_target_temp_limit = self.fan_target_temp > 0;
+                self.operating_temp_limit = (pcaps & (1 << 2)) != 0;
+                self.zero_rpm = self.fan_zero_rpm_enable;
+            }
             self.status_msg = format!("Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B]", label, chip_v.display_name(), frev, crev, trev, b.len());
             self.raw_buffer = b;
             return;
@@ -459,6 +471,15 @@ impl PowerPlayApp {
                 self.freq_gfx = [0, 0];
                 self.freq_soc = [0, 0];
             }
+            let (s_min, s_max, v_min, v_max, pwr_w, tdc_a, m_states) = pol.read_polaris_dpm_and_powertune(&b);
+            if s_max > 0 { self.freq_gfx = [s_min, s_max]; }
+            if v_max > 0 { self.volt_gfx = [v_min, v_max]; }
+            if pwr_w > 0 { self.power_limit_w = pwr_w; self.power_limit_ac[0] = pwr_w; }
+            if tdc_a > 0 { self.tdc_gfx = tdc_a; }
+            for (idx, &(mc, vci, mvd)) in m_states.iter().enumerate() {
+                self.mem_dpm_freq[idx] = [mc, 1];
+                self.mem_dpm_volt[idx] = [vci, mvd];
+            }
             if let Some((pwm_min, max_rpm, tgt_temp, tgt_gfx, zrpm, stop_t, start_t)) = pol.read_fan_subtable(&b) {
                 self.fan_pwm_min = pwm_min;
                 self.fan_max_rpm = max_rpm;
@@ -467,6 +488,18 @@ impl PowerPlayApp {
                 self.fan_zero_rpm_enable = zrpm;
                 self.fan_stop_temp = stop_t;
                 self.fan_start_temp = start_t;
+            }
+            // polaris_od_caps_loaded: decode ulPlatformCaps (0x013) + ATOM_Tonga_Fan_Table state
+            if b.len() >= 0x17 {
+                let pcaps = u32::from_le_bytes([b[0x13], b[0x14], b[0x15], b[0x16]]);
+                let odn_ac = (pcaps & (1 << 18)) != 0;
+                self.gpu_clock_limit = odn_ac;
+                self.memory_clock_limit = odn_ac;
+                self.power_limit_feat = odn_ac;
+                self.min_fan_speed = (pcaps & (1 << 11)) != 0 || self.fan_pwm_min > 0;
+                self.fan_target_temp_limit = self.fan_target_temp > 0;
+                self.operating_temp_limit = (pcaps & (1 << 2)) != 0 || self.fan_target_temp > 0;
+                self.zero_rpm = false;
             }
             self.status_msg = format!("Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B]", label, chip_p.display_name(), frev, crev, trev, b.len());
             self.raw_buffer = b;
@@ -553,11 +586,6 @@ impl PowerPlayApp {
             return;
         }
 
-        let Some(t) = AtomSmcDpmInfoV4_9::from_bytes(&b) else {
-            self.show_error("Invalid RDNA 2 PPTable", &format!("Expected at least {} bytes (AtomSmcDpmInfoV4_9), got {} bytes.", std::mem::size_of::<crate::pptable_rdna2::AtomSmcDpmInfoV4_9>(), b.len()));
-            return;
-        };
-
         // Clean all UI fields to default before populating from the newly loaded table
         let saved_vbios = self.vbios_buffer.take();
         let saved_voff = self.vbios_ppt_offset.take();
@@ -568,6 +596,11 @@ impl PowerPlayApp {
         self.vbios_ppt_offset = saved_voff;
         self.loaded_file = saved_file;
         self.selected_gpu = saved_gpu;
+
+        let Some(t) = AtomSmcDpmInfoV4_9::from_bytes(&b) else {
+            self.show_error("Invalid RDNA 2 PPTable", &format!("Expected at least {} bytes (AtomSmcDpmInfoV4_9), got {} bytes.", std::mem::size_of::<crate::pptable_rdna2::AtomSmcDpmInfoV4_9>(), b.len()));
+            return;
+        };
 
         let f = t.od_feature_flags;
         self.gpu_clock_limit = f[0] != 0; self.gpu_clock_curve = f[1] != 0;
@@ -834,7 +867,7 @@ impl PowerPlayApp {
             return;
         }
 
-        if let Some(v20) = crate::pptable_vega::AtomVega20PowerPlayTable::from_bytes_mut(&mut self.raw_buffer) {
+        if let Some(mut v20_val) = crate::pptable_vega::AtomVega20PowerPlayTable::from_bytes_padded(&self.raw_buffer) { let v20 = &mut v20_val;
             v20.boost_power_limit = self.power_limit_w.max(0) as u16;
             v20.socket_power_limit_ac[0] = self.power_limit_w.max(0) as u16;
             v20.tdc_limit_gfx = self.tdc_gfx.max(0) as u16;
@@ -894,12 +927,32 @@ impl PowerPlayApp {
             v20.od_feature_flags[8] = u8::from(self.fan_curve);
             v20.od_feature_flags[9] = u8::from(self.power_limit_feat);
             return;
+            v20.od_feature_flags = [
+                self.gpu_clock_limit as u8, self.gpu_clock_curve as u8,
+                self.memory_clock_limit as u8, self.zero_rpm as u8,
+                self.min_fan_speed as u8, self.fan_target_temp_limit as u8,
+                self.operating_temp_limit as u8, self.fan_acoustic_rpm as u8,
+                self.fan_curve as u8, self.power_limit_feat as u8,
+                self.timing_tuning as u8, self.power_mode as u8,
+                self.auto_undervolt_gpu as u8, self.auto_overclock_gpu as u8,
+                self.auto_overclock_mem as u8, self.auto_fan_acoustic_limit as u8,
+            ];
+            v20_val.write_back_to_slice(&mut self.raw_buffer);
         }
 
         if let Some(pol) = crate::pptable_polaris::AtomPolarisPowerPlayTable::from_bytes_mut(&mut self.raw_buffer) {
             pol.max_od_engine_clock = (self.oc_gfx_clock[1].max(0) * 100) as u32;
             pol.max_od_memory_clock = (self.oc_mem_clock[1].max(0) * 100) as u32;
             pol.power_control_limit = self.oc_power_limit[1].max(0) as u16;
+            crate::pptable_polaris::AtomPolarisPowerPlayTable::write_polaris_dpm_and_powertune(&mut self.raw_buffer, self.freq_gfx[0], self.freq_gfx[1], self.volt_gfx[1], self.power_limit_w, self.tdc_gfx, &self.mem_dpm_freq, &self.mem_dpm_volt);
+            // polaris_od_caps_saved: sync OverDrive Feature checkboxes back to ulPlatformCaps (0x013..0x017)
+            if self.raw_buffer.len() >= 0x17 {
+                let mut pcaps = u32::from_le_bytes([self.raw_buffer[0x13], self.raw_buffer[0x14], self.raw_buffer[0x15], self.raw_buffer[0x16]]);
+                if self.gpu_clock_limit || self.memory_clock_limit || self.power_limit_feat { pcaps |= 1 << 18; } else { pcaps &= !(1 << 18); }
+                if self.min_fan_speed { pcaps |= 1 << 11; } else { pcaps &= !(1 << 11); }
+                if self.operating_temp_limit { pcaps |= 1 << 2; } else { pcaps &= !(1 << 2); }
+                self.raw_buffer[0x13..0x17].copy_from_slice(&pcaps.to_le_bytes());
+            }
             crate::pptable_polaris::AtomPolarisPowerPlayTable::write_fan_subtable(
                 &mut self.raw_buffer,
                 self.fan_pwm_min,

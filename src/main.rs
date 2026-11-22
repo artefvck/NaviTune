@@ -187,6 +187,9 @@ impl Default for PowerPlayApp {
 }
 impl eframe::App for PowerPlayApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        ctx.data_mut(|d| d.insert_temp(egui::Id::new("ppt_loaded"), !self.raw_buffer.is_empty()));
+        // ppt_loaded_synced_from_raw_buffer
+        //ctx.data_mut(|d| d.insert_temp(egui::Id::new(\"ppt_loaded\"), !self.raw_buffer.is_empty()));
         if let Some(rect) = ctx.input(|i| i.viewport().inner_rect) { crate::ui_theme::save_window_size(ctx, rect.size()); }
         ctx.data_mut(|d| {
             d.insert_temp(egui::Id::new("ppt_loaded"), !self.raw_buffer.is_empty());
@@ -407,6 +410,15 @@ impl eframe::App for PowerPlayApp {
                     (Tab::More, "More"),
                     (Tab::Log, "Log"),
                 ] {
+                    let cur_arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
+                    if !self.raw_buffer.is_empty() && cur_arch.is_gcn_subtable() {
+                        if self.active_tab == Tab::Curve {
+                            self.active_tab = Tab::Features;
+                        }
+                        if tab == Tab::Curve {
+                            continue;
+                        }
+                    }
                     ui.selectable_value(&mut self.active_tab, tab, label);
                 }
             });

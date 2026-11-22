@@ -1,18 +1,40 @@
-# RDNA 2 (`SMU 11.0`) Soft PowerPlay Table Reference
+# RDNA 2 PowerPlayTable Layout (`SMU 11.0`, `V4_9`, Navi 21 / 22 / 23 / 24)
 
-NaviTune supports **AMD RDNA 2** (`Navi 21`, `Navi 22`, `Navi 23`, `Navi 24`) via `AtomSmcDpmInfoV4_9` (`2,470` bytes, `table_format_revision` `0x0F`–`0x13`).
+Verified directly against `src/pptable_rdna2.rs` (`AtomSmcDpmInfoV4_9`, `2470 bytes`, RX 6600 / 6700 / 6800 / 6900 XT).
 
-## Supported Silicon & PCI Device IDs
-* **Navi 21**: RX 6800 / 6800 XT / 6900 XT / 6950 XT, Radeon Pro W6800 (`0x73BF`, `0x73AF`)
-* **Navi 22**: RX 6700 / 6700 XT / 6750 XT (`0x73DF`)
-* **Navi 23**: RX 6600 / 6600 XT / 6650 XT, Radeon Pro W6600 (`0x73FF`, `0x73EF`, `0x73E3`)
-* **Navi 24**: RX 6400 / 6500 XT, Radeon Pro W6400 (`0x743F`)
+- **Struct**: `AtomSmcDpmInfoV4_9` (`2470 bytes`)
+- **Verified Offset Assertions**: `23` fields checked at compile time
 
-## Key Byte Offsets (`AtomSmcDpmInfoV4_9`)
-* `0x0C2`: `od_feature_flags`
-* `0x0FA`: `socket_power_limit_ac` (`PPT0..PPT3` in W)
-* `0x11A` / `0x11C`: `tdc_limit_gfx` / `tdc_limit_soc` (A)
-* `0x13A..0x140`: `vmin_gfx`, `vmin_soc`, `vmax_gfx`, `vmax_soc` (`0.25 mV` units)
-* `0x57E`: `freq_uclk` (MHz + Div)
-* `0x6F6` / `0x6F8` / `0x6FA`: `pcie_gen_speed`, `pcie_lane_count`, `lclk_freq`
-* `0x8A2`..`0x8BE`: Fan PWM, RPM, Zero RPM stop/start temperatures, and target temp
+## Architecture Notes
+
+- Full `2470-byte` (`0x9A6`) `AtomSmcDpmInfoV4_9` layout with 64-bit `features_to_run` and `od_feature_flags[0..16]`.
+- Supports all 17 `PptCard` panels including RDNA 2-exclusive `Thermal Vmin` (`0x5D8..0x5DF`) and `Power Mode Acoustic` (`0x912..0x91E`).
+- Supports 4-preset `Power Modes` (`Quiet`, `Balanced`, `Turbo`, `Rage` @ `0x902..0x90E`).
+
+## Verified Binary Offset Map
+
+| Offset | Struct Field | Rust Type |
+| :--- | :--- | :--- |
+| `0x2DA` | `pm_quiet_limit` | `u32` |
+| `0x2EA` | `pm_quiet_temp` | `u16` |
+| `0x2F2` | `ac_quiet` | `[u16; 2]` |
+| `0x322` | `smc_pptable_if_version` | `u32` |
+| `0x326` | `features_to_run` | `u64` |
+| `0x32E` | `socket_power_limit_ac` | `[u16; 4]` |
+| `0x52E` | `freq_gfx_min` | `u16` |
+| `0x54E` | `freq_vclk` | `[u16; 2]` |
+| `0x55E` | `freq_dclk` | `[u16; 2]` |
+| `0x56E` | `freq_soc` | `[u16; 2]` |
+| `0x57E` | `freq_uclk` | `[u16; 4]` |
+| `0x586` | `freq_dcef` | `[u16; 2]` |
+| `0x596` | `freq_disp` | `[u16; 2]` |
+| `0x5A6` | `freq_pix` | `[u16; 2]` |
+| `0x5B6` | `freq_phy` | `[u16; 2]` |
+| `0x5C6` | `freq_dtb` | `[u16; 2]` |
+| `0x5D6` | `freq_fclk` | `[u16; 2]` |
+| `0x65A` | `mem_clk_div` | `[u8; 4]` |
+| `0x6F6` | `pcie_gen_speed` | `[u8; 2]` |
+| `0x716` | `fan_pwm_min` | `u16` |
+| `0x74E` | `static_volt_gfx` | `QuadraticCoeff` |
+| `0x7AA` | `static_volt_offset_gfx` | `QuadraticCoeff` |
+| `0x7C2` | `dctol_gfx` | `i16` |

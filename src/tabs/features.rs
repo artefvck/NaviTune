@@ -3,61 +3,124 @@ use crate::PowerPlayApp;
 
 impl PowerPlayApp {
     pub fn draw_features_tab(&mut self, ui: &mut egui::Ui) {
-        ui.vertical_centered(|ui| {
-            let btn = egui::Button::new("PPTable Features").min_size(egui::vec2(180.0, 28.0));
-            if ui.add(btn).clicked() {
-                self.show_smu_features_window = !self.show_smu_features_window;
-            }
-        });
-        ui.add_space(6.0);
+        let ctx = ui.ctx().clone();
+        let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
+        let loaded = !self.raw_buffer.is_empty();
+        let gen = ctx.data(|d| d.get_temp::<u64>(egui::Id::new("ppt_baseline_gen")).unwrap_or(0));
 
-        crate::card_layout::draw_card(ui, "OverDrive Features", |ui| {
-            ui.columns(2, |cols| {
-                cols[0].spacing_mut().item_spacing.y = 4.0;
-                cols[1].spacing_mut().item_spacing.y = 4.0;
-                let left_items = [
-                    (&mut self.gpu_clock_limit, "GPU Clock Limit", "od_feat_0"),
-                    (&mut self.gpu_clock_curve, "GPU Clock Curve", "od_feat_1"),
-                    (&mut self.memory_clock_limit, "Memory Clock Limit", "od_feat_2"),
-                    (&mut self.zero_rpm, "Zero RPM", "od_feat_3"),
-                    (&mut self.min_fan_speed, "Minimum Fan Speed", "od_feat_4"),
-                    (&mut self.fan_target_temp_limit, "Fan Target Temperature Limit", "od_feat_5"),
-                    (&mut self.operating_temp_limit, "Operating Temperature Limit", "od_feat_6"),
-                    (&mut self.fan_acoustic_rpm, "Fan Acoustic RPM", "od_feat_7"),
-                ];
-                for (flag, lbl, tag) in left_items {
-                    cols[0].horizontal(|ui| {
-                        let resp = crate::ui_theme::green_checkbox(ui, flag, lbl);
-                        if resp.hovered() || resp.clicked() {
-                            let state = if *flag { "Enabled" } else { "Disabled" };
-                            let info = format!("OverDrive Features › {} ({}) · {}", lbl, tag, state);
-                            ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("hovered_field_banner"), info.clone()));
-                            resp.on_hover_text(info);
-                        }
-                    });
-                }
-                let right_items = [
-                    (&mut self.fan_curve, "Fan Curve", "od_feat_8"),
-                    (&mut self.power_limit_feat, "Power Limit", "od_feat_9"),
-                    (&mut self.timing_tuning, "Timing Tuning", "od_feat_10"),
-                    (&mut self.power_mode, "Power Mode", "od_feat_11"),
-                    (&mut self.auto_undervolt_gpu, "Auto Undervolt GPU", "od_feat_12"),
-                    (&mut self.auto_overclock_gpu, "Auto Overclock GPU", "od_feat_13"),
-                    (&mut self.auto_overclock_mem, "Auto Overclock Memory", "od_feat_14"),
-                    (&mut self.auto_fan_acoustic_limit, "Auto Fan Acoustic Limit", "od_feat_15"),
-                ];
-                for (flag, lbl, tag) in right_items {
-                    cols[1].horizontal(|ui| {
-                        let resp = crate::ui_theme::green_checkbox(ui, flag, lbl);
-                        if resp.hovered() || resp.clicked() {
-                            let state = if *flag { "Enabled" } else { "Disabled" };
-                            let info = format!("OverDrive Features › {} ({}) · {}", lbl, tag, state);
-                            ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("hovered_field_banner"), info.clone()));
-                            resp.on_hover_text(info);
-                        }
-                    });
+        if !arch.is_gcn_subtable() {
+            ui.vertical_centered(|ui| {
+                let btn = egui::Button::new("PPTable Features").min_size(egui::vec2(180.0, 28.0));
+                if ui.add(btn).clicked() {
+                    self.show_smu_features_window = !self.show_smu_features_window;
                 }
             });
+            ui.add_space(6.0);
+        }
+
+        let card_title = if arch.is_gcn_subtable() {
+            "OverDrive & Platform Capabilities (0x013)"
+        } else {
+            "OverDrive Features"
+        };
+
+        let ctx = ctx.clone();
+        crate::card_layout::draw_card(ui, card_title, |ui| {
+            if !loaded {
+                ui.disable();
+            }
+                ui.columns(2, |cols| {
+                    cols[0].spacing_mut().item_spacing.y = 4.0;
+                    cols[1].spacing_mut().item_spacing.y = 4.0;
+                    let left_items: [(&mut bool, &str, &str, bool); 8] = [
+                        (&mut self.gpu_clock_limit, "GPU Clock Limit", "od_feat_0", true),
+                        (&mut self.gpu_clock_curve, "GPU Clock Curve", "od_feat_1", !arch.is_gcn_subtable()),
+                        (&mut self.memory_clock_limit, "Memory Clock Limit", "od_feat_2", true),
+                        (&mut self.zero_rpm, "Zero RPM", "od_feat_3", arch != crate::ppt_arch::PptArch::Polaris),
+                        (&mut self.min_fan_speed, "Minimum Fan Speed", "od_feat_4", true),
+                        (&mut self.fan_target_temp_limit, "Fan Target Temperature Limit", "od_feat_5", true),
+                        (&mut self.operating_temp_limit, "Operating Temperature Limit", "od_feat_6", true),
+                        (&mut self.fan_acoustic_rpm, "Fan Acoustic RPM", "od_feat_7", !arch.is_gcn_subtable()),
+                    ];
+                    for (flag, lbl, tag, supported) in left_items {
+                        if !supported {
+                            continue;
+                        }
+                        let base_id = egui::Id::new(("od_feat_base", gen, tag));
+                        let base_val = ctx.data_mut(|d| {
+                            if let Some(v) = d.get_temp::<bool>(base_id) {
+                                v
+                            } else {
+                                d.insert_temp(base_id, *flag);
+                                *flag
+                            }
+                        });
+                        cols[0].horizontal(|ui| {
+                            let resp = crate::ui_theme::green_checkbox(ui, flag, lbl);
+                            if resp.changed() {
+                                ctx.data_mut(|d| d.insert_temp(egui::Id::new("ppt_dirty"), true));
+                            }
+                            if *flag != base_val {
+                                ui.colored_label(egui::Color32::from_rgb(240, 70, 90), "●");
+                            }
+                            if resp.hovered() || resp.clicked() {
+                                let state = if *flag { "Enabled" } else { "Disabled" };
+                                let def_str = if base_val { "Enabled" } else { "Disabled" };
+                                let info = if *flag != base_val {
+                                    format!("{} › {} ({}) · {} (Factory: {})", card_title, lbl, tag, state, def_str)
+                                } else {
+                                    format!("{} › {} ({}) · {}", card_title, lbl, tag, state)
+                                };
+                                ctx.data_mut(|d| d.insert_temp(egui::Id::new("hovered_field_banner"), info.clone()));
+                                resp.on_hover_text(info);
+                            }
+                        });
+                    }
+                    let right_items: [(&mut bool, &str, &str, bool); 8] = [
+                        (&mut self.fan_curve, "Fan Curve", "od_feat_8", !arch.is_gcn_subtable()),
+                        (&mut self.power_limit_feat, "Power Limit", "od_feat_9", true),
+                        (&mut self.timing_tuning, "Timing Tuning", "od_feat_10", !arch.is_gcn_subtable()),
+                        (&mut self.power_mode, "Power Mode", "od_feat_11", arch.has_multi_power_modes()),
+                        (&mut self.auto_undervolt_gpu, "Auto Undervolt GPU", "od_feat_12", !arch.is_gcn_subtable()),
+                        (&mut self.auto_overclock_gpu, "Auto Overclock GPU", "od_feat_13", !arch.is_gcn_subtable()),
+                        (&mut self.auto_overclock_mem, "Auto Overclock Memory", "od_feat_14", !arch.is_gcn_subtable()),
+                        (&mut self.auto_fan_acoustic_limit, "Auto Fan Acoustic Limit", "od_feat_15", !arch.is_gcn_subtable()),
+                    ];
+                    for (flag, lbl, tag, supported) in right_items {
+                        if !supported {
+                            continue;
+                        }
+                        let base_id = egui::Id::new(("od_feat_base", gen, tag));
+                        let base_val = ctx.data_mut(|d| {
+                            if let Some(v) = d.get_temp::<bool>(base_id) {
+                                v
+                            } else {
+                                d.insert_temp(base_id, *flag);
+                                *flag
+                            }
+                        });
+                        cols[1].horizontal(|ui| {
+                            let resp = crate::ui_theme::green_checkbox(ui, flag, lbl);
+                            if resp.changed() {
+                                ctx.data_mut(|d| d.insert_temp(egui::Id::new("ppt_dirty"), true));
+                            }
+                            if *flag != base_val {
+                                ui.colored_label(egui::Color32::from_rgb(240, 70, 90), "●");
+                            }
+                            if resp.hovered() || resp.clicked() {
+                                let state = if *flag { "Enabled" } else { "Disabled" };
+                                let def_str = if base_val { "Enabled" } else { "Disabled" };
+                                let info = if *flag != base_val {
+                                    format!("{} › {} ({}) · {} (Factory: {})", card_title, lbl, tag, state, def_str)
+                                } else {
+                                    format!("{} › {} ({}) · {}", card_title, lbl, tag, state)
+                                };
+                                ctx.data_mut(|d| d.insert_temp(egui::Id::new("hovered_field_banner"), info.clone()));
+                                resp.on_hover_text(info);
+                            }
+                        });
+                    }
+                });
         });
 
         if self.show_smu_features_window {
@@ -118,8 +181,6 @@ impl PowerPlayApp {
                 });
             });
         }
-        if self.loaded_file.is_some() || self.vbios_buffer.is_some() || !self.raw_buffer.is_empty() {
-            ui.add_space(6.0);
             crate::card_layout::draw_card(ui, "VBIOS & Table Header", |ui| {
                 let info = self
                     .vbios_buffer
@@ -320,11 +381,16 @@ impl PowerPlayApp {
                                 ui.colored_label(egui::Color32::from_rgb(245, 75, 95), egui::RichText::new(msg).monospace());
                             }
                         } else {
-                            ui.weak("No valid RDNA 2 (V4_9) or RDNA 3 (V4_12) table loaded");
+                            ui.weak(match crate::ppt_arch::PptArch::detect(&self.raw_buffer) {
+                            crate::ppt_arch::PptArch::Polaris => "Valid Polaris (SMU 8.0, rev 0x07) table loaded",
+                            crate::ppt_arch::PptArch::Vega10 => "Valid Vega 10 (SMU 9.0, rev 0x08) table loaded",
+                            crate::ppt_arch::PptArch::Vega20 => "Valid Vega 20 (SMU 11.0, rev 0x0B) table loaded",
+                            crate::ppt_arch::PptArch::Rdna1 => "Valid RDNA 1 (SMU 11.0, V4_5) table loaded",
+                            _ => "No valid Polaris, Vega, or RDNA table loaded",
+                        });
                         }
                         ui.end_row();
                     });
             });
         }
     }
-}

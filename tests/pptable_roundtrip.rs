@@ -253,9 +253,9 @@ fn test_polaris_roundtrip() {
     assert_eq!(parsed.read_hard_limit_mem_volt(&pol), Some((950, 1000)));
     let fan_off: usize = 0x130;
     pptable_polaris::AtomPolarisPowerPlayTable::from_bytes_mut(&mut pol).unwrap().fan_table_offset = fan_off as u16;
-    pol[fan_off] = 11;
-    pptable_polaris::AtomPolarisPowerPlayTable::write_fan_subtable(&mut pol, 20, 2200, 72, 1350, true, 52, 60);
-    assert_eq!(pptable_polaris::AtomPolarisPowerPlayTable::from_bytes(&pol).unwrap().read_fan_subtable(&pol), Some((20, 2200, 72, 1350, true, 52, 60)));
+    pol[fan_off] = 9;
+    pptable_polaris::AtomPolarisPowerPlayTable::write_fan_subtable(&mut pol, 20, 2200, 75, 910, false, 0, 0);
+    assert_eq!(pptable_polaris::AtomPolarisPowerPlayTable::from_bytes(&pol).unwrap().read_fan_subtable(&pol), Some((20, 2200, 75, 910, false, 0, 0)));
     assert_eq!(ppt_arch::PptArch::detect(&pol), ppt_arch::PptArch::Polaris);
     let reg_pol = export_formats::format_reg_ppt(&pol);
     assert_eq!(import_formats::parse_reg_ppt(reg_pol.as_bytes()).expect("parse pol reg"), pol);
@@ -313,4 +313,317 @@ fn test_new_blank_table_all_six_archs() {
         assert_eq!(buf.len(), arch.default_table_size());
         assert_eq!(ppt_arch::PptArch::detect(&buf), arch);
     }
+}
+
+#[test]
+fn test_ppt_arch_capability_matrix_all_six() {
+    use ppt_arch::PptArch::*;
+    for arch in [Polaris, Vega10] {
+        assert!(arch.has_hard_limit_subtable());
+        assert!(!arch.has_od8_and_smu_masks());
+        assert!(!arch.has_multi_power_modes());
+        assert!(!arch.has_vf_curve_points());
+    }
+    for arch in [Vega20, Rdna1] {
+        assert!(!arch.has_hard_limit_subtable());
+        assert!(arch.has_od8_and_smu_masks());
+        assert!(!arch.has_multi_power_modes());
+        assert!(arch.has_vf_curve_points());
+    }
+    for arch in [Rdna2, Rdna3] {
+        assert!(!arch.has_hard_limit_subtable());
+        assert!(arch.has_od8_and_smu_masks());
+        assert!(arch.has_multi_power_modes());
+        assert!(arch.has_vf_curve_points());
+    }
+}
+
+#[test]
+fn test_features_to_run_all_six_architectures() {
+    use ppt_arch::PptArch::*;
+    assert_eq!(Polaris.feature_bit_name(0), "POWER_CONTAINMENT");
+    assert_eq!(Vega10.feature_bit_name(11), "FAN_SPEED_IN_RPM");
+    assert_eq!(Vega20.feature_bit_name(17), "GFXOFF");
+    assert_eq!(Rdna1.feature_bit_name(30), "FAN_CONTROL");
+    assert_eq!(Rdna2.feature_bit_name(36), "OUT_OF_BAND_MONITOR");
+    assert_eq!(Rdna3.feature_bit_name(19), "GFXOFF");
+    assert_eq!(Rdna3.feature_bit_name(30), "FAN_CONTROL");
+    let decoded = Rdna3.decode_feature_bits((1u64 << 1) | (1u64 << 19));
+    assert_eq!(decoded, vec![(1, "DPM_GFXCLK"), (19, "GFXOFF")]);
+}
+
+#[test]
+fn test_power_modes_and_acoustic_capabilities_all_six() {
+    use ppt_arch::PptArch::*;
+    for arch in [Polaris, Vega10, Vega20, Rdna1] {
+        assert!(!arch.has_multi_power_modes());
+        assert!(!arch.has_power_mode_acoustic());
+    }
+    assert!(Rdna2.has_multi_power_modes());
+    assert!(Rdna2.has_power_mode_acoustic());
+    assert!(Rdna3.has_multi_power_modes());
+    assert!(!Rdna3.has_power_mode_acoustic());
+}
+
+#[test]
+fn test_od_offset_labels_all_six_architectures() {
+    use ppt_arch::PptArch::*;
+    assert_eq!(Polaris.od_offset_labels().0, "max_od_engine_clock (0x017)");
+    assert_eq!(Vega10.od_offset_labels().2, "power_control_limit (0x01F)");
+    assert!(Vega20.od_offset_labels().0.contains("0x02F"));
+    assert!(Rdna1.od_offset_labels().1.contains("0x033"));
+    assert!(Rdna2.od_offset_labels().0.contains("0x04F"));
+    assert!(Rdna3.od_offset_labels().0.contains("0x051"));
+}
+
+#[test]
+fn test_core_voltage_offset_labels_all_six_architectures() {
+    use ppt_arch::PptArch::*;
+    assert_eq!(Polaris.core_voltage_offset_labels().0, "hard_limit_table_offset VDDC (mV)");
+    assert_eq!(Vega10.core_voltage_offset_labels().0, "hard_limit_table_offset VDDC (mV)");
+    assert!(Vega20.core_voltage_offset_labels().0.contains("0x11F"));
+    assert!(Rdna1.core_voltage_offset_labels().1.contains("0x0BD"));
+    assert!(Rdna2.core_voltage_offset_labels().0.contains("0x378"));
+    assert!(Rdna3.core_voltage_offset_labels().1.contains("0x3C0"));
+}
+
+#[test]
+fn test_frequency_cards_all_six_architectures() {
+    use ppt_arch::PptArch::*;
+    assert!(!Polaris.has_pcie_and_lclk_limits());
+    assert!(!Vega10.has_pcie_and_lclk_limits());
+    for arch in [Vega20, Rdna1, Rdna2, Rdna3] {
+        assert!(arch.has_pcie_and_lclk_limits());
+    }
+    assert!(Vega20.clock_limit_offset_labels().0.contains("0x185"));
+    assert!(Rdna1.clock_limit_offset_labels().1.contains("0x12F"));
+    assert!(Rdna2.clock_limit_offset_labels().2.contains("0x5D6"));
+    assert!(Rdna3.clock_limit_offset_labels().0.contains("0x5EC"));
+}
+
+#[test]
+fn test_vid_voltage_offset_and_thermal_limits_all_six() {
+    use ppt_arch::PptArch::*;
+    for arch in [Polaris, Vega10] {
+        assert!(!arch.has_vid_and_voltage_offset());
+        assert!(!arch.has_thermal_limits_array());
+    }
+    for arch in [Vega20, Rdna1, Rdna2, Rdna3] {
+        assert!(arch.has_vid_and_voltage_offset());
+        assert!(arch.has_thermal_limits_array());
+    }
+}
+
+#[test]
+fn test_fan_cards_all_six_architectures() {
+    use ppt_arch::PptArch::*;
+    for arch in [Polaris, Vega10] {
+        assert!(!arch.has_fan_curve_points());
+        assert!(!arch.has_fan_acoustic_and_throttling());
+    }
+    for arch in [Vega20, Rdna1, Rdna2, Rdna3] {
+        assert!(arch.has_fan_curve_points());
+        assert!(arch.has_fan_acoustic_and_throttling());
+    }
+    assert!(Polaris.fan_offset_labels().0.contains("fan_table_offset"));
+    assert!(Vega10.fan_offset_labels().3.contains("Stop/Start"));
+    assert!(Rdna2.fan_offset_labels().0.contains("0x8B8"));
+    assert!(Rdna3.fan_offset_labels().0.contains("0x1438"));
+}
+
+#[test]
+fn test_safe_tune_bounds_all_six_architectures() {
+    use ppt_arch::PptArch::*;
+    assert_eq!(Polaris.safe_tune_bounds(), (1550, 2350, 1200, 3500, 75));
+    assert_eq!(Vega10.safe_tune_bounds(), (1850, 1200, 1200, 3600, 75));
+    assert_eq!(Vega20.safe_tune_bounds(), (2000, 1300, 1200, 3600, 78));
+    assert_eq!(Rdna1.safe_tune_bounds(), (2150, 960, 1200, 3600, 80));
+    assert_eq!(Rdna2.safe_tune_bounds(), (2700, 1150, 1175, 3600, 82));
+    assert_eq!(Rdna3.safe_tune_bounds(), (3100, 1350, 1150, 3600, 85));
+}
+
+#[test]
+fn test_all_cards_matrix_across_six_architectures() {
+    use ppt_arch::{PptArch::*, PptCard::*};
+    for arch in [Polaris, Vega10] {
+        assert!(arch.supports_card(CoreVoltage));
+        assert!(arch.supports_card(OverDrive));
+        assert_eq!(arch.supports_card(PowerAndCurrent), arch == Polaris);
+        assert!(!arch.supports_card(PowerModes));
+        assert!(!arch.supports_card(FanCurve));
+        assert!(arch.card_title(CoreVoltage).contains("HardLimit"));
+    }
+    for arch in [Vega20, Rdna1] {
+        assert!(arch.supports_card(PowerAndCurrent));
+        assert!(arch.supports_card(FanCurve));
+        assert!(!arch.supports_card(PowerModes));
+        assert!(!arch.supports_card(ThermalVmin));
+    }
+    assert!(Rdna2.supports_card(PowerModes));
+    assert!(Rdna2.supports_card(PowerModeAcoustic));
+    assert!(Rdna2.supports_card(ThermalVmin));
+    assert!(Rdna3.supports_card(PowerModes));
+    assert!(!Rdna3.supports_card(PowerModeAcoustic));
+    assert!(!Rdna3.supports_card(ThermalVmin));
+}
+
+#[test]
+fn test_field_box_spec_all_units() {
+    use ppt_arch::PptArch;
+    assert_eq!(PptArch::field_box_spec("VDDC Max (HardLimit)"), (0, 1600, 1.0, " mV"));
+    assert_eq!(PptArch::field_box_spec("GFXCLK Max (HardLimit)"), (0, 4500, 5.0, " MHz"));
+    assert_eq!(PptArch::field_box_spec("Fan Max RPM"), (0, 6000, 25.0, " RPM"));
+    assert_eq!(PptArch::field_box_spec("Target Temp (°C)"), (0, 125, 1.0, " °C"));
+    assert_eq!(PptArch::field_box_spec("Power Limit (W)"), (0, 1000, 1.0, " W"));
+    assert_eq!(PptArch::field_box_spec("TDC GFX (A)"), (0, 1000, 1.0, " A"));
+}
+
+#[test]
+fn test_vega20_1534_byte_vbios_pptable() {
+    let mut v20 = vec![0u8; 1924];
+    v20[0..2].copy_from_slice(&1924u16.to_le_bytes());
+    v20[2] = 0x0B;
+    assert_eq!(ppt_arch::PptArch::detect(&v20), ppt_arch::PptArch::Vega20);
+    let mut parsed = pptable_vega::AtomVega20PowerPlayTable::from_bytes_padded(&v20).expect("1534 B Vega 20 parse");
+    parsed.boost_power_limit = 250;
+    parsed.write_back_to_slice(&mut v20);
+    assert_eq!({ pptable_vega::AtomVega20PowerPlayTable::from_bytes_padded(&v20).unwrap().boost_power_limit }, 250);
+}
+
+#[test]
+fn test_power_modes_verification_all_six() {
+    use ppt_arch::{PptArch::*, PptCard::PowerModes};
+    for arch in [Polaris, Vega10, Vega20, Rdna1] {
+        assert!(!arch.supports_card(PowerModes));
+    }
+    assert!(Rdna2.supports_card(PowerModes));
+    assert!(Rdna3.supports_card(PowerModes));
+
+    // Verify RDNA 2 (V4_9) Power Modes round-trip (Quiet/Balanced/Turbo/Rage W + Temp)
+    let mut r2 = vec![0u8; 2470];
+    r2[0..2].copy_from_slice(&2470u16.to_le_bytes());
+    r2[2] = 0x0F;
+    let t2 = pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes_mut(&mut r2).unwrap();
+    t2.pm_quiet_limit = 220; t2.pm_quiet_temp = 72;
+    t2.pm_balanced_limit = 250; t2.pm_balanced_temp = 78;
+    t2.pm_turbo_limit = 275; t2.pm_turbo_temp = 83;
+    t2.pm_rage_limit = 290; t2.pm_rage_temp = 86;
+    let r2_check = pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(&r2).unwrap();
+    assert_eq!({ r2_check.pm_quiet_limit }, 220);
+    assert_eq!({ r2_check.pm_balanced_limit }, 250);
+    assert_eq!({ r2_check.pm_turbo_limit }, 275);
+    assert_eq!({ r2_check.pm_rage_limit & 0xFFFF }, 290);
+}
+
+#[test]
+fn test_power_mode_acoustic_verification_all_six() {
+    use ppt_arch::{PptArch::*, PptCard::PowerModeAcoustic};
+    for arch in [Polaris, Vega10, Vega20, Rdna1, Rdna3] {
+        assert!(!arch.supports_card(PowerModeAcoustic));
+    }
+    assert!(Rdna2.supports_card(PowerModeAcoustic));
+
+    // Verify RDNA 2 (V4_9) Power Mode Acoustic round-trip (ac_quiet..ac_rage @ 0x912..0x91E)
+    let mut r2 = vec![0u8; 2470];
+    r2[0..2].copy_from_slice(&2470u16.to_le_bytes());
+    r2[2] = 0x0F;
+    let t2 = pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes_mut(&mut r2).unwrap();
+    t2.ac_quiet = [1450, 28];
+    t2.ac_balanced = [1750, 35];
+    t2.ac_turbo = [2100, 45];
+    t2.ac_rage = [2400, 55];
+    let r2_check = pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(&r2).unwrap();
+    assert_eq!({ r2_check.ac_quiet }, [1450, 28]);
+    assert_eq!({ r2_check.ac_balanced }, [1750, 35]);
+    assert_eq!({ r2_check.ac_turbo }, [2100, 45]);
+    assert_eq!({ r2_check.ac_rage }, [2400, 55]);
+}
+
+#[test]
+fn test_thermal_limits_verification_all_six() {
+    use ppt_arch::{PptArch::*, PptCard::ThermalLimits};
+    for arch in [Polaris, Vega10] {
+        assert!(!arch.supports_card(ThermalLimits));
+    }
+    for arch in [Vega20, Rdna1, Rdna2, Rdna3] {
+        assert!(arch.supports_card(ThermalLimits));
+    }
+
+    // Verify Vega 20 (1534 B) & RDNA 2 (2470 B) temp_limit round-trip
+    let mut v20 = vec![0u8; 1924];
+    v20[0..2].copy_from_slice(&1924u16.to_le_bytes());
+    v20[2] = 0x0B;
+    let mut t20 = pptable_vega::AtomVega20PowerPlayTable::from_bytes_padded(&v20).unwrap();
+    t20.temp_limit = [100, 110, 105, 115, 115, 115, 115];
+    t20.write_back_to_slice(&mut v20);
+    assert_eq!({ pptable_vega::AtomVega20PowerPlayTable::from_bytes_padded(&v20).unwrap().temp_limit[1] }, 110);
+
+    let mut r2 = vec![0u8; 2470];
+    r2[0..2].copy_from_slice(&2470u16.to_le_bytes());
+    r2[2] = 0x0F;
+    let t2 = pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes_mut(&mut r2).unwrap();
+    t2.temp_limit = [100, 110, 105, 115, 115, 115, 115, 100, 100];
+    assert_eq!({ pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(&r2).unwrap().temp_limit[1] }, 110);
+}
+
+#[test]
+fn test_voltage_offset_verification_all_six() {
+    use ppt_arch::{PptArch::*, PptCard::VidCurveAndOffset};
+    for arch in [Polaris, Vega10] {
+        assert!(!arch.supports_card(VidCurveAndOffset));
+    }
+    for arch in [Vega20, Rdna1, Rdna2, Rdna3] {
+        assert!(arch.supports_card(VidCurveAndOffset));
+    }
+
+    // Verify RDNA 2 (2470 B) & RDNA 3 (5424 B) Voltage Offset & DCBTC round-trip
+    let mut r2 = vec![0u8; 2470];
+    r2[0..2].copy_from_slice(&2470u16.to_le_bytes());
+    r2[2] = 0x0F;
+    let t2 = pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes_mut(&mut r2).unwrap();
+    t2.dctol_gfx = -35;
+    t2.dctol_soc = -15;
+    let r2_check = pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(&r2).unwrap();
+    assert_eq!({ r2_check.dctol_gfx }, -35);
+    assert_eq!({ r2_check.dctol_soc }, -15);
+}
+
+#[test]
+fn test_polaris_rx580_platform_caps_0x01060000() {
+    use ppt_arch::PptArch::Polaris;
+    let decoded = Polaris.decode_feature_bits(0x01060000);
+    assert_eq!(
+        decoded,
+        vec![
+            (17, "DISABLE_VOLTAGE_ISLAND"),
+            (18, "ODN_AC_SUPPORT"),
+            (24, "FALCON_QUICK_TRANSITION"),
+        ]
+    );
+}
+
+#[test]
+fn test_hide_unusable_cards_all_six_architectures() {
+    use ppt_arch::{PptArch::*, PptCard::*};
+    // Polaris hides ZeroRpm, UlvVoltage, ThermalVmin, PcieAndLinkClocks, PowerModes, PowerModeAcoustic, VfCurve, VidCurveAndOffset, FanCurve, ThermalLimits
+    assert!(!Polaris.supports_card(ZeroRpm));
+    assert!(!Polaris.supports_card(PowerModes));
+    assert!(!Polaris.supports_card(FanCurve));
+    assert!(Polaris.supports_card(PowerAndCurrent));
+    // Vega 10 supports ZeroRpm (rev >= 10) and hides PowerAndCurrent & RDNA-only cards
+    assert!(Vega10.supports_card(ZeroRpm));
+    assert!(!Vega10.supports_card(PowerAndCurrent));
+    assert!(!Vega10.supports_card(PowerModes));
+    // Vega 20 & RDNA 1 hide RDNA 2/3-only cards (PowerModes, PowerModeAcoustic, ThermalVmin)
+    for arch in [Vega20, Rdna1] {
+        assert!(arch.supports_card(PowerAndCurrent));
+        assert!(arch.supports_card(FanCurve));
+        assert!(!arch.supports_card(PowerModes));
+        assert!(!arch.supports_card(PowerModeAcoustic));
+        assert!(!arch.supports_card(ThermalVmin));
+    }
+    // RDNA 3 hides RDNA 2-only ThermalVmin and PowerModeAcoustic
+    assert!(Rdna3.supports_card(PowerModes));
+    assert!(!Rdna3.supports_card(PowerModeAcoustic));
+    assert!(!Rdna3.supports_card(ThermalVmin));
 }

@@ -4,6 +4,30 @@ pub fn dynamic_box_w(_ui: &egui::Ui, min_w: f32, _cols: usize) -> f32 {
     min_w.max(86.0)
 }
 
+pub fn two_col_cards_adaptive(
+    ui: &mut egui::Ui,
+    id: &str,
+    left_visible: bool,
+    right_visible: bool,
+    left: impl FnOnce(&mut egui::Ui),
+    right: impl FnOnce(&mut egui::Ui),
+) {
+    match (left_visible, right_visible) {
+        (true, true) => two_col_cards(ui, id, left, right),
+        (true, false) => {
+            ui.push_id(id, |ui| {
+                left(ui);
+            });
+        }
+        (false, true) => {
+            ui.push_id(id, |ui| {
+                right(ui);
+            });
+        }
+        (false, false) => {}
+    }
+}
+
 pub fn two_col_cards(
     ui: &mut egui::Ui,
     id: &str,
@@ -133,5 +157,11 @@ pub fn kv_header_2(ui: &mut egui::Ui, h1: &str, h2: &str, box_w: f32) {
                 },
             );
         }
+    });
+}
+
+pub fn draw_arch_note_card(ui: &mut egui::Ui, title: &str, body: &str) {
+    draw_card(ui, title, |ui| {
+        ui.colored_label(egui::Color32::from_rgb(235, 190, 95), body);
     });
 }

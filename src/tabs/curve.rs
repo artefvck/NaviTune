@@ -10,21 +10,23 @@ impl PowerPlayApp {
         let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
         let is_rdna3 = arch.is_rdna3();
         if arch.is_gcn_subtable() {
-            ui.colored_label(
-                egui::Color32::from_rgb(235, 190, 95),
-                "Polaris (0x07) & Vega 10 (0x08) use DPM dependency tables instead of SMU 11/13 V/F curve points; Fan Curve / Zero RPM controls below edit the GCN Fan sub-table live.",
-            );
-            ui.add_space(6.0);
+            draw_card(ui, &format!("{} — DPM & Thermal Architecture", arch.label()), |ui| {
+                ui.colored_label(
+                    egui::Color32::from_rgb(235, 190, 95),
+                    "Polaris (0x07) & Vega 10 (0x08) use discrete SCLK/MCLK DPM dependency tables (Frequency & Power tabs) and GCN Fan sub-tables (Fan tab) instead of SMU 11/13 quadratic V/F curves or 5-point fan curves.",
+                );
+            });
+            return;
         }
         let is_rdna1 = arch.is_rdna1() || arch.is_vega();
         let is_rdna2 = !is_rdna3 && AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer).is_some();
 
-        two_col_cards(ui, "crv_cols", |ui| {
+        two_col_cards_adaptive(ui, "crv_cols", true, true, |ui| {
             draw_card(ui, "Voltage Curve (VID)", |ui| {
                 if is_rdna3 || is_rdna1 {
                     ui.colored_label(
-                        egui::Color32::from_rgb(160, 175, 195),
-                        "RDNA 3 (SMU 13.0) uses AVFS per-die fused V/F curves instead of static quadratic (a, b, c) coefficients.",
+                        egui::Color32::from_rgb(235, 190, 95),
+                        "This architecture uses AVFS per-die fused V/F curves instead of static quadratic (a, b, c) coefficients.",
                     );
                 } else {
                     let w2 = dynamic_box_w(ui, 76.0, 2);

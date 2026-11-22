@@ -18,3 +18,30 @@ pub mod more_throttler_tab;
 pub mod oc_limits;
 pub mod power;
 pub mod safe_tune;
+
+impl crate::PowerPlayApp {
+    pub fn is_card_usable(&self, card: crate::ppt_arch::PptCard) -> bool {
+        let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
+        if !arch.supports_card(card) {
+            return false;
+        }
+        match card {
+            crate::ppt_arch::PptCard::PowerAndCurrent if arch.is_gcn_subtable() => {
+                self.power_limit_w > 0 || self.tdc_gfx > 0
+            }
+            crate::ppt_arch::PptCard::MemoryVoltage if arch.is_gcn_subtable() => {
+                self.mem_dpm_volt.iter().any(|v| v[0] > 0 || v[1] > 0)
+            }
+            crate::ppt_arch::PptCard::ClockLimits if arch.is_gcn_subtable() => {
+                self.freq_gfx[0] > 0 || self.freq_gfx[1] > 0
+            }
+            crate::ppt_arch::PptCard::MemoryDpm if arch.is_gcn_subtable() => {
+                self.mem_dpm_freq.iter().any(|d| d[0] > 0)
+            }
+            crate::ppt_arch::PptCard::CoreVoltage if arch.is_gcn_subtable() => {
+                self.volt_gfx[0] > 0 || self.volt_gfx[1] > 0
+            }
+            _ => true,
+        }
+    }
+}
