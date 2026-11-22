@@ -4,12 +4,6 @@ use rfd::FileDialog;
 use std::fs;
 
 impl PowerPlayApp {
-    #[inline]
-    fn load_smu_mask(&mut self, mask: u64) {
-        for bit in 0..64 {
-            self.smu_features[bit] = (mask & (1u64 << bit)) != 0;
-        }
-    }
 
     #[inline]
     fn build_smu_mask(smu_features: &[bool; 64]) -> u64 {
@@ -37,20 +31,6 @@ impl PowerPlayApp {
         self.power_limit_feat = f[9] != 0;
     }
 
-    #[inline]
-    fn save_od8_flags_10(&self, f: &mut [u8]) {
-        if f.len() < 10 { return; }
-        f[0] = u8::from(self.gpu_clock_limit);
-        f[1] = u8::from(self.gpu_clock_curve);
-        f[2] = u8::from(self.memory_clock_limit);
-        f[3] = u8::from(self.zero_rpm);
-        f[4] = u8::from(self.min_fan_speed);
-        f[5] = u8::from(self.fan_target_temp_limit);
-        f[6] = u8::from(self.operating_temp_limit);
-        f[7] = u8::from(self.fan_acoustic_rpm);
-        f[8] = u8::from(self.fan_curve);
-        f[9] = u8::from(self.power_limit_feat);
-    }
 
     #[inline]
     fn load_od8_settings_5(&mut self, od_min: &[u32], od_max: &[u32]) {
@@ -62,20 +42,6 @@ impl PowerPlayApp {
         self.oc_fan_acoustic_rpm = [od_min[4] as i32, od_max[4] as i32];
     }
 
-    #[inline]
-    fn save_od8_settings_5(&self, od_min: &mut [u32], od_max: &mut [u32]) {
-        if od_min.len() < 5 || od_max.len() < 5 { return; }
-        od_min[0] = self.oc_gfx_clock[0].max(0) as u32;
-        od_max[0] = self.oc_gfx_clock[1].max(0) as u32;
-        od_min[1] = self.oc_mem_clock[0].max(0) as u32;
-        od_max[1] = self.oc_mem_clock[1].max(0) as u32;
-        od_min[2] = self.oc_power_limit[0] as u32;
-        od_max[2] = self.oc_power_limit[1] as u32;
-        od_min[3] = self.oc_fan_rpm[0].max(0) as u32;
-        od_max[3] = self.oc_fan_rpm[1].max(0) as u32;
-        od_min[4] = self.oc_fan_acoustic_rpm[0].max(0) as u32;
-        od_max[4] = self.oc_fan_acoustic_rpm[1].max(0) as u32;
-    }
 }
 
 impl PowerPlayApp {
