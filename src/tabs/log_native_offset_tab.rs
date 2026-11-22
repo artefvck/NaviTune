@@ -68,9 +68,9 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<(&'static str, V
         ]));
     }
     if let Some(v10) = crate::pptable_vega::AtomVega10PowerPlayTable::from_bytes(b) {
-        let fan_off = { v10.fan_table_offset } as usize;
-        let therm_off = { v10.thermal_controller_offset } as usize;
-        let hard_off = { v10.hard_limit_table_offset } as usize;
+        let fan_off = u16::from_le_bytes([b[0x034], b[0x035]]) as usize;
+        let therm_off = u16::from_le_bytes([b[0x036], b[0x037]]) as usize;
+        let hard_off = u16::from_le_bytes([b[0x048], b[0x049]]) as usize;
         let hard_desc = if let Some((soc_hi, gfx_hi, mem_hi, vddc_hi)) = v10.read_hard_limits(b) {
             let (vddci, mvdd) = v10.read_hard_limit_mem_volt(b).unwrap_or((0, 0));
             format!("off=0x{:03X} | SOCCLK={}MHz, GFXCLK={}MHz, MCLK={}MHz, VDDC={}mV, VDDCI={}mV, MVDD={}mV", hard_off, soc_hi, gfx_hi, mem_hi, vddc_hi, vddci, mvdd)
@@ -85,7 +85,7 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<(&'static str, V
         return Some(("Vega 10 (0x08)", vec![
             ("Header", "AtomCommonTableHeader", 0x000, 5, format!("size={}, rev=0x{:02X}.{:02X}.{:02X}", hdr_sz, frev, crev, trev)),
             ("OverDrive", "max_od_engine / memory / pwr", 0x017, 10, format!("GFX={}MHz, Mem={}MHz, Pwr=+{}%", {v10.max_od_engine_clock}/100, {v10.max_od_memory_clock}/100, {v10.power_control_limit})),
-            ("SubTables", "state / fan / thermal / hard_limit", 0x033, 28, format!("State=0x{:03X}, Fan=0x{:03X}, Therm=0x{:03X}, HardLim=0x{:03X}", {v10.state_array_offset}, fan_off, therm_off, hard_off)),
+            ("SubTables", "state / fan / thermal / hard_limit", 0x030, 28, format!("State=0x{:03X}, Fan=0x{:03X}, Therm=0x{:03X}, HardLim=0x{:03X}", {v10.state_array_offset}, fan_off, therm_off, hard_off)),
             ("Fan SubTable", "ATOM_Vega10_Fan_Table", fan_off.min(b.len()), 32, fan_desc),
             ("HardLimit SubTable", "ATOM_Vega10_Hard_Limit_Table", hard_off.min(b.len()), 18, hard_desc),
         ]));
