@@ -174,9 +174,9 @@ impl IoregParser {
 
 #[cfg(target_os = "macos")]
 pub fn scan_ioreg_gpus() -> Vec<IoregGpuEntry> {
-    let Ok(out) = Command::new("ioreg")
+    let Ok(out) = crate::platform::run_cmd_bounded(&mut Command::new("ioreg")
         .args(["-r", "-c", "IOPCIDevice", "-l"])
-        .output()
+        , 1500)
     else {
         return Vec::new();
     };
@@ -225,10 +225,10 @@ pub fn scan_ioreg_gpus() -> Vec<IoregGpuEntry> {
     for idx in 0..16 {
         let sub = format!("{:04}", idx);
         let key = format!(r"{}\{}", base, sub);
-        let Ok(out) = Command::new("reg")
+        let Ok(out) = crate::platform::run_cmd_bounded(&mut Command::new("reg")
             .creation_flags(CREATE_NO_WINDOW)
             .args(["query", &key])
-            .output()
+            , 1500)
         else {
             continue;
         };
