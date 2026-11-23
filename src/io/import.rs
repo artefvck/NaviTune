@@ -35,13 +35,13 @@ fn decode_base64(input: &str) -> Result<Vec<u8>, String> {
 fn decode_text_auto(raw: &[u8]) -> String {
     if raw.starts_with(&[0xFF, 0xFE]) {
         let u16s: Vec<u16> = raw[2..]
-            .chunks_exact(2)
+            .as_chunks::<2>().0.iter()
             .map(|c| u16::from_le_bytes([c[0], c[1]]))
             .collect();
         String::from_utf16_lossy(&u16s)
     } else if raw.starts_with(&[0xFE, 0xFF]) {
         let u16s: Vec<u16> = raw[2..]
-            .chunks_exact(2)
+            .as_chunks::<2>().0.iter()
             .map(|c| u16::from_be_bytes([c[0], c[1]]))
             .collect();
         String::from_utf16_lossy(&u16s)
@@ -140,11 +140,11 @@ fn decode_base64_clean(input: &str) -> Result<Vec<u8>, String> {
         }
     };
     let clean: Vec<u8> = input.bytes().filter(|b| !b.is_ascii_whitespace()).collect();
-    if clean.is_empty() || clean.len() % 4 != 0 {
+    if clean.is_empty() || !clean.len().is_multiple_of(4) {
         return Err("Invalid Base64 length inside <data> tag".into());
     }
     let mut out = Vec::with_capacity((clean.len() / 4) * 3);
-    for chunk in clean.chunks_exact(4) {
+    for chunk in clean.as_chunks::<4>().0 {
         let a = val(chunk[0]).ok_or("Invalid Base64 character")?;
         let b = val(chunk[1]).ok_or("Invalid Base64 character")?;
         out.push((a << 2) | (b >> 4));

@@ -83,13 +83,13 @@ impl PowerPlayApp {
                 draw_card(ui, arch.card_title(crate::ppt_arch::PptCard::MemoryDpm), |ui| {
                     if is_rdna3 || is_rdna1 {
                         let off = if is_rdna3 { "0x63C" } else if arch == crate::ppt_arch::PptArch::Vega20 { "0x1B5" } else { "0x14F" };
-                        for i in 0..4 {
-                            kv_row_1(ui, &format!("DPM {} (MHz)", i), &format!("freq_uclk[{}] ({})", i, off), &mut self.mem_dpm_freq[i][0], 62.0);
+                        for (i, freq) in self.mem_dpm_freq.iter_mut().enumerate().take(4) {
+                            kv_row_1(ui, &format!("DPM {} (MHz)", i), &format!("freq_uclk[{}] ({})", i, off), &mut freq[0], 62.0);
                         }
                     } else {
                         kv_header_2(ui, "Freq (MHz)", "Div", 62.0);
-                        for i in 0..4 {
-                            kv_row_2(ui, &format!("DPM {}", i), &format!("freq_uclk[{}] (0x57E)", i), &mut self.mem_dpm_freq[i], 62.0);
+                        for (i, freq) in self.mem_dpm_freq.iter_mut().enumerate().take(4) {
+                            kv_row_2(ui, &format!("DPM {}", i), &format!("freq_uclk[{}] (0x57E)", i), freq, 62.0);
                         }
                     }
                 });

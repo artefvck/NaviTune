@@ -80,20 +80,18 @@ impl PowerPlayApp {
         let v_gfx_sev = if self.volt_gfx[1] > 0 && (self.volt_gfx[0] > self.volt_gfx[1] || eff_vmax_gfx > max_gfx_v + 50 || (!is_rdna3 && eff_vmax_gfx < 650)) { 2 } else if self.volt_gfx[0] < 675 || (self.volt_gfx[1] > 0 && eff_vmax_gfx > max_gfx_v) { 1 } else { 0 };
         checks.push(("Voltage", "GFX Vmin / Vmax (+Offset)", format!("{} / {} mV (Eff Max: {} mV)", self.volt_gfx[0], self.volt_gfx[1], eff_vmax_gfx), format!("700..{} mV (Min <= Max)", max_gfx_v), v_gfx_sev, "Effective Vmax includes Static Voltage Offset (c); keep within silicon safe bounds."));
 
-        if !is_gcn {
-            if !is_gcn && (self.volt_soc[0] > 0 || self.volt_soc[1] > 0) {
+        if !is_gcn && (self.volt_soc[0] > 0 || self.volt_soc[1] > 0) {
         let v_soc_sev = if self.volt_soc[0] > self.volt_soc[1] || self.volt_soc[1] > max_soc_v + 50 { 2 } else if self.volt_soc[0] < 675 || self.volt_soc[1] > max_soc_v { 1 } else { 0 };
             checks.push(("Voltage", "Soc Vmin / Vmax", format!("{} / {} mV", self.volt_soc[0], self.volt_soc[1]), format!("700..{} mV (Min <= Max)", max_soc_v), v_soc_sev, "Keep SoC voltage within silicon spec for Infinity Cache & memory controller stability."));
-        }
         }
 
         let pwr_sev = if self.power_limit_w <= 0 || self.tdc_gfx <= 0 || self.power_limit_w > max_w + 50 { 2 } else if self.power_limit_w < min_w || self.power_limit_w > max_w || self.tdc_gfx > max_tdc_gfx || self.tdc_soc > max_tdc_soc { 1 } else { 0 };
         checks.push(("Power", "PPT & TDC GFX / Soc", format!("{} W | {} A / {} A", self.power_limit_w, self.tdc_gfx, self.tdc_soc), format!("{}..{} W | TDC <= {}/{} A", min_w, max_w, max_tdc_gfx, max_tdc_soc), pwr_sev, "Calibrated to factory silicon VRM current & socket board power limits."));
 
         let mut mem_v_sev = 0u8;
-        for i in 0..4 {
-            let vddci = self.mem_dpm_volt[i][0];
-            let mvdd = self.mem_dpm_volt[i][1];
+        for volt in self.mem_dpm_volt.iter().take(4) {
+            let vddci = volt[0];
+            let mvdd = volt[1];
             if vddci > mvdd || mvdd > 1425 { mem_v_sev = 2; } else if (vddci > 900 || mvdd > 1365) && mem_v_sev < 1 { mem_v_sev = 1; }
         }
         checks.push(("Memory", "VDDCI / MVDD DPM 0..3", format!("DPM3: {} / {} mV", self.mem_dpm_volt.iter().map(|d| d[0]).max().unwrap_or(0), self.mem_dpm_volt.iter().map(|d| d[1]).max().unwrap_or(0)), "VDDCI <= MVDD <= 1365 mV".to_string(), mem_v_sev, "Factory DPM3 is 800..850 mV VDDCI / 1350 mV MVDD; keep MVDD <= 1365 mV on air."));

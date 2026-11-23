@@ -453,10 +453,7 @@ impl PptArch {
 
     pub fn supports_tab(&self, tab_idx: usize) -> bool {
         // Tab indices: 0=Features, 1=OC Limits, 2=Power, 3=Frequency, 4=Curve, 5=Fan, 6=Safe Tune, 7=Log, 8=Advance
-        if tab_idx == 4 && self.is_gcn_subtable() {
-            return false;
-        }
-        true
+        !(tab_idx == 4 && self.is_gcn_subtable())
     }
 
     pub fn supports_card(self, card: PptCard) -> bool {

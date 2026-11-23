@@ -11,6 +11,7 @@ pub(crate) fn read_gcn_hard_limit_full(buf: &[u8], off: usize, has_soc: bool) ->
     Some((soc, gfx, mem, vddc, vddci, mvdd))
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn write_gcn_hard_limit_full(buf: &mut [u8], off: usize, has_soc: bool, soc: i32, gfx: i32, mem: i32, vddc: i32, vddci: i32, mvdd: i32) {
     let need = if has_soc { 0x1A } else { 0x16 };
     if off == 0 || off + need > buf.len() || buf[off + 1] == 0 { return; }
@@ -38,6 +39,7 @@ pub(crate) fn read_gcn_fan_subtable(buf: &[u8], off: usize) -> Option<(i32, i32,
     Some((pwm_min, max_rpm, tgt_temp, tgt_gfx, zrpm, stop_t, start_t))
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn write_gcn_fan_subtable(buf: &mut [u8], off: usize, pwm_min: i32, max_rpm: i32, tgt_temp: i32, tgt_gfx: i32, zrpm: bool, stop_t: i32, start_t: i32) {
     if off == 0 || off + 0x1C > buf.len() { return; }
     let rev = buf[off];
@@ -163,7 +165,8 @@ impl AtomVega10PowerPlayTable {
         read_gcn_fan_subtable(buf, { self.fan_table_offset } as usize)
     }
 
-    pub fn write_fan_subtable(buf: &mut [u8], pwm_min: i32, max_rpm: i32, tgt_temp: i32, tgt_gfx: i32, zrpm: bool, stop_t: i32, start_t: i32) {
+    #[allow(clippy::too_many_arguments)]
+pub fn write_fan_subtable(buf: &mut [u8], pwm_min: i32, max_rpm: i32, tgt_temp: i32, tgt_gfx: i32, zrpm: bool, stop_t: i32, start_t: i32) {
         if let Some(t) = Self::from_bytes(buf) {
             write_gcn_fan_subtable(buf, { t.fan_table_offset } as usize, pwm_min, max_rpm, tgt_temp, tgt_gfx, zrpm, stop_t, start_t);
         }
@@ -477,9 +480,9 @@ impl VegaParsedState {
             buf[0x04F..0x053].copy_from_slice(&(self.oc_gfx_clock[0].max(0) as u32).to_le_bytes());
             buf[0x33A..0x33C].copy_from_slice(&(self.freq_gfx[0].max(0) as u16).to_le_bytes());
             buf[0x348..0x34A].copy_from_slice(&(self.freq_gfx[1].max(0) as u16).to_le_bytes());
-            for i in 0..4 {
+            for (i, dpm) in self.mem_dpm_freq.iter().enumerate() {
                 let off = 0x3C4 + i * 2;
-                buf[off..off + 2].copy_from_slice(&(self.mem_dpm_freq[i][0].max(0) as u16).to_le_bytes());
+                buf[off..off + 2].copy_from_slice(&(dpm[0].max(0) as u16).to_le_bytes());
             }
             buf[0x536..0x538].copy_from_slice(&(self.fan_acoustic_limit.max(0) as u16).to_le_bytes());
             buf[0x538..0x53A].copy_from_slice(&(self.fan_throttling_rpm.max(0) as u16).to_le_bytes());

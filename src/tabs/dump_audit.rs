@@ -95,8 +95,8 @@ impl PowerPlayApp {
             vars.push((format!("mvdd_dpm{}", i), format!("{}", self.mem_dpm_volt[i][1])));
             vars.push((format!("power_limit_ac_{}", i), format!("{}", self.power_limit_ac[i])));
         }
-        for i in 0..9 {
-            vars.push((format!("temp_limit_{}", i), format!("{}", self.temp_limits[i])));
+        for (i, limit) in self.temp_limits.iter().enumerate().take(9) {
+            vars.push((format!("temp_limit_{}", i), format!("{}", limit)));
         }
         vars.sort_by(|a, b| a.0.cmp(&b.0));
 
