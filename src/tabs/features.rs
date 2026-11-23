@@ -359,11 +359,7 @@ impl PowerPlayApp {
                         ui.label("Header Verification:");
                         let hdr_info = if let Some(t3) = crate::pptable_rdna3::AtomSmcDpmInfoV4_12::from_bytes(&self.raw_buffer) {
                             Some(("V4_12", { t3.header.structure_size }, { t3.header.format_revision }, { t3.header.content_revision }, { t3.header.table_revision }))
-                        } else if let Some(t) = crate::pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer) {
-                            Some(("V4_9", { t.header.structure_size }, { t.header.format_revision }, { t.header.content_revision }, { t.table_revision }))
-                        } else {
-                            None
-                        };
+                        } else { crate::pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer).map(|t| ("V4_9", { t.header.structure_size }, { t.header.format_revision }, { t.header.content_revision }, { t.table_revision })) };
                         if let Some((ver, sz, fmt_rev, cnt_rev, tbl_rev)) = hdr_info {
                             let ok = sz as usize == self.raw_buffer.len();
                             let msg = format!(

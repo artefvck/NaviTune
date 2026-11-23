@@ -167,7 +167,7 @@ impl Default for PowerPlayApp {
             debug_subtab: crate::tabs::more::DebugSubTab::Audit, debug_only_mismatch: false,
             show_smu_features_window: false,
             show_struct_inspector_window: false,
-            show_opencore_copy_modal: false, more_popups: crate::more_popups::MorePopupsState::default(),
+            show_opencore_copy_modal: false, more_popups: crate::more_popups::MorePopupsState,
             show_error_modal: false, modal_error_title: String::new(), modal_error_msg: String::new(),
             status_msg: "Ready".to_string(),
             gpu_clock_limit: false, gpu_clock_curve: false, memory_clock_limit: false, zero_rpm: false,
@@ -232,13 +232,13 @@ impl eframe::App for PowerPlayApp {
                 let is_rdna2 = !is_rdna3 && crate::pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer).is_some();
                 let mut issues: Vec<&str> = Vec::new();
                 if !self.raw_buffer.is_empty() {
-                    if self.oc_gfx_clock > self.oc_gfx_clock || self.oc_mem_clock > self.oc_mem_clock || self.oc_power_limit > self.oc_power_limit {
+                    if self.oc_gfx_clock[0] > self.oc_gfx_clock[1] || self.oc_mem_clock[0] > self.oc_mem_clock[1] || self.oc_power_limit[0] > self.oc_power_limit[1] {
                         issues.push("Inverted OD bounds");
                     }
-                    if self.freq_gfx > self.freq_gfx || self.freq_soc > self.freq_soc || self.freq_fclk > self.freq_fclk {
+                    if self.freq_gfx[0] > self.freq_gfx[1] || self.freq_soc[0] > self.freq_soc[1] || self.freq_fclk[0] > self.freq_fclk[1] {
                         issues.push("Min clock > Max clock");
                     }
-                    if self.volt_gfx > self.volt_gfx || self.volt_soc > self.volt_soc {
+                    if self.volt_gfx[0] > self.volt_gfx[1] || self.volt_soc[0] > self.volt_soc[1] {
                         issues.push("Vmin > Vmax");
                     }
                     if self.temp_limits.iter().any(|&t| !(0..=130).contains(&t)) {

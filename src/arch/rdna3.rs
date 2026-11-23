@@ -127,14 +127,14 @@ const _: () = assert!(offset_of!(AtomSmcDpmInfoV4_12, fan_zero_rpm_enable) == 0x
 
 impl AtomSmcDpmInfoV4_12 {
     pub fn from_bytes(buf: &[u8]) -> Option<&Self> {
-        if buf.len() < size_of::<Self>() || !matches!(buf.get(2), Some(0x14 | 0x15 | 0x16)) {
+        if buf.len() < size_of::<Self>() || !matches!(buf.get(2), Some(0x14..=0x16)) {
             return None;
         }
         Some(unsafe { &*(buf.as_ptr() as *const Self) })
     }
 
     pub fn from_bytes_mut(buf: &mut [u8]) -> Option<&mut Self> {
-        if buf.len() < size_of::<Self>() || !matches!(buf.get(2), Some(0x14 | 0x15 | 0x16)) {
+        if buf.len() < size_of::<Self>() || !matches!(buf.get(2), Some(0x14..=0x16)) {
             return None;
         }
         Some(unsafe { &mut *(buf.as_mut_ptr() as *mut Self) })

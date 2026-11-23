@@ -1,3 +1,5 @@
+pub type PolarisDpmPowertune = (i32, i32, i32, i32, i32, i32, Vec<(i32, i32, i32)>);
+
 use core::mem::{offset_of, size_of};
 
 #[repr(C, packed)]
@@ -136,6 +138,7 @@ impl AtomPolarisPowerPlayTable {
         Some((pwm_min, max_rpm, tgt_temp, tgt_gfx, false, 0, 0))
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn write_fan_subtable(buf: &mut [u8], pwm_min: i32, max_rpm: i32, tgt_temp: i32, tgt_gfx: i32, zrpm: bool, stop_t: i32, start_t: i32) {
         let Some(t) = Self::from_bytes(buf) else { return; };
         let off = { t.fan_table_offset } as usize;
@@ -151,7 +154,7 @@ impl AtomPolarisPowerPlayTable {
         buf[off + 0x1B] = tgt_temp.clamp(0, 255) as u8;
     }
 
-    pub fn read_polaris_dpm_and_powertune(&self, buf: &[u8]) -> (i32, i32, i32, i32, i32, i32, Vec<(i32, i32, i32)>) {
+    pub fn read_polaris_dpm_and_powertune(&self, buf: &[u8]) -> PolarisDpmPowertune {
         let mut sclk_min = 0i32;
         let mut sclk_max = 0i32;
         let soff = if buf.len() >= 0x2F { u16::from_le_bytes([buf[0x2D], buf[0x2E]]) as usize } else { ({ self.sclk_dep_table_offset }) as usize };
@@ -225,6 +228,7 @@ impl AtomPolarisPowerPlayTable {
         (sclk_min, sclk_max, vddc_min, vddc_max, pwr_w, tdc_a, mclk_states)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn write_polaris_dpm_and_powertune(buf: &mut [u8], sclk_min: i32, sclk_max: i32, vddc_max: i32, pwr_w: i32, tdc_a: i32, mem_dpm_freq: &[[i32; 2]; 4], mem_dpm_volt: &[[i32; 2]; 4]) {
         let (soff, voff, moff) = {
             let Some(t) = Self::from_bytes(buf) else { return; };

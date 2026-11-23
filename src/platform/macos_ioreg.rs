@@ -70,7 +70,7 @@ fn parse_hex_bytes(val: &str) -> Option<Vec<u8>> {
     let start = val.find('<')? + 1;
     let end = val[start..].find('>')? + start;
     let hex: String = val[start..end].chars().filter(|c| !c.is_whitespace()).collect();
-    if hex.is_empty() || hex.len() % 2 != 0 {
+    if hex.is_empty() || !hex.len().is_multiple_of(2) {
         return None;
     }
     let mut out = Vec::with_capacity(hex.len() / 2);
@@ -93,7 +93,7 @@ fn parse_string_or_hex_ascii(val: &str) -> String {
             }
         }
     }
-    val.trim_matches(&['<', '>', '"', ' ']).to_string()
+    val.trim_matches(['<', '>', '"', ' ']).to_string()
 }
 
 #[cfg(target_os = "macos")]

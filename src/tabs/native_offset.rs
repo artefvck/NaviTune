@@ -3,7 +3,9 @@ use crate::pptable_rdna3::{AtomSmcDpmInfoV4_12, field_offset_by_name as off3};
 use crate::PowerPlayApp;
 use eframe::egui;
 
-pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<(&'static str, Vec<(&'static str, &'static str, usize, usize, String)>)> {
+pub(crate) type NativeStructEntries = (&'static str, Vec<(&'static str, &'static str, usize, usize, String)>);
+
+pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<NativeStructEntries> {
     let hdr_sz = if b.len() >= 2 { u16::from_le_bytes([b[0], b[1]]) as usize } else { 0 };
     let (frev, crev, trev) = (b.get(2).copied().unwrap_or(0), b.get(3).copied().unwrap_or(0), b.get(4).copied().unwrap_or(0));
     if let Some(t3) = AtomSmcDpmInfoV4_12::from_bytes(b) {

@@ -100,7 +100,7 @@ fn cmd_inspect(path: &str) -> Result<(), String> {
     if let Some(off) = vbios_off {
         println!("VBIOS Offset : 0x{:06X}", off);
     }
-    println!("Architecture : {} (rev 0x{:02X}.{:02X}.{:02X}, {} B)", format!("{:?}", arch), frev, crev, trev, app.raw_buffer.len());
+    println!("Architecture : {:?} (rev 0x{:02X}.{:02X}.{:02X}, {} B)", arch, frev, crev, trev, app.raw_buffer.len());
     println!("Status       : {}", app.status_msg);
     println!("GFX Clocks   : {} .. {} MHz (OD Max: {} MHz)", app.freq_gfx[0], app.freq_gfx[1], app.oc_gfx_clock[1]);
     let uclk_peak = app.mem_dpm_freq.iter().map(|d| d[0]).max().unwrap_or(0);

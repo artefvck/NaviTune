@@ -66,7 +66,7 @@ pub fn resolve_master_powerplay_table(buf: &[u8]) -> Option<(usize, usize, usize
         let trev = buf[ppt_off + 4];
         if (384..=6144).contains(&ppt_size)
             && ppt_off + ppt_size <= buf.len()
-            && matches!(frev, 0x07 | 0x08 | 0x0B | 0x0C | 0x0D | 0x0E | 0x0F | 0x10 | 0x11 | 0x12 | 0x13 | 0x14 | 0x15 | 0x16)
+            && matches!(frev, 0x07 | 0x08 | 0x0B | 0x0C | 0x0D | 0x0E | 0x0F | 0x10 | 0x11 | 0x12 | 0x13 | 0x14..=0x16)
             && crev <= 0x10
             && trev <= 0x06
         {
@@ -83,8 +83,7 @@ fn scan_powerplay_signature(buf: &[u8]) -> Option<(usize, usize)> {
         let frev = buf[i + 2];
         let crev = buf[i + 3];
         let trev = buf[i + 4];
-        if sz >= 256
-            && sz <= 8192
+        if (256..=8192).contains(&sz)
             && i + sz <= buf.len()
             && known_frev.contains(&frev)
             && crev <= 0x10
@@ -121,7 +120,7 @@ pub fn extract_ppt_from_rom(rom: &[u8]) -> Result<(Vec<u8>, usize), String> {
     for i in (0..rom.len().saturating_sub(5424)).step_by(4) {
         if rom[i] == 0x30
             && rom[i + 1] == 0x15
-            && matches!(rom[i + 2], 0x14 | 0x15 | 0x16)
+            && matches!(rom[i + 2], 0x14..=0x16)
             && rom[i + 3] <= 0x10
             && rom[i + 4] == 0x03
         {
@@ -182,7 +181,7 @@ fn gpu_device_name(did: u16) -> &'static str {
         0x73FF => "Navi 23 (RX 6600/6600 XT)",
         0x73E0 | 0x73E1 | 0x73E3 => "Navi 23 (RX 6600M/W6600)",
         0x743F => "Navi 24 (RX 6400/6500 XT)",
-        0x7422 | 0x7423 | 0x7424 => "Navi 24 (Beige Goby)",
+        0x7422..=0x7424 => "Navi 24 (Beige Goby)",
         0x744C | 0x7448 | 0x745E => "Navi 31 (RX 7900 XTX/XT/GRE)",
         0x747E | 0x7470 | 0x7479 => "Navi 32 (RX 7800/7700 XT)",
         0x7480 | 0x7483 | 0x7489 => "Navi 33 (RX 7600/7600 XT)",
