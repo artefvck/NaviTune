@@ -69,18 +69,43 @@ fn verify_all_target_vbios_parity() {
             PptArch::Rdna1 => {
                 if let Some(t) = pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(&ppt) {
                     assert!(t.socket_power_limit_ac[0] > 0, "non-zero RDNA1 power limit for {:?}", path);
+                    let mut roundtrip = ppt.clone();
+                    let tm = pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes_mut(&mut roundtrip).expect("rdna1 mut");
+                    let qmv = |ui_mv: i32, orig: u16| if (orig / 4) as i32 == ui_mv { orig } else { (ui_mv.max(0) * 4) as u16 };
+                    tm.min_voltage_gfx = qmv((t.min_voltage_gfx / 4) as i32, tm.min_voltage_gfx);
+                    tm.max_voltage_gfx = qmv((t.max_voltage_gfx / 4) as i32, tm.max_voltage_gfx);
+                    let diffs: Vec<_> = ppt.iter().zip(roundtrip.iter()).enumerate().filter(|(_, (a, b))| a != b).map(|(i, (a, b))| format!("0x{:03X}: 0x{:02X}->0x{:02X}", i, a, b)).collect();
+                    assert!(diffs.is_empty(), "RDNA1 diffs in {:?}: {:?}", path, diffs);
                 }
             }
             PptArch::Rdna2 => {
                 if let Some(t) = pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(&ppt) {
                     assert!(t.socket_power_limit_ac[0] > 0, "non-zero RDNA2 power limit for {:?}", path);
                     assert!(t.freq_gfx_max > 0, "non-zero RDNA2 GFX max for {:?}", path);
+                    let mut roundtrip = ppt.clone();
+                    let tm = pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes_mut(&mut roundtrip).expect("rdna2 mut");
+                    let qmv = |ui_mv: i32, orig: u16| if (orig / 4) as i32 == ui_mv { orig } else { (ui_mv.max(0) * 4) as u16 };
+                    tm.min_voltage_gfx = qmv((t.min_voltage_gfx / 4) as i32, tm.min_voltage_gfx);
+                    tm.min_voltage_soc = qmv((t.min_voltage_soc / 4) as i32, tm.min_voltage_soc);
+                    tm.vmin_low_gfx = qmv((t.vmin_low_gfx / 4) as i32, tm.vmin_low_gfx);
+                    tm.vmin_high_gfx = qmv((t.vmin_high_gfx / 4) as i32, tm.vmin_high_gfx);
+                    tm.vmin_low_soc = qmv((t.vmin_low_soc / 4) as i32, tm.vmin_low_soc);
+                    tm.vmin_high_soc = qmv((t.vmin_high_soc / 4) as i32, tm.vmin_high_soc);
+                    let diffs: Vec<_> = ppt.iter().zip(roundtrip.iter()).enumerate().filter(|(_, (a, b))| a != b).map(|(i, (a, b))| format!("0x{:03X}: 0x{:02X}->0x{:02X}", i, a, b)).collect();
+                    assert!(diffs.is_empty(), "RDNA2 diffs in {:?}: {:?}", path, diffs);
                 }
             }
             PptArch::Rdna3 => {
                 if let Some(t) = pptable_rdna3::AtomSmcDpmInfoV4_12::from_bytes(&ppt) {
                     assert!(t.socket_power_limit_ac > 0, "non-zero RDNA3 power limit for {:?}", path);
                     assert!(t.freq_gfx_max > 0, "non-zero RDNA3 GFX max for {:?}", path);
+                    let mut roundtrip = ppt.clone();
+                    let tm = pptable_rdna3::AtomSmcDpmInfoV4_12::from_bytes_mut(&mut roundtrip).expect("rdna3 mut");
+                    let qmv = |ui_mv: i32, orig: u16| if (orig / 4) as i32 == ui_mv { orig } else { (ui_mv.max(0) * 4) as u16 };
+                    tm.min_voltage_gfx = qmv((t.min_voltage_gfx / 4) as i32, tm.min_voltage_gfx);
+                    tm.max_voltage_gfx = qmv((t.max_voltage_gfx / 4) as i32, tm.max_voltage_gfx);
+                    let diffs: Vec<_> = ppt.iter().zip(roundtrip.iter()).enumerate().filter(|(_, (a, b))| a != b).map(|(i, (a, b))| format!("0x{:03X}: 0x{:02X}->0x{:02X}", i, a, b)).collect();
+                    assert!(diffs.is_empty(), "RDNA3 diffs in {:?}: {:?}", path, diffs);
                 }
             }
             _ => {}
