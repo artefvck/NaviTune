@@ -336,6 +336,12 @@ impl PowerPlayApp {
             );
             self.baseline_buffer = b.clone();
             self.raw_buffer = b;
+            self.freq_gfx = [r1p.gfx_min as i32, r1p.gfx_max as i32];
+            self.freq_soc = [r1p.soc_min as i32, r1p.soc_max as i32];
+            self.freq_fclk = [r1p.fclk_min as i32, r1p.fclk_max as i32];
+            for i in 0..4 { self.mem_dpm_freq[i][0] = r1p.uclk_dpm[i] as i32; }
+            self.fan_max_rpm = r1p.fan_max_rpm as i32;
+            self.fan_target_temp = r1p.fan_target_temp as i32;
             return;
         }
         if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(&b) {
