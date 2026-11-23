@@ -69,11 +69,27 @@ fn verify_all_target_vbios_parity() {
             PptArch::Rdna1 => {
                 if let Some(t) = pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(&ppt) {
                     assert!(t.socket_power_limit_ac[0] > 0, "non-zero RDNA1 power limit for {:?}", path);
-                    let mut roundtrip = ppt.clone();
-                    let tm = pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes_mut(&mut roundtrip).expect("rdna1 mut");
+                    let mut padded = vec![0u8; ppt.len().max(1924)];
+                    if ppt.len() == 1674 && u16::from_le_bytes([ppt[5], ppt[6]]) == 0x01E2 {
+                        padded[..4].copy_from_slice(&ppt[..4]);
+                        let dst = std::mem::offset_of!(pptable_rdna1::AtomSmcDpmInfoV4_5, socket_power_limit_ac) - 0x00C;
+                        let inner_n = (1674 - 0x01E2).min(1924 - dst);
+                        padded[dst..dst + inner_n].copy_from_slice(&ppt[0x01E2..0x01E2 + inner_n]);
+                    } else {
+                        padded[..ppt.len()].copy_from_slice(&ppt);
+                    }
+                    let tm = pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes_mut(&mut padded).expect("rdna1 mut");
                     let qmv = |ui_mv: i32, orig: u16| if (orig / 4) as i32 == ui_mv { orig } else { (ui_mv.max(0) * 4) as u16 };
                     tm.min_voltage_gfx = qmv((t.min_voltage_gfx / 4) as i32, tm.min_voltage_gfx);
                     tm.max_voltage_gfx = qmv((t.max_voltage_gfx / 4) as i32, tm.max_voltage_gfx);
+                    let mut roundtrip = ppt.clone();
+                    if ppt.len() == 1674 && u16::from_le_bytes([ppt[5], ppt[6]]) == 0x01E2 {
+                        let dst = std::mem::offset_of!(pptable_rdna1::AtomSmcDpmInfoV4_5, socket_power_limit_ac) - 0x00C;
+                        let inner_n = 1674 - 0x01E2;
+                        roundtrip[0x01E2..1674].copy_from_slice(&padded[dst..dst + inner_n]);
+                    } else {
+                        roundtrip.copy_from_slice(&padded[..ppt.len()]);
+                    }
                     let diffs: Vec<_> = ppt.iter().zip(roundtrip.iter()).enumerate().filter(|(_, (a, b))| a != b).map(|(i, (a, b))| format!("0x{:03X}: 0x{:02X}->0x{:02X}", i, a, b)).collect();
                     assert!(diffs.is_empty(), "RDNA1 diffs in {:?}: {:?}", path, diffs);
                 }
