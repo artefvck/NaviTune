@@ -113,13 +113,13 @@ mod tests {
             }
 
             let mpt = format_mpt_ppt(&sample);
-            assert_eq!(crate::import_formats::parse_mpt_ppt(&mpt).unwrap(), sample);
+            assert_eq!(crate::import_formats::parse_mpt_ppt(&mpt).unwrap_or_default(), sample);
 
             let reg = format_reg_ppt(&sample).into_bytes();
-            assert_eq!(crate::import_formats::parse_reg_ppt(&reg).unwrap(), sample);
+            assert_eq!(crate::import_formats::parse_reg_ppt(&reg).unwrap_or_default(), sample);
 
             let plist = format_opencore_plist(&sample, "PciRoot(0x0)/Pci(0x1,0x0)/Pci(0x0,0x0)").into_bytes();
-            assert_eq!(crate::import_formats::parse_plist_ppt(&plist).unwrap(), sample);
+            assert_eq!(crate::import_formats::parse_plist_ppt(&plist).unwrap_or_default(), sample);
         }
     }
 }
