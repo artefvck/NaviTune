@@ -1,12 +1,9 @@
-use crate::pptable_rdna2::AtomSmcDpmInfoV4_9;
-use rfd::FileDialog;
-use std::fs;
 
 use crate::PowerPlayApp;
 
 impl PowerPlayApp {
-    pub(super) fn try_apply_vega20(&mut self, b: &Vec<u8>, label: &str, frev: u8, crev: u8, trev: u8) -> bool {
-        if let Some(v20) = crate::pptable_vega::AtomVega20PowerPlayTable::from_bytes_padded(&b) {
+    pub(super) fn try_apply_vega20(&mut self, b: &[u8], label: &str, frev: u8, crev: u8, trev: u8) -> bool {
+        if let Some(v20) = crate::pptable_vega::AtomVega20PowerPlayTable::from_bytes_padded(b) {
             let did = self.vbios_buffer.as_deref()
                 .and_then(|vb| crate::vbios::inspect_vbios_info(vb, self.vbios_ppt_offset.unwrap_or(0)))
                 .map(|vi| vi.device_id)
@@ -51,7 +48,7 @@ impl PowerPlayApp {
             self.fan_target_gfx_clock = { v20.fan_target_gfxclk } as i32;
             self.ulv_gfx = [{ v20.min_voltage_ulv_gfx } as i32 / 4, { v20.ulv_voltage_offset_gfx } as i32 / 4];
             self.ulv_soc = [{ v20.min_voltage_ulv_soc } as i32 / 4, { v20.ulv_voltage_offset_soc } as i32 / 4];
-            if let Some(st) = crate::pptable_vega::VegaParsedState::parse(&b, frev) { self.apply_vega_parsed(st); }
+            if let Some(st) = crate::pptable_vega::VegaParsedState::parse(b, frev) { self.apply_vega_parsed(st); }
             self.fan_zero_rpm_enable = v20.fan_zero_rpm_enable != 0;
             self.fan_stop_temp = { v20.fan_stop_temp } as i32;
             self.fan_start_temp = { v20.fan_start_temp } as i32;
@@ -90,14 +87,14 @@ impl PowerPlayApp {
             self.operating_temp_limit = (pcaps & (1 << 2)) != 0 || self.temp_limits[0] > 0;
             self.zero_rpm = (pcaps & (1 << 14)) != 0 || self.fan_zero_rpm_enable;
             self.status_msg = format!("Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B]", label, chip_v.display_name(), frev, crev, trev, b.len());
-            self.baseline_buffer = b.clone();
-            self.raw_buffer = b.clone();
+            self.baseline_buffer = b.to_owned();
+            self.raw_buffer = b.to_owned();
             return true;
         }
         false
     }
-    pub(super) fn try_apply_vega10(&mut self, b: &Vec<u8>, label: &str, frev: u8, crev: u8, trev: u8) -> bool {
-        if let Some(v10) = crate::pptable_vega::AtomVega10PowerPlayTable::from_bytes(&b) {
+    pub(super) fn try_apply_vega10(&mut self, b: &[u8], label: &str, frev: u8, crev: u8, trev: u8) -> bool {
+        if let Some(v10) = crate::pptable_vega::AtomVega10PowerPlayTable::from_bytes(b) {
             let did = self.vbios_buffer.as_deref()
                 .and_then(|vb| crate::vbios::inspect_vbios_info(vb, self.vbios_ppt_offset.unwrap_or(0)))
                 .map(|vi| vi.device_id)
@@ -111,13 +108,13 @@ impl PowerPlayApp {
             self.power_limit_w = 0;
             self.tdc_gfx = 0;
             self.tdc_soc = 0;
-            if let Some((soc_hi, gfx_hi, mem_hi, vddc_hi)) = v10.read_hard_limits(&b) {
+            if let Some((soc_hi, gfx_hi, mem_hi, vddc_hi)) = v10.read_hard_limits(b) {
                 self.volt_gfx = [0, vddc_hi];
                 self.volt_soc = [0, 0];
                 self.freq_gfx = [0, gfx_hi];
                 self.freq_soc = [0, soc_hi];
                 self.mem_dpm_freq[3] = [mem_hi, 1];
-                if let Some((vddci_hi, mvdd_hi)) = v10.read_hard_limit_mem_volt(&b) { self.mem_dpm_volt[3] = [vddci_hi, mvdd_hi]; }
+                if let Some((vddci_hi, mvdd_hi)) = v10.read_hard_limit_mem_volt(b) { self.mem_dpm_volt[3] = [vddci_hi, mvdd_hi]; }
             } else {
                 self.volt_gfx = [0, 0];
                 self.volt_soc = [0, 0];
@@ -137,7 +134,7 @@ impl PowerPlayApp {
                 self.mem_dpm_freq[i] = [0, 1];
                 self.mem_dpm_volt[i] = [0, 0];
             }
-            if let Some((pwm_min, max_rpm, tgt_temp, tgt_gfx, zrpm, stop_t, start_t)) = v10.read_fan_subtable(&b) {
+            if let Some((pwm_min, max_rpm, tgt_temp, tgt_gfx, zrpm, stop_t, start_t)) = v10.read_fan_subtable(b) {
                 self.fan_pwm_min = pwm_min;
                 self.fan_acoustic_limit = 0;
                 self.fan_throttling_rpm = 0;
@@ -160,8 +157,8 @@ impl PowerPlayApp {
             }
             self.temp_limits.fill(0);
             self.status_msg = format!("Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B]", label, chip_v.display_name(), frev, crev, trev, b.len());
-            self.baseline_buffer = b.clone();
-            self.raw_buffer = b.clone();
+            self.baseline_buffer = b.to_owned();
+            self.raw_buffer = b.to_owned();
             return true;
         }
         false

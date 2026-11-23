@@ -1,25 +1,4 @@
 use crate::{AdvanceOsTab, Tab};
-pub use crate::arch::smu_features as smu_features;
-pub use crate::io::import as import_formats;
-pub use crate::platform::advance_os as advance_os;
-pub use crate::platform::gpu_telemetry as gpu_telemetry;
-pub use crate::platform::macos_ioreg as macos_ioreg;
-pub use crate::ui::more_popups as more_popups;
-pub use crate::ui::cards as card_layout;
-pub use crate::ui::curve_plot as curve_plot;
-pub use crate::ui::safe_presets as safe_presets;
-pub use crate::ui::save_diff_modal as save_diff_modal;
-pub use crate::ui::theme as ui_theme;
-pub use crate::io::export as export_formats;
-pub use crate::io::ppt as io_ppt;
-pub use crate::io::vbios as vbios;
-pub use crate::arch::detect as ppt_arch;
-pub use crate::arch::polaris as pptable_polaris;
-pub use crate::arch::rdna1 as pptable_rdna1;
-pub use crate::arch::rdna2 as pptable_rdna2;
-pub use crate::arch::rdna3 as pptable_rdna3;
-pub use crate::arch::vega as pptable_vega;
-use eframe::egui;
 use std::path::PathBuf;
 
 pub struct PowerPlayApp {
