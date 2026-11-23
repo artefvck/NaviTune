@@ -63,3 +63,39 @@ fn cli_help_flag_exits_cleanly_without_panic() {
         .expect("spawn pptool --help");
     assert_ne!(out.status.code(), Some(101), "pptool panicked on --help");
 }
+
+#[test]
+fn cli_export_oc_and_reg_succeed_across_all_six_gpu_generations() {
+    let tmp = std::env::temp_dir().join("navitune_six_arch_cli_export");
+    let _ = fs::create_dir_all(&tmp);
+
+    let fixtures = [
+        ("polaris_rev07.bin",  make_ppt_skeleton(0x07, 0x07, 0x01, 384)),
+        ("vega10_rev08.bin",   make_ppt_skeleton(0x08, 0x08, 0x01, 512)),
+        ("vega20_rev0b.bin",   make_ppt_skeleton(0x0B, 0x0B, 0x01, 1924)),
+        ("rdna1_v4_5.bin",     make_ppt_skeleton(0x0D, 0x0D, 0x01, 1924)),
+        ("rdna2_v4_9.bin",     make_ppt_skeleton(0x0F, 0x0F, 0x01, 2470)),
+        ("rdna3_v4_12.bin",    make_ppt_skeleton(0x14, 0x14, 0x01, 5424)),
+    ];
+
+    let bin = env!("CARGO_BIN_EXE_pptool");
+    for (name, bytes) in &fixtures {
+        let in_path = tmp.join(name);
+        let plist_path = tmp.join(format!("{}.plist", name));
+        let reg_path = tmp.join(format!("{}.reg", name));
+        fs::write(&in_path, bytes).expect("write fixture");
+
+        for (flag, out_path) in [("--export-oc", &plist_path), ("--export-reg", &reg_path)] {
+            let out = Command::new(bin)
+                .arg("--inspect")
+                .arg(&in_path)
+                .arg(flag)
+                .arg(out_path)
+                .output()
+                .expect("spawn pptool export");
+            assert_ne!(out.status.code(), Some(101), "pptool panicked on {} {}", flag, name);
+        }
+    }
+
+    let _ = fs::remove_dir_all(&tmp);
+}

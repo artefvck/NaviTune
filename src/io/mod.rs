@@ -20,3 +20,15 @@ pub(crate) fn write_atomic(path: &std::path::Path, data: &[u8]) -> std::io::Resu
     }
     Ok(())
 }
+
+pub(crate) fn read_bounded(path: &std::path::Path) -> std::io::Result<Vec<u8>> {
+    const MAX_INPUT_BYTES: u64 = 64 * 1024 * 1024;
+    let meta = std::fs::metadata(path)?;
+    if meta.len() > MAX_INPUT_BYTES {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!("File exceeds 64 MiB safety limit ({} bytes)", meta.len()),
+        ));
+    }
+    std::fs::read(path)
+}
