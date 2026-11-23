@@ -344,6 +344,7 @@ impl PowerPlayApp {
             self.fan_target_temp = r1p.fan_target_temp as i32;
             self.oc_gfx_clock[1] = r1p.od_gfx_max as i32;
             self.oc_mem_clock[1] = r1p.od_uclk_max as i32;
+            self.fan_max_rpm = r1p.fan_max_rpm as i32;
             self.fan_max_rpm = r1p.od_uclk_max as i32;
             return;
         }
