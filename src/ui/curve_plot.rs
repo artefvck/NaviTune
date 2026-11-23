@@ -177,3 +177,26 @@ impl PowerPlayApp {
         }
     }
 }
+
+/// Safely normalizes `val` onto `[0.0, 1.0]` within `[min_v, max_v]`, returning `0.0` when the
+/// domain is degenerate (`max_v <= min_v`) or non-finite so curve rendering never divides by zero.
+pub(crate) fn normalize_curve_axis(val: f32, min_v: f32, max_v: f32) -> f32 {
+    if !val.is_finite() || !min_v.is_finite() || !max_v.is_finite() || max_v <= min_v {
+        return 0.0;
+    }
+    ((val - min_v) / (max_v - min_v)).clamp(0.0, 1.0)
+}
+
+#[cfg(test)]
+mod curve_plot_bounds_tests {
+    use super::normalize_curve_axis;
+
+    #[test]
+    fn normalize_curve_axis_guards_degenerate_and_non_finite_domains() {
+        assert_eq!(normalize_curve_axis(1000.0, 1000.0, 1000.0), 0.0);
+        assert_eq!(normalize_curve_axis(1500.0, 2000.0, 1000.0), 0.0);
+        assert_eq!(normalize_curve_axis(f32::NAN, 500.0, 2500.0), 0.0);
+        assert_eq!(normalize_curve_axis(1500.0, 500.0, 2500.0), 0.5);
+        assert_eq!(normalize_curve_axis(3000.0, 500.0, 2500.0), 1.0);
+    }
+}

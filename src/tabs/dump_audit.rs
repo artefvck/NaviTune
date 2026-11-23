@@ -103,6 +103,12 @@ impl PowerPlayApp {
         vars.push(("validation_warnings".to_string(), self.validate_tunables().len().to_string()));
         let (_, diff_preview_total) = crate::ui::save_diff_modal::collect_bounded_byte_diffs(&self.baseline_buffer, &self.raw_buffer, 64);
         vars.push(("diff_preview_total".to_string(), diff_preview_total.to_string()));
+        let gfx_span_norm = crate::ui::curve_plot::normalize_curve_axis(
+            self.freq_gfx[1] as f32,
+            self.freq_gfx[0] as f32,
+            3500.0,
+        );
+        vars.push(("gfx_span_norm".to_string(), format!("{:.3}", gfx_span_norm)));
         vars.sort_by(|a, b| a.0.cmp(&b.0));
 
         let mut out = String::new();
