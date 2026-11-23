@@ -6,7 +6,7 @@ NaviTune (`pptool`) is a cross-platform Rust + `egui`/`eframe` GPU PowerPlayTabl
 2. **Vega 10** (`SMU 9.0`, `rev 0x08`, e.g., RX Vega 56/64)
 3. **Vega 20** (`SMU 11.0`, `rev 0x0B`, e.g., Radeon VII / Radeon Pro VII, `1534 B` & `1924 B`)
 4. **RDNA 1** (`SMU 11.0`, `rev 0x0C` / `V4_5`, e.g., RX 5500/5600/5700 XT)
-5. **RDNA 2** (`SMU 11.0`, `rev 0x0F` / `V4_9`, `2470 B`, e.g., RX 6600/6700/6800/6900 XT)
+5. **RDNA 2** (`SMU 11.0`, `rev 0x0F..0x13` / `V4_9`, `2470 B` & `2690 B`, e.g., RX 6400/6500/6600/6700/6800/6900 XT)
 6. **RDNA 3** (`SMU 13.0`, `rev 0x12+` / `V4_12`, `5424 B`, e.g., RX 7600/7700/7800/7900 XTX)
 
 ## Core Modules
@@ -64,3 +64,6 @@ src/
     ├── save_diff_modal.rs     # Pre-Save Binary Diff & VBIOS Checksum Audit modal
     └── theme.rs               # Modern dark theme & styling
 ```
+
+## Zero-Byte Unmodified Round-Trip Parity
+- All 6 GPU generations preserve sub-millivolt (`qmv = mV * 4`) remainders, upper reserved/flag bits, and compact sub-table boundaries so saving an untouched table yields **0 modified bytes** (`tests/offset_audit_parity.rs`).
