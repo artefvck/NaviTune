@@ -136,3 +136,12 @@ pub fn poll_gpu_telemetry() -> GpuTelemetry {
 
 #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
 pub fn poll_gpu_telemetry() -> GpuTelemetry { GpuTelemetry::default() }
+
+#[cfg(test)]
+mod gpu_telemetry_resilience_tests {
+    #[test]
+    fn telemetry_poll_completes_without_panic_on_any_host() {
+        let snap = super::poll_gpu_telemetry();
+        let _ = format!("{:?}", snap);
+    }
+}
