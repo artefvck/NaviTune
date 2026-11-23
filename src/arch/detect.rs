@@ -535,3 +535,48 @@ mod arch_matrix_tests {
         assert!(!PptArch::Rdna3.supports_card(PptCard::ThermalVmin));
     }
 }
+
+#[cfg(test)]
+mod detect_six_arch_tests {
+    fn header_bytes(table_rev: u8, format_rev: u8, content_rev: u8, size: usize) -> Vec<u8> {
+        let mut b = vec![0u8; size];
+        let sz = (size as u16).to_le_bytes();
+        b[0] = sz[0];
+        b[1] = sz[1];
+        b[2] = format_rev;
+        b[3] = content_rev;
+        b[4] = table_rev;
+        b
+    }
+
+    #[test]
+    fn detect_handles_truncated_buffers_without_panic() {
+        for len in 0..=8 {
+            let buf = vec![0u8; len];
+            let _ = super::PptArch::detect(&buf);
+        }
+    }
+
+    #[test]
+    fn detect_recognizes_all_six_amd_gpu_revisions() {
+        let cases = [
+            (0x07u8, 0x07u8, 0x01u8, 384usize),
+            (0x08u8, 0x08u8, 0x01u8, 512usize),
+            (0x0Bu8, 0x0Bu8, 0x01u8, 1924usize),
+            (0x0Du8, 0x0Du8, 0x01u8, 1924usize),
+            (0x0Fu8, 0x0Fu8, 0x01u8, 2470usize),
+            (0x14u8, 0x14u8, 0x01u8, 5424usize),
+        ];
+        for (trev, frev, crev, size) in cases {
+            let buf = header_bytes(trev, frev, crev, size);
+            let arch = super::PptArch::detect(&buf);
+            assert!(
+                !format!("{:?}", arch).contains("Unknown"),
+                "Expected known architecture for rev 0x{:02X} ({} B), got {:?}",
+                trev,
+                size,
+                arch
+            );
+        }
+    }
+}
