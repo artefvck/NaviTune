@@ -34,11 +34,13 @@ pub fn try_run_cli() -> bool {
             true
         }
         "--dump-all" => {
-            let Some(path) = args.get(1) else {
-                eprintln!("Usage: pptool --dump-all <file.rom|file.bin>");
+            let is_json = args.iter().skip(1).any(|a| a == "--json");
+            let Some(path) = args.iter().skip(1).find(|a| a.as_str() != "--json") else {
+                eprintln!("Usage: pptool --dump-all <file.rom|file.bin> [--json]");
                 std::process::exit(2);
             };
-            if let Err(e) = cmd_dump_all(path) {
+            let res = if is_json { cmd_dump_all_json(path) } else { cmd_dump_all(path) };
+            if let Err(e) = res {
                 eprintln!("Error: {}", e);
                 std::process::exit(1);
             }
