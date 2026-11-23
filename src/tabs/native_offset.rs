@@ -31,6 +31,17 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<NativeStructEntr
             ("Fan", "stop / start / target / zero", off3("fan_stop_temp"), 4, format!("Stop={}°C, Start={}°C, Target={}°C, MaxRPM={}, ZeroRPM={}", {t3.fan_stop_temp}, {t3.fan_start_temp}, { let tt = t3.fan_target_temp; if tt > 200 { tt / 10 } else { tt } }, {t3.fan_max_rpm}, {t3.fan_zero_rpm_enable})),
         ]));
     }
+    if let Some(r1) = crate::pptable_rdna1::Rdna1ParsedState::parse(b) {
+        let inn = 0x36usize;
+        return Some(("RDNA 1 (Navi 10 / Navi 14)", vec![
+            ("Header", "AtomCommonTableHeader", 0x000, 5, format!("size={}, rev=0x{:02X}.{:02X}.{:02X}", hdr_sz, frev, crev, trev)),
+            ("SubTable", "PP_PhmSoftPowerPlayTable", inn, (b.len() - inn).min(16), format!("SMC DPM inner table @ 0x{:03X}", inn)),
+            ("Power", "power_limit_w", inn + 0x00C, 2, format!("{} W", r1.power_limit_w)),
+            ("Voltage", "min/max_voltage_gfx (Q4)", inn + 0x068, 6, format!("{} .. {} mV", r1.min_volt_gfx / 4, r1.max_volt_gfx / 4)),
+            ("Clocks", "gfx_min / gfx_max", inn + 0x104, 4, format!("{} .. {} MHz", r1.gfx_min, r1.gfx_max)),
+            ("Fan", "fan_pwm_min / max_rpm / target_temp", inn + 0x294, 12, format!("PWM {}%, Max {} RPM, Target {} C", r1.fan_pwm_min, r1.fan_max_rpm, r1.fan_target_temp)),
+        ]));
+    }
     if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(b) {
         let od_max = { t1.od_settings_max };
         let od_flags = { t1.od_feature_flags };
