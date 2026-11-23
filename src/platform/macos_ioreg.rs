@@ -279,3 +279,32 @@ pub fn scan_ioreg_gpus() -> Vec<IoregGpuEntry> {
 pub fn scan_ioreg_gpus() -> Vec<IoregGpuEntry> {
     Vec::new()
 }
+
+#[cfg(all(test, target_os = "macos"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_sample_ioreg_amd_gpu_with_comma_ppt_key() {
+        let sample = r#"
+
+  | |   +-o GFX0@0  <class IOPCIDevice, id 0x100000412, registered, matched, active, busy 0>
+  | |     | "vendor-id" = <02100000>
+  | |     | "device-id" = <bf730000>
+  | |     | "class-code" = <00000300>
+  | |     | "model" = <414d4420526164656f6e205258203638303020585400>
+  | |     | "pcidebug" = "3:0:0"
+  | |     | "PP,PhmSoftPowerPlayTable" = <a6090f00005c00ab0700002a3000001b005000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000>
+  | |     +-o HDAU@0,1  <class IOPCIDevice, id 0x100000413, registered, matched, active, busy 0>
+  | |       | "vendor-id" = <02100000>
+  | |       | "class-code" = <00030400>
+"#;
+        let gpus = IoregParser::new().parse_document(sample);
+        assert_eq!(gpus.len(), 1, "must skip HDAU audio function and keep only display GPU");
+        assert!(gpus[0].label.contains("AMD Radeon RX 6800 XT"), "label={}", gpus[0].label);
+        assert!(gpus[0].label.contains("GFX0"), "label={}", gpus[0].label);
+        let ppt = gpus[0].ppt_bytes.as_ref().expect("PP,PhmSoftPowerPlayTable bytes");
+        assert_eq!(ppt.len(), 64);
+        assert_eq!(&ppt[0..4], &[0xA6, 0x09, 0x0F, 0x00]);
+    }
+}
