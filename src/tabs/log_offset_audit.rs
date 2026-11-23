@@ -1,5 +1,7 @@
 use crate::arch::detect::PptArch;
 use crate::arch::polaris::AtomPolarisPowerPlayTable;
+use crate::arch::rdna1::AtomSmcDpmInfoV4_5;
+use crate::arch::rdna3::AtomSmcDpmInfoV4_12;
 use crate::arch::vega::VegaParsedState;
 use crate::PowerPlayApp;
 use eframe::egui;
