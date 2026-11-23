@@ -4,7 +4,8 @@ use crate::ppt_arch::PptArch;
 use crate::vbios;
 
 pub(super) fn print_help() {
-    println!("NaviTune (pptool) - AMD Radeon PowerPlayTable & VBIOS CLI / GUI\n  pptool --inspect <file.rom|file.bin>\n  pptool --dump-all <file.rom|file.bin>\n  pptool --export-oc <file> [out.plist]\n  pptool --export-reg <file> [out.reg]\n  pptool --export-bin <file.rom> <out.bin>");
+    println!("NaviTune (pptool) - AMD Radeon PowerPlayTable & VBIOS CLI / GUI\n  pptool --inspect <file.rom|file.bin>\n  pptool --dump-all <file.rom|file.bin>\n  pptool --export-oc <file> [out.plist]\n  pptool --export-reg <file> [out.reg]\n  pptool --diff <file_a> <file_b> [--json]
+  pptool --export-bin <file.rom> <out.bin>");
 }
 
 pub(super) fn cmd_inspect(path: &str) -> Result<(), String> {
@@ -65,7 +66,7 @@ pub(super) fn cmd_dump_all(path: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn json_esc(s: &str) -> String {
+pub(super) fn json_esc(s: &str) -> String {
     s.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n")
 }
 
