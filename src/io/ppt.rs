@@ -265,8 +265,8 @@ impl PowerPlayApp {
 
             self.volt_gfx = [{ t1.min_voltage_gfx } as i32 / 4, { t1.max_voltage_gfx } as i32 / 4];
             self.volt_soc = [{ t1.min_voltage_soc } as i32 / 4, { t1.max_voltage_soc } as i32 / 4];
-            self.ulv_gfx = [{ t1.min_voltage_ulv_gfx } as i32 / 4, 0];
-            self.ulv_soc = [{ t1.min_voltage_ulv_soc } as i32 / 4, 0];
+            self.ulv_gfx = [{ t1.min_voltage_ulv_gfx } as i32 / 4, { t1.ulv_voltage_offset_gfx } as i32 / 4];
+            self.ulv_soc = [{ t1.min_voltage_ulv_soc } as i32 / 4, { t1.ulv_voltage_offset_soc } as i32 / 4];
 
             let desc = { t1.dpm_descriptor };
             let gfx_n = (desc[0] as usize).clamp(1, 16);
@@ -379,8 +379,8 @@ impl PowerPlayApp {
             self.fan_max_rpm = { v20.fan_maximum_rpm } as i32;
             self.fan_target_temp = { v20.fan_target_temperature } as i32;
             self.fan_target_gfx_clock = { v20.fan_target_gfxclk } as i32;
-            self.ulv_gfx = [{ v20.min_voltage_ulv_gfx } as i32 / 4, 0];
-            self.ulv_soc = [{ v20.min_voltage_ulv_soc } as i32 / 4, 0];
+            self.ulv_gfx = [{ v20.min_voltage_ulv_gfx } as i32 / 4, { v20.ulv_voltage_offset_gfx } as i32 / 4];
+            self.ulv_soc = [{ v20.min_voltage_ulv_soc } as i32 / 4, { v20.ulv_voltage_offset_soc } as i32 / 4];
             if let Some(st) = crate::pptable_vega::VegaParsedState::parse(&b, frev) { self.apply_vega_parsed(st); }
             self.fan_zero_rpm_enable = v20.fan_zero_rpm_enable != 0;
             self.fan_stop_temp = { v20.fan_stop_temp } as i32;
@@ -732,7 +732,10 @@ impl PowerPlayApp {
             t3.od_fan_max = self.oc_fan_rpm[1] as u32;
             t3.od_acoustic_max = self.oc_fan_acoustic_rpm[1] as u32;
             t3.socket_power_limit_ac = self.power_limit_w as u16;
-            t3.min_voltage_gfx = (self.volt_gfx[0] * 4) as u16;
+            let qmv_r3 = |ui_mv: i32, orig: u16| if (orig / 4) as i32 == ui_mv { orig } else { (ui_mv.max(0) * 4) as u16 };
+        t3.ulv_voltage_vmin_gfx = qmv_r3(self.ulv_gfx[0], t3.ulv_voltage_vmin_gfx);
+        t3.ulv_voltage_vmin_soc = qmv_r3(self.ulv_soc[0], t3.ulv_voltage_vmin_soc);
+        t3.min_voltage_gfx = (self.volt_gfx[0] * 4) as u16;
             t3.max_voltage_gfx = (self.volt_gfx[1] * 4) as u16;
             t3.min_voltage_soc = (self.volt_soc[0] * 4) as u16;
             t3.max_voltage_soc = (self.volt_soc[1] * 4) as u16;
@@ -779,8 +782,12 @@ impl PowerPlayApp {
             t1.max_voltage_gfx = (self.volt_gfx[1].max(0) * 4) as u16;
             t1.min_voltage_soc = (self.volt_soc[0].max(0) * 4) as u16;
             t1.max_voltage_soc = (self.volt_soc[1].max(0) * 4) as u16;
-            t1.min_voltage_ulv_gfx = (self.ulv_gfx[0].max(0) * 4) as u16;
-            t1.min_voltage_ulv_soc = (self.ulv_soc[0].max(0) * 4) as u16;
+            let qmv_u = |ui_mv: i32, orig: u16| if (orig / 4) as i32 == ui_mv { orig } else { (ui_mv.max(0) * 4) as u16 };
+            let qmv_i = |ui_mv: i32, orig: i16| if (orig / 4) as i32 == ui_mv { orig } else { (ui_mv * 4) as i16 };
+            t1.min_voltage_ulv_gfx = qmv_u(self.ulv_gfx[0], t1.min_voltage_ulv_gfx);
+            t1.min_voltage_ulv_soc = qmv_u(self.ulv_soc[0], t1.min_voltage_ulv_soc);
+            t1.ulv_voltage_offset_gfx = qmv_i(self.ulv_gfx[1], t1.ulv_voltage_offset_gfx);
+            t1.ulv_voltage_offset_soc = qmv_i(self.ulv_soc[1], t1.ulv_voltage_offset_soc);
 
             t1.od_settings_min[0] = self.oc_gfx_clock[0].max(0) as u32;
             t1.od_settings_max[0] = self.oc_gfx_clock[1].max(0) as u32;
@@ -910,8 +917,12 @@ impl PowerPlayApp {
             v20.fan_maximum_rpm = self.fan_max_rpm.max(0) as u16;
             v20.fan_target_temperature = self.fan_target_temp.max(0) as u16;
             v20.fan_target_gfxclk = self.fan_target_gfx_clock.max(0) as u16;
-            v20.min_voltage_ulv_gfx = (self.ulv_gfx[0].max(0) * 4) as u16;
-            v20.min_voltage_ulv_soc = (self.ulv_soc[0].max(0) * 4) as u16;
+            let qmv_u = |ui_mv: i32, orig: u16| if (orig / 4) as i32 == ui_mv { orig } else { (ui_mv.max(0) * 4) as u16 };
+            let qmv_i = |ui_mv: i32, orig: i16| if (orig / 4) as i32 == ui_mv { orig } else { (ui_mv * 4) as i16 };
+            v20.min_voltage_ulv_gfx = qmv_u(self.ulv_gfx[0], v20.min_voltage_ulv_gfx);
+            v20.min_voltage_ulv_soc = qmv_u(self.ulv_soc[0], v20.min_voltage_ulv_soc);
+            v20.ulv_voltage_offset_gfx = qmv_i(self.ulv_gfx[1], v20.ulv_voltage_offset_gfx);
+            v20.ulv_voltage_offset_soc = qmv_i(self.ulv_soc[1], v20.ulv_voltage_offset_soc);
             v20.fan_zero_rpm_enable = u8::from(self.fan_zero_rpm_enable);
             v20.fan_stop_temp = self.fan_stop_temp.max(0) as u16;
             v20.fan_start_temp = self.fan_start_temp.max(0) as u16;
@@ -1041,8 +1052,11 @@ impl PowerPlayApp {
         };
         t.ulv_voltage_vmin_gfx = qmv(self.ulv_gfx[0], t.ulv_voltage_vmin_gfx);
         t.ulv_voltage_vmin_soc = qmv(self.ulv_soc[0], t.ulv_voltage_vmin_soc);
-        t.ulv_voltage_offset_gfx = qmv(self.ulv_gfx[1], t.ulv_voltage_offset_gfx);
-        t.ulv_voltage_offset_soc = qmv(self.ulv_soc[1], t.ulv_voltage_offset_soc);
+        let qmv_i = |ui_mv: i32, orig: i16| -> i16 {
+            if (orig / 4) as i32 == ui_mv { orig } else { (ui_mv * 4) as i16 }
+        };
+        t.ulv_voltage_offset_gfx = qmv_i(self.ulv_gfx[1], t.ulv_voltage_offset_gfx);
+        t.ulv_voltage_offset_soc = qmv_i(self.ulv_soc[1], t.ulv_voltage_offset_soc);
         t.min_voltage_gfx = qmv(self.volt_gfx[0], t.min_voltage_gfx);
         t.min_voltage_soc = qmv(self.volt_soc[0], t.min_voltage_soc);
         t.max_voltage_gfx = qmv(self.volt_gfx[1], t.max_voltage_gfx);
