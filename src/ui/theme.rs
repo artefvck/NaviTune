@@ -381,3 +381,25 @@ pub fn apply_agave_fonts(ctx: &egui::Context) {
     fonts.families.entry(egui::FontFamily::Monospace).or_default().insert(0, "agave_mono".to_owned());
     ctx.set_fonts(fonts);
 }
+
+/// Produces an alpha-adjusted fill color from an accent `Color32` while preserving RGB channels.
+pub(crate) fn tinted_badge_fill(base: eframe::egui::Color32, alpha: u8) -> eframe::egui::Color32 {
+    eframe::egui::Color32::from_rgba_unmultiplied(base.r(), base.g(), base.b(), alpha)
+}
+
+#[cfg(test)]
+mod theme_palette_tests {
+    use super::tinted_badge_fill;
+    use eframe::egui::Color32;
+
+    #[test]
+    fn tinted_badge_fill_preserves_rgb_and_sets_alpha() {
+        let base = Color32::from_rgb(0xE0, 0x4F, 0x5F);
+        let tinted = tinted_badge_fill(base, 48);
+        let rgba = tinted.to_srgba_unmultiplied();
+        assert_eq!(rgba[3], 48);
+        assert!(rgba[0].abs_diff(0xE0) <= 2);
+        assert!(rgba[1].abs_diff(0x4F) <= 2);
+        assert!(rgba[2].abs_diff(0x5F) <= 2);
+    }
+}
