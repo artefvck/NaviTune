@@ -41,49 +41,51 @@ impl PowerPlayApp {
         match arch {
             PptArch::Polaris => {
                 if let Some(pol) = AtomPolarisPowerPlayTable::from_bytes(buf) {
-                    push("OD Max GFX Clock (MHz)", 0x019, "u32 / 100", self.oc_gfx_clock[1], (pol.max_od_engine_clock / 100) as i32);
-                    push("OD Max Mem Clock (MHz)", 0x01D, "u32 / 100", self.oc_mem_clock[1], (pol.max_od_memory_clock / 100) as i32);
-                    push("OD Power Limit (%)", 0x021, "i16", self.oc_power_limit[1], pol.power_control_limit as i32);
+                    push("OD Max GFX Clock (MHz)", std::mem::offset_of!(AtomPolarisPowerPlayTable, max_od_engine_clock), "u32 / 100", self.oc_gfx_clock[1], (pol.max_od_engine_clock / 100) as i32);
+                    push("OD Max Mem Clock (MHz)", std::mem::offset_of!(AtomPolarisPowerPlayTable, max_od_memory_clock), "u32 / 100", self.oc_mem_clock[1], (pol.max_od_memory_clock / 100) as i32);
+                    push("OD Power Limit (%)", std::mem::offset_of!(AtomPolarisPowerPlayTable, power_control_limit), "i16", self.oc_power_limit[1], pol.power_control_limit as i32);
                 }
             }
             PptArch::Vega10 => {
+                use crate::arch::vega::AtomVega10PowerPlayTable;
                 if let Some(st) = VegaParsedState::parse(buf, frev) {
-                    let pt_off = u16_at(0x042) as usize;
-                    push("GFX Clock Min (MHz)", u16_at(0x03A) as usize + 2, "u32 / 100", self.freq_gfx[0], st.freq_gfx[0]);
-                    push("GFX Clock Max (MHz)", u16_at(0x03A) as usize + 2, "u32 / 100", self.freq_gfx[1], st.freq_gfx[1]);
-                    push("SOCCLK Max (MHz)", u16_at(0x038) as usize + 2, "u32 / 100", self.freq_soc[1], st.freq_soc[1]);
-                    push("HBM2 DPM3 Clock (MHz)", u16_at(0x03C) as usize + 2, "u32 / 100", self.mem_dpm_freq[3][0], st.mem_dpm_freq[3][0]);
-                    push("GFX Voltage Min (mV)", u16_at(0x03E) as usize + 2, "u16", self.volt_gfx[0], st.volt_gfx[0]);
-                    push("GFX Voltage Max (mV)", u16_at(0x03E) as usize + 2, "u16", self.volt_gfx[1], st.volt_gfx[1]);
-                    push("OD Max GFX Clock (MHz)", 0x017, "u32 / 100", self.oc_gfx_clock[1], st.oc_gfx_clock[1]);
-                    push("OD Max Mem Clock (MHz)", 0x01B, "u32 / 100", self.oc_mem_clock[1], st.oc_mem_clock[1]);
-                    push("OD Power Limit (%)", 0x01F, "i16", self.oc_power_limit[1], st.oc_power_limit[1]);
+                    let pt_off = u16_at(std::mem::offset_of!(AtomVega10PowerPlayTable, hard_limit_table_offset)) as usize;
+                    push("GFX Clock Min (MHz)", u16_at(std::mem::offset_of!(AtomVega10PowerPlayTable, gfxclk_dep_table_offset)) as usize + 2, "u32 / 100", self.freq_gfx[0], st.freq_gfx[0]);
+                    push("GFX Clock Max (MHz)", u16_at(std::mem::offset_of!(AtomVega10PowerPlayTable, gfxclk_dep_table_offset)) as usize + 2, "u32 / 100", self.freq_gfx[1], st.freq_gfx[1]);
+                    push("SOCCLK Max (MHz)", u16_at(std::mem::offset_of!(AtomVega10PowerPlayTable, socclk_dep_table_offset)) as usize + 2, "u32 / 100", self.freq_soc[1], st.freq_soc[1]);
+                    push("HBM2 DPM3 Clock (MHz)", u16_at(std::mem::offset_of!(AtomVega10PowerPlayTable, mclk_dep_table_offset)) as usize + 2, "u32 / 100", self.mem_dpm_freq[3][0], st.mem_dpm_freq[3][0]);
+                    push("GFX Voltage Min (mV)", u16_at(std::mem::offset_of!(AtomVega10PowerPlayTable, vddc_lookup_table_offset)) as usize + 2, "u16", self.volt_gfx[0], st.volt_gfx[0]);
+                    push("GFX Voltage Max (mV)", u16_at(std::mem::offset_of!(AtomVega10PowerPlayTable, vddc_lookup_table_offset)) as usize + 2, "u16", self.volt_gfx[1], st.volt_gfx[1]);
+                    push("OD Max GFX Clock (MHz)", std::mem::offset_of!(AtomVega10PowerPlayTable, max_od_engine_clock), "u32 / 100", self.oc_gfx_clock[1], st.oc_gfx_clock[1]);
+                    push("OD Max Mem Clock (MHz)", std::mem::offset_of!(AtomVega10PowerPlayTable, max_od_memory_clock), "u32 / 100", self.oc_mem_clock[1], st.oc_mem_clock[1]);
+                    push("OD Power Limit (%)", std::mem::offset_of!(AtomVega10PowerPlayTable, power_control_limit), "i16", self.oc_power_limit[1], st.oc_power_limit[1]);
                     push("TDC GFX Limit (A)", pt_off + 0x55, "u16", self.tdc_gfx, st.tdc_gfx);
                     push("Max Power Limit (W)", pt_off + 0x57, "u16", self.power_limit_w, st.power_limit_w);
-                    push("Hotspot Temp Limit (°C)", u16_at(0x048) as usize + 0x15, "u8", self.temp_limits[0], st.temp_limit_0);
+                    push("Hotspot Temp Limit (°C)", u16_at(std::mem::offset_of!(AtomVega10PowerPlayTable, hard_limit_table_offset)) as usize + 0x15, "u8", self.temp_limits[0], st.temp_limit_0);
                 }
             }
             PptArch::Vega20 => {
+                use crate::arch::vega::AtomVega20PowerPlayTable;
                 if let Some(st) = VegaParsedState::parse(buf, frev) {
-                    push("Max Power Limit (W)", 0x016, "u16", self.power_limit_w, st.power_limit_w);
-                    push("TDC GFX Limit (A)", 0x018, "u16", self.tdc_gfx, st.tdc_gfx);
-                    push("TDC SoC Limit (A)", 0x01A, "u16", self.tdc_soc, st.tdc_soc);
-                    push("OD Max GFX Clock (MHz)", 0x027, "u32", self.oc_gfx_clock[1], st.oc_gfx_clock[1]);
-                    push("OD Max Mem Clock (MHz)", 0x02B, "u32", self.oc_mem_clock[1], st.oc_mem_clock[1]);
-                    push("GFX Voltage Min (mV)", 0x03B, "u32", self.volt_gfx[0], st.volt_gfx[0]);
-                    push("GFX Voltage Max (mV)", 0x043, "u32", self.volt_gfx[1], st.volt_gfx[1]);
-                    push("GFX Clock Min (MHz)", 0x33A, "u16", self.freq_gfx[0], st.freq_gfx[0]);
-                    push("GFX Clock Max (MHz)", 0x348, "u16", self.freq_gfx[1], st.freq_gfx[1]);
-                    push("UCLK DPM0 (MHz)", 0x3C4, "u16", self.mem_dpm_freq[0][0], st.mem_dpm_freq[0][0]);
-                    push("UCLK DPM3 (MHz)", 0x3CA, "u16", self.mem_dpm_freq[3][0], st.mem_dpm_freq[3][0]);
-                    push("Fan Acoustic Limit (RPM)", 0x536, "u16", self.fan_acoustic_limit, st.fan_acoustic_limit);
-                    push("Fan Throttling (RPM)", 0x538, "u16", self.fan_throttling_rpm, st.fan_throttling_rpm);
-                    push("Fan Max RPM (RPM)", 0x53A, "u16", self.fan_max_rpm, st.fan_max_rpm);
+                    push("Max Power Limit (W)", std::mem::offset_of!(AtomVega20PowerPlayTable, socket_power_limit_ac), "u16", self.power_limit_w, st.power_limit_w);
+                    push("TDC GFX Limit (A)", std::mem::offset_of!(AtomVega20PowerPlayTable, tdc_limit_gfx), "u16", self.tdc_gfx, st.tdc_gfx);
+                    push("TDC SoC Limit (A)", std::mem::offset_of!(AtomVega20PowerPlayTable, tdc_limit_soc), "u16", self.tdc_soc, st.tdc_soc);
+                    push("OD Max GFX Clock (MHz)", std::mem::offset_of!(AtomVega20PowerPlayTable, od_settings_max), "u32", self.oc_gfx_clock[1], st.oc_gfx_clock[1]);
+                    push("OD Max Mem Clock (MHz)", std::mem::offset_of!(AtomVega20PowerPlayTable, od_settings_max) + 4, "u32", self.oc_mem_clock[1], st.oc_mem_clock[1]);
+                    push("GFX Voltage Min (mV)", std::mem::offset_of!(AtomVega20PowerPlayTable, min_voltage_gfx), "u32", self.volt_gfx[0], st.volt_gfx[0]);
+                    push("GFX Voltage Max (mV)", std::mem::offset_of!(AtomVega20PowerPlayTable, max_voltage_gfx), "u32", self.volt_gfx[1], st.volt_gfx[1]);
+                    push("GFX Clock Min (MHz)", std::mem::offset_of!(AtomVega20PowerPlayTable, freq_table_gfx), "u16", self.freq_gfx[0], st.freq_gfx[0]);
+                    push("GFX Clock Max (MHz)", std::mem::offset_of!(AtomVega20PowerPlayTable, freq_table_gfx) + 14 * 2, "u16", self.freq_gfx[1], st.freq_gfx[1]);
+                    push("UCLK DPM0 (MHz)", std::mem::offset_of!(AtomVega20PowerPlayTable, freq_table_uclk), "u16", self.mem_dpm_freq[0][0], st.mem_dpm_freq[0][0]);
+                    push("UCLK DPM3 (MHz)", std::mem::offset_of!(AtomVega20PowerPlayTable, freq_table_uclk) + 3 * 2, "u16", self.mem_dpm_freq[3][0], st.mem_dpm_freq[3][0]);
+                    push("Fan Acoustic Limit (RPM)", std::mem::offset_of!(AtomVega20PowerPlayTable, fan_acoustic_limit_rpm), "u16", self.fan_acoustic_limit, st.fan_acoustic_limit);
+                    push("Fan Throttling (RPM)", std::mem::offset_of!(AtomVega20PowerPlayTable, fan_throttling_rpm), "u16", self.fan_throttling_rpm, st.fan_throttling_rpm);
+                    push("Fan Max RPM (RPM)", std::mem::offset_of!(AtomVega20PowerPlayTable, fan_maximum_rpm), "u16", self.fan_max_rpm, st.fan_max_rpm);
                 } else {
-                    push("OD Max GFX Clock (MHz)", 0x027, "u32", self.oc_gfx_clock[1], u32_at(0x027));
-                    push("OD Max Mem Clock (MHz)", 0x02B, "u32", self.oc_mem_clock[1], u32_at(0x02B));
-                    push("GFX Voltage Min (mV)", 0x03B, "u32", self.volt_gfx[0], u32_at(0x03B));
-                    push("GFX Voltage Max (mV)", 0x043, "u32", self.volt_gfx[1], u32_at(0x043));
+                    push("OD Max GFX Clock (MHz)", std::mem::offset_of!(AtomVega20PowerPlayTable, od_settings_max), "u32", self.oc_gfx_clock[1], u32_at(std::mem::offset_of!(AtomVega20PowerPlayTable, od_settings_max)));
+                    push("OD Max Mem Clock (MHz)", std::mem::offset_of!(AtomVega20PowerPlayTable, od_settings_max) + 4, "u32", self.oc_mem_clock[1], u32_at(std::mem::offset_of!(AtomVega20PowerPlayTable, od_settings_max) + 4));
+                    push("GFX Voltage Min (mV)", std::mem::offset_of!(AtomVega20PowerPlayTable, min_voltage_gfx), "u32", self.volt_gfx[0], u32_at(std::mem::offset_of!(AtomVega20PowerPlayTable, min_voltage_gfx)));
+                    push("GFX Voltage Max (mV)", std::mem::offset_of!(AtomVega20PowerPlayTable, max_voltage_gfx), "u32", self.volt_gfx[1], u32_at(std::mem::offset_of!(AtomVega20PowerPlayTable, max_voltage_gfx)));
                 }
             }
             PptArch::Rdna1 => {
