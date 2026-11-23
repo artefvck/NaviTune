@@ -97,6 +97,21 @@ fn scan_powerplay_signature(buf: &[u8]) -> Option<(usize, usize)> {
 }
 
 pub fn extract_ppt_from_rom(rom: &[u8]) -> Result<(Vec<u8>, usize), String> {
+    if rom.len() >= 0x4A {
+        let hdr = u16::from_le_bytes([rom[0x48], rom[0x49]]) as usize;
+        if hdr + 0x22 <= rom.len() {
+            let mdt = u16::from_le_bytes([rom[hdr + 0x20], rom[hdr + 0x21]]) as usize;
+            if mdt + 4 + 16 * 2 <= rom.len() {
+                let off = u16::from_le_bytes([rom[mdt + 4 + 15 * 2], rom[mdt + 4 + 15 * 2 + 1]]) as usize;
+                if off > 0 && off + 4 <= rom.len() && rom[off + 2] == 0x0C {
+                    let sz = u16::from_le_bytes([rom[off], rom[off + 1]]) as usize;
+                    if sz >= 512 && off + sz <= rom.len() {
+                        return Ok((rom[off..off + sz].to_vec(), off));
+                    }
+                }
+            }
+        }
+    }
     if rom.starts_with(&[0x55, 0xAA]) {
         if let Some((_ah, _md, ppt_off, ppt_size)) = resolve_master_powerplay_table(rom) {
             return Ok((rom[ppt_off..ppt_off + ppt_size].to_vec(), ppt_off));

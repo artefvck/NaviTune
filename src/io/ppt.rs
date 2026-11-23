@@ -772,7 +772,11 @@ impl PowerPlayApp {
             }
             return;
         }
-        if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes_mut(&mut self.raw_buffer) {
+        if crate::ppt_arch::PptArch::detect(&self.raw_buffer) == crate::ppt_arch::PptArch::Rdna1 && self.raw_buffer.len() >= 1674 {
+            let orig_len = self.raw_buffer.len();
+            let mut padded = vec![0u8; orig_len.max(1924)];
+            padded[..orig_len].copy_from_slice(&self.raw_buffer);
+            if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes_mut(&mut padded) {
             t1.boost_power_limit = self.power_limit_w.max(0) as u16;
             t1.socket_power_limit_ac[0] = self.power_limit_w.max(0) as u16;
             t1.tdc_limit_gfx = self.tdc_gfx.max(0) as u16;
@@ -871,6 +875,14 @@ impl PowerPlayApp {
             t1.od_feature_flags[9] = u8::from(self.power_limit_feat);
             t1.od_feature_flags[10] = u8::from(self.timing_tuning);
             t1.od_feature_flags[11] = u8::from(self.power_mode);
+            }
+            if orig_len == 1674 && u16::from_le_bytes([self.raw_buffer[5], self.raw_buffer[6]]) == 0x01E2 {
+                let dst = std::mem::offset_of!(crate::pptable_rdna1::AtomSmcDpmInfoV4_5, socket_power_limit_ac) - 0x00C;
+                let inner_n = 1674 - 0x01E2;
+                self.raw_buffer[0x01E2..1674].copy_from_slice(&padded[dst..dst + inner_n]);
+            } else {
+                self.raw_buffer.copy_from_slice(&padded[..orig_len]);
+            }
             return;
         }
 
