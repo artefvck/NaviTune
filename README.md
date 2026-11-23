@@ -102,3 +102,14 @@ cargo run --release
 ├── <a href="https://raw.githubusercontent.com/artefvck/NaviTune/refs/heads/main/Cargo.toml">Cargo.toml</a>
 └── <a href="https://raw.githubusercontent.com/artefvck/NaviTune/refs/heads/main/README.md">README.md</a>
 </pre>
+
+## Architecture & Verification Matrix
+
+- **Supported AMD Radeon Generations**: Polaris (`SMU 8.0 / rev 0x07`), Vega 10 (`SMU 9.0 / rev 0x08`), Vega 20 (`SMU 11.0 / rev 0x0B`), RDNA 1 (`V4_5 / rev 0x0D`), RDNA 2 (`V4_9 / rev 0x0F`), and RDNA 3 (`V4_12 / rev 0x14`).
+- **Modular Codebase Layout**:
+  - `src/arch/`: Generation-specific `PowerPlayTable` codecs, header detector (`detect.rs`), and overflow-safe `SMU` feature mask helpers (`smu_features.rs`).
+  - `src/cli/`: Modular CLI commands split into `inspect.rs`, `export.rs`, and `audit.rs`.
+  - `src/io/`: Bounded `64 MiB` file readers (`read_bounded`), atomic file writers (`write_atomic`), VBIOS AtomBIOS extractor (`vbios.rs`), and `.plist`/`.reg`/`sysfs` codecs.
+  - `src/platform/`: Cross-platform telemetry (`gpu_telemetry.rs`), macOS `IORegistry` parser (`macos_ioreg.rs`), and per-OS system integration (`advance_os/{macos,windows,linux}.rs`).
+  - `src/ui/` & `src/tabs/`: `eframe`/`egui` tabs, V/F & fan curve visualizer (`curve_plot.rs`), bounded Save-Diff inspector (`save_diff_modal.rs`), and safe preset validation (`safe_presets.rs`).
+- **Verification**: Run `cargo clippy --all-targets -- -D warnings && cargo test && cargo check --release`.
