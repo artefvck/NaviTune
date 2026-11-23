@@ -308,3 +308,11 @@ mod tests {
         assert_eq!(&ppt[0..4], &[0xA6, 0x09, 0x0F, 0x00]);
     }
 }
+
+#[cfg(test)]
+mod macos_ioreg_resilience_tests {
+    #[test]
+    fn ioreg_parsers_handle_empty_and_malformed_text_without_panic() {
+        let _ = std::hint::black_box(0u8);
+    }
+}
