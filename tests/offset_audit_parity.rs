@@ -51,6 +51,20 @@ fn verify_all_target_vbios_parity() {
             PptArch::Polaris => {
                 let pol = pptable_polaris::AtomPolarisPowerPlayTable::from_bytes(&ppt).expect("polaris parse");
                 assert!(pol.max_od_engine_clock > 0, "non-zero Polaris OD GFX clock for {:?}", path);
+                let (sclk_min, sclk_max, _vddc_min, vddc_max, pwr_w, tdc_a, mclk_rows) = pol.read_polaris_dpm_and_powertune(&ppt);
+                let mut mem_f = [[0; 2]; 4];
+                let mut mem_v = [[0; 2]; 4];
+                for (i, &(f, v, _)) in mclk_rows.iter().take(4).enumerate() {
+                    mem_f[i][0] = f;
+                    mem_v[i][0] = v;
+                }
+                let mut roundtrip = ppt.clone();
+                pptable_polaris::AtomPolarisPowerPlayTable::write_polaris_dpm_and_powertune(&mut roundtrip, sclk_min, sclk_max, vddc_max, pwr_w, tdc_a, &mem_f, &mem_v);
+                if let Some((pwm_min, max_rpm, tgt_t, tgt_g, zrpm, stop_t, start_t)) = pol.read_fan_subtable(&ppt) {
+                    pptable_polaris::AtomPolarisPowerPlayTable::write_fan_subtable(&mut roundtrip, pwm_min, max_rpm, tgt_t, tgt_g, zrpm, stop_t, start_t);
+                }
+                let diffs: Vec<_> = ppt.iter().zip(roundtrip.iter()).enumerate().filter(|(_, (a, b))| a != b).map(|(i, (a, b))| format!("0x{:03X}: 0x{:02X}->0x{:02X}", i, a, b)).collect();
+                assert!(diffs.is_empty(), "Polaris diffs in {:?}: {:?}", path, diffs);
             }
             PptArch::Rdna1 => {
                 if let Some(t) = pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(&ppt) {
