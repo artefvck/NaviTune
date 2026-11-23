@@ -68,6 +68,29 @@ pub fn try_run_cli() -> bool {
             }
             true
         }
+        "--preset" => {
+            let (Some(preset_name), Some(path)) = (args.get(1), args.get(2)) else {
+                eprintln!("Usage: pptool --preset <quiet-undervolt|balanced-oc|auto-fix> <file> [--export-bin out.bin] [--export-oc out.plist] [--export-reg out.reg]");
+                std::process::exit(2);
+            };
+            let mut out_bin: Option<&str> = None;
+            let mut out_oc: Option<&str> = None;
+            let mut out_reg: Option<&str> = None;
+            let mut i = 3;
+            while i < args.len() {
+                match args.get(i).map(String::as_str) {
+                    Some("--export-bin") => { out_bin = args.get(i + 1).map(String::as_str); i += 2; }
+                    Some("--export-oc")  => { out_oc  = args.get(i + 1).map(String::as_str); i += 2; }
+                    Some("--export-reg") => { out_reg = args.get(i + 1).map(String::as_str); i += 2; }
+                    _ => { i += 1; }
+                }
+            }
+            if let Err(e) = cmd_preset(preset_name, path, out_bin, out_oc, out_reg) {
+                eprintln!("Error: {}", e);
+                std::process::exit(1);
+            }
+            true
+        }
         "--diff" => {
             let is_json = args.iter().skip(1).any(|a| a == "--json");
             let files: Vec<&str> = args.iter().skip(1).map(String::as_str).filter(|&a| a != "--json").collect();
