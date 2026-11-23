@@ -952,6 +952,9 @@ impl PowerPlayApp {
             v20_val.write_back_to_slice(&mut self.raw_buffer);
         }
 
+        let pol_orig_caps = if self.raw_buffer.len() >= 0x17 {
+            u32::from_le_bytes([self.raw_buffer[0x13], self.raw_buffer[0x14], self.raw_buffer[0x15], self.raw_buffer[0x16]])
+        } else { 0 };
         if let Some(pol) = crate::pptable_polaris::AtomPolarisPowerPlayTable::from_bytes_mut(&mut self.raw_buffer) {
             pol.max_od_engine_clock = (self.oc_gfx_clock[1].max(0) * 100) as u32;
             pol.max_od_memory_clock = (self.oc_mem_clock[1].max(0) * 100) as u32;
@@ -983,6 +986,13 @@ impl PowerPlayApp {
                 self.mem_dpm_volt[3][0],
                 self.mem_dpm_volt[3][1],
             );
+            if self.raw_buffer.len() >= 0x17 {
+                let next_caps = u32::from_le_bytes([self.raw_buffer[0x13], self.raw_buffer[0x14], self.raw_buffer[0x15], self.raw_buffer[0x16]]);
+                let mask = (1u32 << 2) | (1u32 << 11);
+                if (pol_orig_caps & mask) == 0 && (next_caps & !mask) == (pol_orig_caps & !mask) {
+                    self.raw_buffer[0x13..0x17].copy_from_slice(&pol_orig_caps.to_le_bytes());
+                }
+            }
             return;
         }
 
