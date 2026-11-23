@@ -329,3 +329,27 @@ pub fn field_offset_by_name(name: &str) -> usize {
         _ => 0,
     }
 }
+
+#[cfg(test)]
+mod arch_codec_resilience_tests {
+    #[test]
+    fn parser_handles_truncated_and_skeleton_buffers_without_panic() {
+        for len in 0..=16 {
+            let short = vec![0u8; len];
+            let _ = super::AtomSmcDpmInfoV4_9::from_bytes(&short);
+        }
+        let cases = [
+            ("rdna2_v4_9", 15u8, 15u8, 1u8, 2470usize),
+        ];
+        for (_label, trev, frev, crev, size) in cases {
+            let mut buf = vec![0u8; size];
+            let sz = (size as u16).to_le_bytes();
+            buf[0] = sz[0];
+            buf[1] = sz[1];
+            buf[2] = frev;
+            buf[3] = crev;
+            buf[4] = trev;
+            let _ = super::AtomSmcDpmInfoV4_9::from_bytes(&buf);
+        }
+    }
+}
