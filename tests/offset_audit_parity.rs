@@ -45,6 +45,7 @@ fn verify_all_target_vbios_parity() {
                     assert_eq!(st.freq_gfx, st2.freq_gfx);
                     assert_eq!(st.power_limit_w, st2.power_limit_w);
                     assert_eq!(st.tdc_gfx, st2.tdc_gfx);
+                    let diffs: Vec<_> = ppt.iter().zip(roundtrip.iter()).enumerate().filter(|(_, (a, b))| a != b).map(|(i, (a, b))| format!("0x{:03X}: 0x{:02X}->0x{:02X}", i, a, b)).collect(); assert!(diffs.is_empty(), "diffs in {:?}: {:?}", path, diffs);
                 }
             }
             PptArch::Polaris => {
