@@ -27,9 +27,19 @@ fn cli_inspect_handles_malformed_and_truncated_inputs_without_panic() {
             .arg(path)
             .output()
             .expect("spawn pptool");
-        // Must never abort via panic (exit code 101) or signal
         assert_ne!(out.status.code(), Some(101), "pptool panicked on {:?}", path);
     }
+
+    // Verify exporting into a non-existent nested directory fails cleanly without panic
+    let bad_export = tmp.join("nonexistent_dir_12345").join("out.plist");
+    let out = Command::new(bin)
+        .arg("--inspect")
+        .arg(&rom_path)
+        .arg("--export-oc")
+        .arg(&bad_export)
+        .output()
+        .expect("spawn pptool export");
+    assert_ne!(out.status.code(), Some(101), "pptool panicked on invalid export target");
 
     let _ = fs::remove_dir_all(&tmp);
 }
