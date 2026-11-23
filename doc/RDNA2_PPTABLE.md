@@ -38,3 +38,8 @@ Verified directly against `src/pptable_rdna2.rs` (`AtomSmcDpmInfoV4_9`, `2470 by
 | `0x74E` | `static_volt_gfx` | `QuadraticCoeff` |
 | `0x7AA` | `static_volt_offset_gfx` | `QuadraticCoeff` |
 | `0x7C2` | `dctol_gfx` | `i16` |
+
+## Verified ULV & Thermal Offsets (V4_9)
+- **ULV Voltage (`0x380..0x388`, `u16 / 4` mV)**: `ulv_voltage_vmin_gfx` (`0x380`), `ulv_voltage_vmin_soc` (`0x382`), `ulv_voltage_vmax_gfx` (`0x384`), `ulv_voltage_vmax_soc` (`0x386`).
+- **Thermal Vmin (`0x3B2..0x3C2`, `u16` °C)**: `tvmin_gfx` (`0x3B2`), `tvmin_soc` (`0x3B4`), `tvmin_hyst_gfx` (`0x3BE`), `tvmin_hyst_soc` (`0x3C0`).
+- **Table Sizes**: `2470 B` (Navi 21 / 22 / 23) and `2690 B` (Navi 24).
