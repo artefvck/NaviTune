@@ -188,3 +188,29 @@ fn cli_dump_all_json_emits_valid_json_structure() {
     assert!(stdout.contains("\"architecture\":"));
     let _ = fs::remove_dir_all(&tmp);
 }
+
+#[test]
+fn cli_diff_reports_parameter_and_byte_deltas() {
+    let tmp = std::env::temp_dir().join("navitune_cli_diff_test");
+    let _ = fs::create_dir_all(&tmp);
+    let a_bytes = make_ppt_skeleton(0x03, 0x14, 0x00, 5424);
+    let mut b_bytes = a_bytes.clone();
+    if let Some(last) = b_bytes.last_mut() { *last ^= 0xFF; }
+    let pa = tmp.join("a.bin");
+    let pb = tmp.join("b.bin");
+    fs::write(&pa, &a_bytes).unwrap();
+    fs::write(&pb, &b_bytes).unwrap();
+
+    let bin = env!("CARGO_BIN_EXE_pptool");
+    let out = Command::new(bin)
+        .arg("--diff")
+        .arg(&pa)
+        .arg(&pb)
+        .arg("--json")
+        .output()
+        .expect("spawn pptool --diff");
+    assert!(out.status.success(), "pptool --diff failed");
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("\"modified_bytes\": 1"));
+    let _ = fs::remove_dir_all(&tmp);
+}

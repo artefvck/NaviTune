@@ -68,6 +68,19 @@ pub fn try_run_cli() -> bool {
             }
             true
         }
+        "--diff" => {
+            let is_json = args.iter().skip(1).any(|a| a == "--json");
+            let files: Vec<&str> = args.iter().skip(1).map(String::as_str).filter(|&a| a != "--json").collect();
+            if files.len() < 2 {
+                eprintln!("Usage: pptool --diff <file_a> <file_b> [--json]");
+                std::process::exit(2);
+            }
+            if let Err(e) = cmd_diff(files.first().copied().unwrap_or_default(), files.get(1).copied().unwrap_or_default(), is_json) {
+                eprintln!("Error: {}", e);
+                std::process::exit(1);
+            }
+            true
+        }
         "--export-bin" => {
             let (Some(src), Some(dst)) = (args.get(1), args.get(2)) else {
                 eprintln!("Usage: pptool --export-bin <file.rom> <out.bin>");
