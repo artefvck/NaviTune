@@ -246,7 +246,7 @@ impl PowerPlayApp {
                                 egui::RichText::new(chip.display_name()).strong(),
                             );
                         } else {
-                            ui.weak("Not detected");
+                            ui.weak(if crate::ppt_arch::PptArch::detect(&self.raw_buffer) == crate::ppt_arch::PptArch::Rdna1 { "RDNA 1 (Navi 10 / 12 / 14)" } else { "Not detected" });
                         }
                         ui.end_row();
 
