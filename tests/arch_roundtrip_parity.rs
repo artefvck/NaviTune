@@ -53,3 +53,13 @@ fn cli_inspect_supports_all_six_amd_gpu_generations_without_panic() {
 
     let _ = fs::remove_dir_all(&tmp);
 }
+
+#[test]
+fn cli_help_flag_exits_cleanly_without_panic() {
+    let bin = env!("CARGO_BIN_EXE_pptool");
+    let out = Command::new(bin)
+        .arg("--help")
+        .output()
+        .expect("spawn pptool --help");
+    assert_ne!(out.status.code(), Some(101), "pptool panicked on --help");
+}
