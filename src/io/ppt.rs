@@ -342,6 +342,9 @@ impl PowerPlayApp {
             for i in 0..4 { self.mem_dpm_freq[i][0] = r1p.uclk_dpm[i] as i32; }
             self.fan_max_rpm = r1p.fan_max_rpm as i32;
             self.fan_target_temp = r1p.fan_target_temp as i32;
+            self.oc_gfx_clock[1] = r1p.od_gfx_max as i32;
+            self.oc_mem_clock[1] = r1p.od_uclk_max as i32;
+            self.fan_max_rpm = r1p.od_uclk_max as i32;
             return;
         }
         if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(&b) {
@@ -922,6 +925,9 @@ impl PowerPlayApp {
             r1p.fan_pwm_min = self.fan_pwm_min.max(0) as u16;
             r1p.fan_max_rpm = self.fan_max_rpm.max(0) as u16;
             r1p.fan_target_temp = self.fan_target_temp.max(0) as u16;
+            r1p.od_gfx_max = self.oc_gfx_clock[1].max(0) as u32;
+            r1p.od_uclk_max = self.oc_mem_clock[1].max(0) as u32;
+            r1p.od_uclk_max = self.fan_max_rpm.max(0) as u32;
             r1p.write_to_buf(&mut self.raw_buffer);
             return;
         }
