@@ -1030,7 +1030,7 @@ impl PowerPlayApp {
         t.pm_quiet_limit = self.pm_quiet[0] as u32; t.pm_quiet_temp = self.pm_quiet[1] as u16;
         t.pm_balanced_limit = self.pm_balanced[0] as u32; t.pm_balanced_temp = self.pm_balanced[1] as u16;
         t.pm_turbo_limit = self.pm_turbo[0] as u32; t.pm_turbo_temp = self.pm_turbo[1] as u16;
-        t.pm_rage_limit = self.pm_rage[0] as u32; t.pm_rage_temp = self.pm_rage[1] as u16;
+        t.pm_rage_limit = (t.pm_rage_limit & 0xFFFF_0000) | (self.pm_rage[0] as u16 as u32); t.pm_rage_temp = self.pm_rage[1] as u16;
         t.ac_quiet = [self.ac_quiet[0] as u16, self.ac_quiet[1] as u16];
         t.ac_balanced = [self.ac_balanced[0] as u16, self.ac_balanced[1] as u16];
         t.ac_turbo = [self.ac_turbo[0] as u16, self.ac_turbo[1] as u16];
