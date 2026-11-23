@@ -256,3 +256,11 @@ pub fn draw_arch_note_card(ui: &mut egui::Ui, title: &str, body: &str) {
         ui.colored_label(egui::Color32::from_rgb(235, 190, 95), body);
     });
 }
+
+/// Safely formats a slice of DPM values into a compact summary string without panicking on short slices.
+pub fn format_dpm_range(vals: &[u32]) -> String {
+    match (vals.first(), vals.last()) {
+        (Some(lo), Some(hi)) => format!("{} .. {}", lo, hi),
+        _ => "N/A".to_string(),
+    }
+}
