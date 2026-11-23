@@ -99,6 +99,8 @@ impl PowerPlayApp {
             vars.push((format!("temp_limit_{}", i), format!("{}", limit)));
         }
         vars.push(("gfx_dpm_range".to_string(), crate::ui::cards::format_dpm_range(&self.freq_gfx)));
+        vars.push(("modified_bytes".to_string(), self.modified_byte_count().to_string()));
+        vars.push(("validation_warnings".to_string(), self.validate_tunables().len().to_string()));
         vars.sort_by(|a, b| a.0.cmp(&b.0));
 
         let mut out = String::new();
