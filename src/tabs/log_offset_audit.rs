@@ -6,29 +6,19 @@ use crate::arch::vega::VegaParsedState;
 use crate::PowerPlayApp;
 use eframe::egui;
 
-struct AuditEntry {
-    field: &'static str,
-    offset: usize,
-    width: &'static str,
-    ui_val: i32,
-    struct_val: i32,
+pub(crate) struct AuditEntry {
+    pub(crate) field: &'static str,
+    pub(crate) offset: usize,
+    pub(crate) width: &'static str,
+    pub(crate) ui_val: i32,
+    pub(crate) struct_val: i32,
 }
 
 impl PowerPlayApp {
-    pub(crate) fn draw_debug_audit(&mut self, ui: &mut egui::Ui) {
-        if self.raw_buffer.is_empty() {
-            ui.colored_label(
-                egui::Color32::from_rgb(175, 190, 210),
-                "No PPTable / VBIOS loaded. Open a .bin or .rom file to run Struct vs UI Offset Audit.",
-            );
-            return;
-        }
-
-        self.sync_fields_to_buffer();
+    pub(crate) fn collect_offset_audit_rows(&self) -> (PptArch, Vec<AuditEntry>) {
         let buf = &self.raw_buffer;
         let arch = PptArch::detect(buf);
         let frev = buf.get(2).copied().unwrap_or(0);
-        let vbios_base = self.vbios_ppt_offset.unwrap_or(0);
 
         let u16_at = |o: usize| if o + 2 <= buf.len() { u16::from_le_bytes([buf[o], buf[o + 1]]) as i32 } else { 0 };
         let u32_at = |o: usize| if o + 4 <= buf.len() { u32::from_le_bytes([buf[o], buf[o + 1], buf[o + 2], buf[o + 3]]) as i32 } else { 0 };
@@ -89,7 +79,9 @@ impl PowerPlayApp {
                 }
             }
             PptArch::Rdna1 => {
+                let mut matched_v45 = false;
                 if let Some(t) = AtomSmcDpmInfoV4_5::from_bytes(buf) {
+                    matched_v45 = true;
                     push("OD Max GFX Clock (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, od_settings_max), "u32", self.oc_gfx_clock[1], t.od_settings_max[0] as i32);
                     push("OD Max Mem Clock (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, od_settings_max) + 8, "u32", self.oc_mem_clock[1], t.od_settings_max[2] as i32);
                     push("Socket Power Limit (W)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, socket_power_limit_ac), "u16", self.power_limit_w, t.socket_power_limit_ac[0] as i32);
@@ -101,6 +93,20 @@ impl PowerPlayApp {
                     push("UCLK DPM0 (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, freq_table_uclk), "u16", self.mem_dpm_freq[0][0], t.freq_table_uclk[0] as i32);
                     push("UCLK DPM3 (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, freq_table_uclk) + 6, "u16", self.mem_dpm_freq[3][0], t.freq_table_uclk[3] as i32);
                     push("Fan Max RPM (RPM)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, fan_maximum_rpm), "u16", self.fan_max_rpm, t.fan_maximum_rpm as i32);
+                }
+                if !matched_v45 && buf.len() >= 1674 {
+                    let inn = 0x36usize;
+                    let (pwr, vmin, vmax, gmin, gmax, ftemp) = if let Some(r1) = crate::arch::rdna1::Rdna1ParsedState::parse(buf) {
+                        (r1.power_limit_w as i32, r1.min_volt_gfx as i32 / 4, r1.max_volt_gfx as i32 / 4, r1.gfx_min as i32, r1.gfx_max as i32, r1.fan_target_temp as i32)
+                    } else {
+                        (u16_at(inn + 0x00C), u16_at(inn + 0x068) / 4, u16_at(inn + 0x06C) / 4, u16_at(inn + 0x104), u16_at(inn + 0x106), u16_at(inn + 0x29C))
+                    };
+                    push("socket_power_limit_ac", inn + 0x00C, "u16", self.power_limit_w, pwr);
+                    push("min_voltage_gfx (mV)", inn + 0x068, "u16/4", self.volt_gfx.first().copied().unwrap_or(0), vmin);
+                    push("max_voltage_gfx (mV)", inn + 0x06C, "u16/4", self.volt_gfx.last().copied().unwrap_or(0), vmax);
+                    push("freq_gfx_min (MHz)", inn + 0x104, "u16", self.freq_gfx.first().copied().unwrap_or(0), gmin);
+                    push("freq_gfx_max (MHz)", inn + 0x106, "u16", self.freq_gfx.last().copied().unwrap_or(0), gmax);
+                    push("fan_target_temperature", inn + 0x29C, "u16", self.fan_target_temp, ftemp);
                 }
             }
             PptArch::Rdna2 => {
@@ -139,6 +145,22 @@ impl PowerPlayApp {
             PptArch::Unknown => {}
         }
 
+        (arch, rows)
+    }
+
+    pub(crate) fn draw_debug_audit(&mut self, ui: &mut egui::Ui) {
+        if self.raw_buffer.is_empty() {
+            ui.colored_label(
+                egui::Color32::from_rgb(175, 190, 210),
+                "No PPTable / VBIOS loaded. Open a .bin or .rom file to run Struct vs UI Offset Audit.",
+            );
+            return;
+        }
+
+        self.sync_fields_to_buffer();
+        let buf = &self.raw_buffer;
+        let vbios_base = self.vbios_ppt_offset.unwrap_or(0);
+        let (arch, rows) = self.collect_offset_audit_rows();
         let mismatches = rows.iter().filter(|r| r.ui_val != r.struct_val).count();
         ui.horizontal(|ui| {
             ui.strong(format!("Struct vs UI Parity Audit — {:?} ({} B)", arch, buf.len()));
@@ -193,5 +215,26 @@ impl PowerPlayApp {
                         }
                     });
             });
+    }
+}
+
+#[cfg(test)]
+mod offset_audit_tab_tests {
+    use crate::app::PowerPlayApp;
+
+    #[test]
+    fn collect_offset_audit_rows_covers_all_six_architectures() {
+        for (frev, len) in [(0x07u8, 833usize), (0x08, 654), (0x0B, 1534), (0x0C, 1674), (0x0F, 2470), (0x14, 5424)] {
+            let mut app = PowerPlayApp::default();
+            let mut buf = std::iter::repeat_n(0u8, len).collect::<Vec<u8>>();
+            let sz = (len as u16).to_le_bytes();
+            if let Some(b0) = buf.get_mut(0) { *b0 = sz.first().copied().unwrap_or(0); }
+            if let Some(b1) = buf.get_mut(1) { *b1 = sz.last().copied().unwrap_or(0); }
+            if let Some(b2) = buf.get_mut(2) { *b2 = frev; }
+            if let Some(b4) = buf.get_mut(4) { *b4 = 0x03; }
+            app.raw_buffer = buf;
+            let (_arch, rows) = app.collect_offset_audit_rows();
+            assert!(!rows.is_empty(), "expected audit rows for frev=0x{:02X} len={}", frev, len);
+        }
     }
 }
