@@ -57,6 +57,9 @@ impl PptArch {
     }
 
     pub fn detect(buf: &[u8]) -> Self {
+        if buf.len() >= 1674 && (buf[2] == 0x0C || buf[2] == 0x0D) {
+            return Self::Rdna1;
+        }
         if crate::pptable_rdna3::AtomSmcDpmInfoV4_12::from_bytes(buf).is_some() {
             Self::Rdna3
         } else if crate::pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(buf).is_some() {
