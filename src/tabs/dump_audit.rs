@@ -109,6 +109,8 @@ impl PowerPlayApp {
             3500.0,
         );
         vars.push(("gfx_span_norm".to_string(), format!("{:.3}", gfx_span_norm)));
+        let badge = crate::ui::theme::tinted_badge_fill(eframe::egui::Color32::from_rgb(64, 160, 128), 36);
+        vars.push(("theme_badge_alpha".to_string(), badge.a().to_string()));
         vars.sort_by(|a, b| a.0.cmp(&b.0));
 
         let mut out = String::new();
