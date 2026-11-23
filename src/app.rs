@@ -122,3 +122,68 @@ impl Default for PowerPlayApp {
         }
     }
 }
+
+impl PowerPlayApp {
+    /// Counts how many bytes in `raw_buffer` differ from `baseline_buffer` (plus length delta).
+    pub(crate) fn modified_byte_count(&self) -> usize {
+        let shared = self.raw_buffer.len().min(self.baseline_buffer.len());
+        let diff = self.raw_buffer[..shared]
+            .iter()
+            .zip(&self.baseline_buffer[..shared])
+            .filter(|(a, b)| a != b)
+            .count();
+        diff + self.raw_buffer.len().abs_diff(self.baseline_buffer.len())
+    }
+
+    /// Validates active clock, voltage, and fan ranges so invalid inversions are surfaced before save/export.
+    pub(crate) fn validate_tunables(&self) -> Vec<String> {
+        let mut warnings = Vec::new();
+        if self.freq_gfx[0] > self.freq_gfx[1] {
+            warnings.push(format!(
+                "GFX min clock ({} MHz) exceeds max clock ({} MHz)",
+                self.freq_gfx[0], self.freq_gfx[1]
+            ));
+        }
+        if self.volt_gfx[0] > self.volt_gfx[1] {
+            warnings.push(format!(
+                "GFX min voltage ({} mV) exceeds max voltage ({} mV)",
+                self.volt_gfx[0], self.volt_gfx[1]
+            ));
+        }
+        if self.volt_gfx[1] > 1350 {
+            warnings.push(format!(
+                "GFX max voltage ({} mV) exceeds 1350 mV safety ceiling",
+                self.volt_gfx[1]
+            ));
+        }
+        warnings
+    }
+}
+
+#[cfg(test)]
+mod app_validation_tests {
+    use super::PowerPlayApp;
+
+    #[test]
+    fn modified_byte_count_tracks_buffer_deltas() {
+        let empty = PowerPlayApp::default();
+        assert_eq!(empty.modified_byte_count(), 0);
+        let app = PowerPlayApp {
+            baseline_buffer: vec![0x10, 0x20, 0x30],
+            raw_buffer: vec![0x10, 0xFF, 0x30, 0x40],
+            ..Default::default()
+        };
+        assert_eq!(app.modified_byte_count(), 2);
+    }
+
+    #[test]
+    fn validate_tunables_catches_inversions_and_overvoltage() {
+        let app = PowerPlayApp {
+            freq_gfx: [2500, 1800],
+            volt_gfx: [1400, 1380],
+            ..Default::default()
+        };
+        let warns = app.validate_tunables();
+        assert_eq!(warns.len(), 3);
+    }
+}
