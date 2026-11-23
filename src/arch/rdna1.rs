@@ -135,22 +135,11 @@ const _: () = {
 };
 
 impl AtomSmcDpmInfoV4_5 {
-    pub fn from_bytes(b: &[u8]) -> Option<&'static Self> {
-        if b.len() < 1674 || (b[2] != 0x0C && b[2] != 0x0D) {
+    pub fn from_bytes(b: &[u8]) -> Option<&Self> {
+        if b.len() < std::mem::size_of::<Self>() || b[2] != 0x0C || (b[3] != 0x00 && b[3] != 0x01) {
             return None;
         }
-        let mut arr = [0u8; 1924];
-        if b.len() == 1674 && u16::from_le_bytes([b[5], b[6]]) == 0x01E2 {
-            let dst = std::mem::offset_of!(Self, socket_power_limit_ac) - 0x00C;
-            arr[..dst.min(0x01E2)].copy_from_slice(&b[..dst.min(0x01E2)]);
-            let inner_n = (1674 - 0x01E2).min(1924 - dst);
-            arr[dst..dst + inner_n].copy_from_slice(&b[0x01E2..0x01E2 + inner_n]);
-        } else {
-            let n = b.len().min(1924);
-            arr[..n].copy_from_slice(&b[..n]);
-        }
-        let leaked = Box::leak(Box::new(arr));
-        Some(unsafe { &*(leaked.as_ptr() as *const Self) })
+        Some(unsafe { &*(b.as_ptr() as *const Self) })
     }
 
     pub fn from_bytes_mut(buf: &mut [u8]) -> Option<&mut Self> {
@@ -163,5 +152,136 @@ impl AtomSmcDpmInfoV4_5 {
     pub fn detect_chip(&self, device_id: u16) -> NaviRDNA1Chip {
         let gfx_max = { self.od_settings_max[0] };
         NaviRDNA1Chip::from_did_and_clock(device_id, gfx_max)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Rdna1ParsedState {
+    pub outer_sz: usize,
+    pub smu_features: u64,
+    pub power_limit_w: u16,
+    pub tdc_soc: u16,
+    pub tdc_gfx: u16,
+    pub ulv_vmin_gfx: u16,
+    pub ulv_vmin_soc: u16,
+    pub min_volt_gfx: u16,
+    pub min_volt_soc: u16,
+    pub max_volt_gfx: u16,
+    pub max_volt_soc: u16,
+    pub curve_gfx: [f32; 3],
+    pub gfx_min: u16,
+    pub gfx_max: u16,
+    pub soc_min: u16,
+    pub soc_max: u16,
+    pub uclk_dpm: [u16; 4],
+    pub fclk_min: u16,
+    pub fclk_max: u16,
+    pub mem_vddci: [u16; 4],
+    pub mem_mvdd: [u16; 4],
+    pub fan_stop_temp: u16,
+    pub fan_start_temp: u16,
+    pub fan_pwm_min: u16,
+    pub fan_acoustic_rpm: u16,
+    pub fan_max_rpm: u16,
+    pub fan_target_temp: u16,
+    pub fan_target_gfx: u16,
+    pub fan_zero_rpm: bool,
+    pub od_gfx_max: u32,
+    pub od_uclk_max: u32,
+}
+
+impl Rdna1ParsedState {
+    pub fn parse(b: &[u8]) -> Option<Self> {
+        if b.len() < 1674 || (b[2] != 0x0C && b[2] != 0x0D) {
+            return None;
+        }
+        let outer_sz = u16::from_le_bytes([b[5], b[6]]) as usize;
+        if outer_sz != 0x01E2 || outer_sz + 0x2A6 > b.len() {
+            return None;
+        }
+        let inn = &b[outer_sz..];
+        let u16_at = |s: &[u8], o: usize| u16::from_le_bytes([s[o], s[o + 1]]);
+        let u32_at = |s: &[u8], o: usize| u32::from_le_bytes([s[o], s[o + 1], s[o + 2], s[o + 3]]);
+        let f32_at = |s: &[u8], o: usize| f32::from_le_bytes([s[o], s[o + 1], s[o + 2], s[o + 3]]);
+        let smu_lo = u32_at(inn, 0x004) as u64;
+        let smu_hi = u32_at(inn, 0x008) as u64;
+        Some(Self {
+            outer_sz,
+            smu_features: smu_lo | (smu_hi << 32),
+            power_limit_w: u16_at(inn, 0x00C),
+            tdc_soc: u16_at(inn, 0x02C),
+            tdc_gfx: u16_at(inn, 0x030),
+            ulv_vmin_gfx: u16_at(inn, 0x064),
+            ulv_vmin_soc: u16_at(inn, 0x066),
+            min_volt_gfx: u16_at(inn, 0x068),
+            min_volt_soc: u16_at(inn, 0x06A),
+            max_volt_gfx: u16_at(inn, 0x06C),
+            max_volt_soc: u16_at(inn, 0x06E),
+            curve_gfx: [f32_at(inn, 0x080), f32_at(inn, 0x084), f32_at(inn, 0x088)],
+            gfx_min: u16_at(inn, 0x14C),
+            gfx_max: u16_at(inn, 0x14E),
+            soc_min: u16_at(inn, 0x16C),
+            soc_max: u16_at(inn, 0x16E),
+            uclk_dpm: [u16_at(inn, 0x19C), u16_at(inn, 0x19E), u16_at(inn, 0x1A0), u16_at(inn, 0x1A2)],
+            fclk_min: u16_at(inn, 0x1B4),
+            fclk_max: u16_at(inn, 0x1B6),
+            mem_vddci: [u16_at(inn, 0x240), u16_at(inn, 0x242), u16_at(inn, 0x244), u16_at(inn, 0x246)],
+            mem_mvdd: [u16_at(inn, 0x248), u16_at(inn, 0x24A), u16_at(inn, 0x24C), u16_at(inn, 0x24E)],
+            fan_stop_temp: u16_at(inn, 0x27C),
+            fan_start_temp: u16_at(inn, 0x27E),
+            fan_pwm_min: u16_at(inn, 0x294),
+            fan_acoustic_rpm: u16_at(inn, 0x296),
+            fan_max_rpm: u16_at(inn, 0x298),
+            fan_target_temp: u16_at(inn, 0x29C),
+            fan_target_gfx: u16_at(inn, 0x29E),
+            fan_zero_rpm: inn[0x2A3] != 0,
+            od_gfx_max: u32_at(b, 0x0EA),
+            od_uclk_max: u32_at(b, 0x0EE),
+        })
+    }
+
+    pub fn write_to_buf(&self, b: &mut [u8]) {
+        if b.len() < self.outer_sz + 0x2A6 {
+            return;
+        }
+        b[0x0EA..0x0EE].copy_from_slice(&self.od_gfx_max.to_le_bytes());
+        b[0x0EE..0x0F2].copy_from_slice(&self.od_uclk_max.to_le_bytes());
+        let inn = &mut b[self.outer_sz..];
+        let put_u16 = |s: &mut [u8], o: usize, v: u16| s[o..o + 2].copy_from_slice(&v.to_le_bytes());
+        let put_u32 = |s: &mut [u8], o: usize, v: u32| s[o..o + 4].copy_from_slice(&v.to_le_bytes());
+        let put_f32 = |s: &mut [u8], o: usize, v: f32| s[o..o + 4].copy_from_slice(&v.to_le_bytes());
+        put_u32(inn, 0x004, self.smu_features as u32);
+        put_u32(inn, 0x008, (self.smu_features >> 32) as u32);
+        put_u16(inn, 0x00C, self.power_limit_w);
+        put_u16(inn, 0x02C, self.tdc_soc);
+        put_u16(inn, 0x030, self.tdc_gfx);
+        put_u16(inn, 0x064, self.ulv_vmin_gfx);
+        put_u16(inn, 0x066, self.ulv_vmin_soc);
+        put_u16(inn, 0x068, self.min_volt_gfx);
+        put_u16(inn, 0x06A, self.min_volt_soc);
+        put_u16(inn, 0x06C, self.max_volt_gfx);
+        put_u16(inn, 0x06E, self.max_volt_soc);
+        put_f32(inn, 0x080, self.curve_gfx[0]);
+        put_f32(inn, 0x084, self.curve_gfx[1]);
+        put_f32(inn, 0x088, self.curve_gfx[2]);
+        put_u16(inn, 0x14C, self.gfx_min);
+        put_u16(inn, 0x14E, self.gfx_max);
+        put_u16(inn, 0x16C, self.soc_min);
+        put_u16(inn, 0x16E, self.soc_max);
+        for i in 0..4 {
+            put_u16(inn, 0x19C + i * 2, self.uclk_dpm[i]);
+            put_u16(inn, 0x240 + i * 2, self.mem_vddci[i]);
+            put_u16(inn, 0x248 + i * 2, self.mem_mvdd[i]);
+        }
+        put_u16(inn, 0x1B4, self.fclk_min);
+        put_u16(inn, 0x1B6, self.fclk_max);
+        put_u16(inn, 0x27C, self.fan_stop_temp);
+        put_u16(inn, 0x27E, self.fan_start_temp);
+        put_u16(inn, 0x294, self.fan_pwm_min);
+        put_u16(inn, 0x296, self.fan_acoustic_rpm);
+        put_u16(inn, 0x298, self.fan_max_rpm);
+        put_u16(inn, 0x29C, self.fan_target_temp);
+        put_u16(inn, 0x29E, self.fan_target_gfx);
+        inn[0x2A3] = if self.fan_zero_rpm { if inn[0x2A3] != 0 { inn[0x2A3] } else { 1 } } else { 0 };
     }
 }
