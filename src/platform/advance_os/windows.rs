@@ -1,4 +1,7 @@
+#![allow(unused_imports)]
+use super::*;
 use eframe::egui;
+
 
 #[cfg(target_os = "windows")]
 fn resolve_windows_amd_subkey(selected_label: &str) -> String {
