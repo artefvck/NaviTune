@@ -72,7 +72,7 @@ pub fn try_run_cli() -> bool {
 
 
 fn load_app_from_path(path: &str) -> Result<(PowerPlayApp, Option<usize>), String> {
-    let data = std::fs::read(path).map_err(|e| format!("Failed to read '{}': {}", path, e))?;
+    let data = crate::io::read_bounded(std::path::Path::new(&path)).map_err(|e| format!("Failed to read '{}': {}", path, e))?;
     let mut app = PowerPlayApp::default();
     if let Ok((ppt, off)) = vbios::extract_ppt_from_rom(&data) {
         app.vbios_ppt_offset = Some(off);
