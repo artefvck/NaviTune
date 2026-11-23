@@ -138,6 +138,15 @@ impl PowerPlayApp {
                 "Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B{}]",
                 label, chip1.display_name(), frev, crev, trev, b.len(), vbios_tag
             );
+            let vbios_tag = if let Some(voff) = self.vbios_ppt_offset {
+                format!(" | VBIOS PP_PhmSoftPowerPlayTable @ 0x{:04X}", voff)
+            } else {
+                String::new()
+            };
+            self.status_msg = format!(
+                "Loaded {} [RDNA 1 (Navi 10 / Navi 14) | rev 0x{:02X}.{:02X}.{:02X} | {} B{}]",
+                label, frev, crev, trev, b.len(), vbios_tag
+            );
             self.baseline_buffer = b.to_owned();
             self.raw_buffer = b.to_owned();
             return true;
