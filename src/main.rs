@@ -26,7 +26,6 @@ mod cli;
 mod tabs;
 
 use eframe::egui;
-use std::path::PathBuf;
 
 fn main() -> eframe::Result<()> {
     if cli::try_run_cli() {

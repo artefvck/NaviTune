@@ -20,7 +20,7 @@ fn resolve_windows_amd_subkey(selected_label: &str) -> String {
     for idx in 0..16 {
         let sub = format!("{:04}", idx);
         let key = format!(r"{}\{}", base, sub);
-        let Ok(out) = crate::platform::run_cmd_bounded(&mut Command::new("reg")
+        let Ok(out) = crate::platform::run_cmd_bounded(Command::new("reg")
             .creation_flags(CREATE_NO_WINDOW)
             .args(["query", &key, "/v", "MatchingDeviceId"])
             , 1500)
@@ -54,7 +54,7 @@ pub(crate) fn write_ppt_to_windows_registry(ppt_bytes: &[u8], selected_label: &s
     let full_key = format!(r"{}\{}", base, sub);
     let hex_data: String = ppt_bytes.iter().map(|b| format!("{:02X}", b)).collect();
 
-    let out = crate::platform::run_cmd_bounded(&mut Command::new("reg")
+    let out = crate::platform::run_cmd_bounded(Command::new("reg")
         .creation_flags(CREATE_NO_WINDOW)
         .args(["add", &full_key, "/v", "PP_PhmSoftPowerPlayTable", "/t", "REG_BINARY", "/d", &hex_data, "/f"])
         , 1500)
@@ -87,7 +87,7 @@ pub(crate) fn delete_ppt_from_windows_registry(selected_label: &str) -> Result<S
     let sub = resolve_windows_amd_subkey(selected_label);
     let full_key = format!(r"{}\{}", base, sub);
 
-    let out = crate::platform::run_cmd_bounded(&mut Command::new("reg")
+    let out = crate::platform::run_cmd_bounded(Command::new("reg")
         .creation_flags(CREATE_NO_WINDOW)
         .args(["delete", &full_key, "/v", "PP_PhmSoftPowerPlayTable", "/f"])
         , 1500)
@@ -253,7 +253,7 @@ pub(crate) fn detect_live_acpi_gpu_path(selected_label: &str) -> String {
         .map(|s| s.trim().to_string())
         .unwrap_or_default();
 
-    let Ok(out) = crate::platform::run_cmd_bounded(&mut Command::new("ioreg").args(["-r", "-c", "IOPCIDevice", "-l"]), 1500) else {
+    let Ok(out) = crate::platform::run_cmd_bounded(Command::new("ioreg").args(["-r", "-c", "IOPCIDevice", "-l"]), 1500) else {
         return "_SB.PCI0.PEG0.PEGP.GFX0".to_string();
     };
     let txt = String::from_utf8_lossy(&out.stdout);
@@ -425,7 +425,7 @@ pub(crate) fn compile_dsl_to_aml(dsl_text: &str, out_aml_path: &std::path::Path)
 
     let iasl_bin = ["/usr/local/bin/iasl", "/opt/homebrew/bin/iasl", "iasl"]
         .iter()
-        .find(|bin| crate::platform::run_cmd_bounded(&mut Command::new(bin).arg("-v"), 1500).is_ok())
+        .find(|bin| crate::platform::run_cmd_bounded(Command::new(bin).arg("-v"), 1500).is_ok())
         .copied()
         .ok_or_else(|| {
             "iasl binary not found on your system.\n\nInstall ACPICA (e.g. 'brew install acpica' on macOS or place 'iasl' in PATH) to compile SSDT-sPPT.aml.".to_string()
@@ -437,7 +437,7 @@ pub(crate) fn compile_dsl_to_aml(dsl_text: &str, out_aml_path: &std::path::Path)
     std::fs::write(&tmp_dsl, dsl_text)
         .map_err(|e| format!("Failed writing temporary SSDT-sPPT.dsl: {}", e))?;
 
-    let out = crate::platform::run_cmd_bounded(&mut Command::new(iasl_bin)
+    let out = crate::platform::run_cmd_bounded(Command::new(iasl_bin)
         .args(["-oa", "-p"])
         .arg(&tmp_aml)
         .arg(&tmp_dsl)

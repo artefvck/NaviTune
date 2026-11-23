@@ -1,12 +1,9 @@
-use crate::pptable_rdna2::AtomSmcDpmInfoV4_9;
-use rfd::FileDialog;
-use std::fs;
 
 use crate::PowerPlayApp;
 
 impl PowerPlayApp {
-    pub(super) fn try_apply_polaris(&mut self, b: &Vec<u8>, label: &str, frev: u8, crev: u8, trev: u8) -> bool {
-        if let Some(pol) = crate::pptable_polaris::AtomPolarisPowerPlayTable::from_bytes(&b) {
+    pub(super) fn try_apply_polaris(&mut self, b: &[u8], label: &str, frev: u8, crev: u8, trev: u8) -> bool {
+        if let Some(pol) = crate::pptable_polaris::AtomPolarisPowerPlayTable::from_bytes(b) {
             let did = self.vbios_buffer.as_deref()
                 .and_then(|vb| crate::vbios::inspect_vbios_info(vb, self.vbios_ppt_offset.unwrap_or(0)))
                 .map(|vi| vi.device_id)
@@ -24,20 +21,20 @@ impl PowerPlayApp {
                 self.mem_dpm_freq[i] = [0, 1];
                 self.mem_dpm_volt[i] = [0, 0];
             }
-            if let Some((gfx_hi, mem_hi, vddc_hi)) = pol.read_hard_limits(&b) {
+            if let Some((gfx_hi, mem_hi, vddc_hi)) = pol.read_hard_limits(b) {
                 self.volt_gfx = [0, vddc_hi];
                 self.volt_soc = [0, 0];
                 self.freq_gfx = [0, gfx_hi];
                 self.freq_soc = [0, 0];
                 self.mem_dpm_freq[3] = [mem_hi, 1];
-                if let Some((vddci_hi, mvdd_hi)) = pol.read_hard_limit_mem_volt(&b) { self.mem_dpm_volt[3] = [vddci_hi, mvdd_hi]; }
+                if let Some((vddci_hi, mvdd_hi)) = pol.read_hard_limit_mem_volt(b) { self.mem_dpm_volt[3] = [vddci_hi, mvdd_hi]; }
             } else {
                 self.volt_gfx = [0, 0];
                 self.volt_soc = [0, 0];
                 self.freq_gfx = [0, 0];
                 self.freq_soc = [0, 0];
             }
-            let (s_min, s_max, v_min, v_max, pwr_w, tdc_a, m_states) = pol.read_polaris_dpm_and_powertune(&b);
+            let (s_min, s_max, v_min, v_max, pwr_w, tdc_a, m_states) = pol.read_polaris_dpm_and_powertune(b);
             if s_max > 0 { self.freq_gfx = [s_min, s_max]; }
             if v_max > 0 { self.volt_gfx = [v_min, v_max]; }
             if pwr_w > 0 { self.power_limit_w = pwr_w; self.power_limit_ac[0] = pwr_w; }
@@ -46,7 +43,7 @@ impl PowerPlayApp {
                 self.mem_dpm_freq[idx] = [mc, 1];
                 self.mem_dpm_volt[idx] = [vci, mvd];
             }
-            if let Some((pwm_min, max_rpm, tgt_temp, tgt_gfx, zrpm, stop_t, start_t)) = pol.read_fan_subtable(&b) {
+            if let Some((pwm_min, max_rpm, tgt_temp, tgt_gfx, zrpm, stop_t, start_t)) = pol.read_fan_subtable(b) {
                 self.fan_pwm_min = pwm_min;
                 self.fan_max_rpm = max_rpm;
                 self.fan_target_temp = tgt_temp;
@@ -68,8 +65,8 @@ impl PowerPlayApp {
                 self.zero_rpm = false;
             }
             self.status_msg = format!("Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B]", label, chip_p.display_name(), frev, crev, trev, b.len());
-            self.baseline_buffer = b.clone();
-            self.raw_buffer = b.clone();
+            self.baseline_buffer = b.to_owned();
+            self.raw_buffer = b.to_owned();
             return true;
         }
         false

@@ -438,7 +438,7 @@ impl PowerPlayApp {
                     return;
                 }
             };
-            let write_res = fs::write(&path, bytes);
+            let write_res = crate::io::write_atomic(&path, &bytes);
             match write_res {
                 Ok(_) => {
                     crate::ui_theme::log_debug("SAVE", &format!("Exported {} ({} B) | GFX={:?} MHz, Power={} W, Volt={:?} mV", path.display(), self.raw_buffer.len(), self.freq_gfx, self.power_limit_w, self.volt_gfx));

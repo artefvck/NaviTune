@@ -98,6 +98,7 @@ impl PowerPlayApp {
         for (i, limit) in self.temp_limits.iter().enumerate().take(9) {
             vars.push((format!("temp_limit_{}", i), format!("{}", limit)));
         }
+        vars.push(("gfx_dpm_range".to_string(), crate::ui::cards::format_dpm_range(&self.freq_gfx)));
         vars.sort_by(|a, b| a.0.cmp(&b.0));
 
         let mut out = String::new();

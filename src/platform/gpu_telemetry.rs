@@ -26,7 +26,7 @@ fn extract_ioreg_num(txt: &str, key: &str) -> Option<i64> {
 
 #[cfg(target_os = "macos")]
 pub fn poll_gpu_telemetry() -> GpuTelemetry {
-    let Ok(out) = crate::platform::run_cmd_bounded(&mut Command::new("ioreg").args(["-r", "-c", "IOAccelerator", "-l"]), 1500) else {
+    let Ok(out) = crate::platform::run_cmd_bounded(Command::new("ioreg").args(["-r", "-c", "IOAccelerator", "-l"]), 1500) else {
         return GpuTelemetry::default();
     };
     let txt = String::from_utf8_lossy(&out.stdout);
@@ -123,7 +123,7 @@ pub fn poll_gpu_telemetry() -> GpuTelemetry {
     use std::os::windows::process::CommandExt;
     const CREATE_NO_WINDOW: u32 = 0x08000000;
     let ps = "$l=(Get-Counter '\\GPU Engine(*engtype_3D)\\Utilization Percentage' -EA SilentlyContinue).CounterSamples.CookedValue|Measure-Object -Sum;$v=(Get-Counter '\\GPU Adapter Memory(*)\\Dedicated Usage' -EA SilentlyContinue).CounterSamples.CookedValue|Measure-Object -Max;\"$([math]::Round($l.Sum))|$([math]::Round($v.Maximum/1MB))\"";
-    let Ok(out) = crate::platform::run_cmd_bounded(&mut Command::new("powershell")
+    let Ok(out) = crate::platform::run_cmd_bounded(Command::new("powershell")
         .creation_flags(CREATE_NO_WINDOW)
         .args(["-NoProfile", "-NonInteractive", "-Command", ps])
         , 1500) else { return GpuTelemetry::default(); };

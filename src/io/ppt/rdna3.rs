@@ -1,12 +1,9 @@
-use crate::pptable_rdna2::AtomSmcDpmInfoV4_9;
-use rfd::FileDialog;
-use std::fs;
 
 use crate::PowerPlayApp;
 
 impl PowerPlayApp {
-    pub(super) fn try_apply_rdna3(&mut self, b: &Vec<u8>, label: &str, frev: u8, crev: u8, trev: u8) -> bool {
-        if let Some(t3) = crate::pptable_rdna3::AtomSmcDpmInfoV4_12::from_bytes(&b) {
+    pub(super) fn try_apply_rdna3(&mut self, b: &[u8], label: &str, frev: u8, crev: u8, trev: u8) -> bool {
+        if let Some(t3) = crate::pptable_rdna3::AtomSmcDpmInfoV4_12::from_bytes(b) {
             let chip = t3.detect_chip(0);
             let saved_vbios = self.vbios_buffer.take();
             let saved_voff = self.vbios_ppt_offset.take();
@@ -84,8 +81,8 @@ impl PowerPlayApp {
                 "Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B{}]",
                 label, chip.display_name(), frev, crev, trev, b.len(), vbios_tag
             );
-            self.baseline_buffer = b.clone();
-            self.raw_buffer = b.clone();
+            self.baseline_buffer = b.to_owned();
+            self.raw_buffer = b.to_owned();
             return true;
         }
         false

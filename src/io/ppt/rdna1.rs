@@ -1,13 +1,10 @@
-use crate::pptable_rdna2::AtomSmcDpmInfoV4_9;
-use rfd::FileDialog;
-use std::fs;
 
 use crate::PowerPlayApp;
 
 impl PowerPlayApp {
-    pub(super) fn try_apply_rdna1(&mut self, b: &Vec<u8>, label: &str, frev: u8, crev: u8, trev: u8) -> bool {
-        if let Some(r1p) = crate::pptable_rdna1::Rdna1ParsedState::parse(&b) {
-            self.raw_buffer = b.clone();
+    pub(super) fn try_apply_rdna1(&mut self, b: &[u8], label: &str, frev: u8, crev: u8, trev: u8) -> bool {
+        if let Some(r1p) = crate::pptable_rdna1::Rdna1ParsedState::parse(b) {
+            self.raw_buffer = b.to_owned();
             for (i, feature) in self.smu_features.iter_mut().enumerate() {
                 *feature = ((r1p.smu_features >> i) & 1) == 1;
             }
@@ -34,7 +31,7 @@ impl PowerPlayApp {
             self.oc_mem_clock[1] = r1p.od_uclk_max as i32;
             return true;
         }
-        if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(&b) {
+        if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(b) {
             let did = self.vbios_buffer.as_deref()
                 .and_then(|vb| crate::vbios::inspect_vbios_info(vb, self.vbios_ppt_offset.unwrap_or(0)))
                 .map(|vi| vi.device_id)
@@ -141,8 +138,8 @@ impl PowerPlayApp {
                 "Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B{}]",
                 label, chip1.display_name(), frev, crev, trev, b.len(), vbios_tag
             );
-            self.baseline_buffer = b.clone();
-            self.raw_buffer = b.clone();
+            self.baseline_buffer = b.to_owned();
+            self.raw_buffer = b.to_owned();
             return true;
         }
 
@@ -299,7 +296,6 @@ impl PowerPlayApp {
         }
 
         let vst = self.capture_vega_parsed();
-        if vst.write_to_buf(&mut self.raw_buffer) { return true; }
-        false
+        vst.write_to_buf(&mut self.raw_buffer)
     }
 }
