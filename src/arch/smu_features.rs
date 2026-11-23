@@ -147,3 +147,21 @@ pub fn detect_silicon_arch(buf: &[u8]) -> SiliconArch {
     }
     SiliconArch::Unknown
 }
+
+#[cfg(test)]
+mod smu_feature_bounds_tests {
+    #[test]
+    fn checked_shift_guards_high_bit_indices() {
+        let high_bits = [0u32, 31, 32, 63, 64, 128, u32::MAX];
+        for bit in high_bits {
+            let mask64 = 1u64.checked_shl(bit).unwrap_or(0);
+            let mask32 = 1u32.checked_shl(bit).unwrap_or(0);
+            if bit >= 64 {
+                assert_eq!(mask64, 0);
+            }
+            if bit >= 32 {
+                assert_eq!(mask32, 0);
+            }
+        }
+    }
+}
