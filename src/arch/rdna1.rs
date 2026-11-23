@@ -122,7 +122,7 @@ pub struct AtomSmcDpmInfoV4_5 {
 }
 
 const _: () = {
-    assert!(size_of::<AtomSmcDpmInfoV4_5>() == 1924);
+    assert!(std::mem::size_of::<AtomSmcDpmInfoV4_5>() == 1924);
     assert!(offset_of!(AtomSmcDpmInfoV4_5, smc_version) == 0x0AB);
     assert!(offset_of!(AtomSmcDpmInfoV4_5, socket_power_limit_ac) == 0x0B7);
     assert!(offset_of!(AtomSmcDpmInfoV4_5, tdc_limit_gfx) == 0x0D7);
