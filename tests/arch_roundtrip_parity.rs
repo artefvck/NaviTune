@@ -214,3 +214,31 @@ fn cli_diff_reports_parameter_and_byte_deltas() {
     assert!(stdout.contains("\"modified_bytes\": 1"));
     let _ = fs::remove_dir_all(&tmp);
 }
+
+#[test]
+fn cli_preset_applies_and_exports_artifacts() {
+    let tmp = std::env::temp_dir().join("navitune_cli_preset_test");
+    let _ = fs::create_dir_all(&tmp);
+    let in_path = tmp.join("rdna2_v4_9.bin");
+    let out_bin = tmp.join("tuned.bin");
+    let out_plist = tmp.join("tuned.plist");
+    let out_reg = tmp.join("tuned.reg");
+    fs::write(&in_path, make_ppt_skeleton(0x02, 0x0F, 0x00, 2470)).unwrap();
+
+    let bin = env!("CARGO_BIN_EXE_pptool");
+    let out = Command::new(bin)
+        .arg("--preset")
+        .arg("quiet-undervolt")
+        .arg(&in_path)
+        .arg("--export-bin")
+        .arg(&out_bin)
+        .arg("--export-oc")
+        .arg(&out_plist)
+        .arg("--export-reg")
+        .arg(&out_reg)
+        .output()
+        .expect("spawn pptool --preset");
+    assert!(out.status.success(), "pptool --preset failed");
+    assert!(out_bin.exists() && out_plist.exists() && out_reg.exists());
+    let _ = fs::remove_dir_all(&tmp);
+}

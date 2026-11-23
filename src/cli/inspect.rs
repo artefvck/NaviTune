@@ -4,7 +4,8 @@ use crate::ppt_arch::PptArch;
 use crate::vbios;
 
 pub(super) fn print_help() {
-    println!("NaviTune (pptool) - AMD Radeon PowerPlayTable & VBIOS CLI / GUI\n  pptool --inspect <file.rom|file.bin>\n  pptool --dump-all <file.rom|file.bin>\n  pptool --export-oc <file> [out.plist]\n  pptool --export-reg <file> [out.reg]\n  pptool --diff <file_a> <file_b> [--json]
+    println!("NaviTune (pptool) - AMD Radeon PowerPlayTable & VBIOS CLI / GUI\n  pptool --inspect <file.rom|file.bin>\n  pptool --dump-all <file.rom|file.bin>\n  pptool --export-oc <file> [out.plist]\n  pptool --export-reg <file> [out.reg]\n  pptool --preset <quiet-undervolt|balanced-oc|auto-fix> <file> [--export-bin out.bin] [--export-oc out.plist] [--export-reg out.reg]
+  pptool --diff <file_a> <file_b> [--json]
   pptool --export-bin <file.rom> <out.bin>");
 }
 
