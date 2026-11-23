@@ -313,6 +313,7 @@ impl AtomVega20PowerPlayTable {
     }
 }
 
+#[derive(Default)]
 pub(crate) struct VegaParsedState {
     pub power_limit_w: i32,
     pub tdc_gfx: i32,
@@ -338,6 +339,11 @@ pub(crate) struct VegaParsedState {
     pub fan_start_temp: i32,
     pub temp_limit_0: i32,
     pub caps: [bool; 7],
+    pub orig_caps: [bool; 7],
+    pub orig_pcaps: u32,
+    pub orig_oc_gfx: i32,
+    pub orig_oc_mem: i32,
+    pub orig_oc_pwr: i32,
 }
 
 impl VegaParsedState {
@@ -360,7 +366,7 @@ impl VegaParsedState {
                 mem_dpm_freq: mf, mem_dpm_volt: mv, fan_pwm_min: 20, fan_max_rpm: u16_at(0x53A),
                 fan_acoustic_limit: u16_at(0x536), fan_throttling_rpm: u16_at(0x538), fan_target_temp: 75,
                 fan_target_gfx_clock: fg[1], fan_zero_rpm_enable: false, fan_stop_temp: 50,
-                fan_start_temp: 60, temp_limit_0: 105, caps: [true, true, true, true, true, true, false],
+                fan_start_temp: 60, temp_limit_0: 105, caps: [true, true, true, true, true, true, false], orig_caps: [true, true, true, true, true, true, false], orig_pcaps: 0, orig_oc_gfx: 0, orig_oc_mem: 0, orig_oc_pwr: 20,
             });
         }
         if frev == 0x08 && b.len() >= 0x4A {
@@ -373,7 +379,7 @@ impl VegaParsedState {
                 mem_dpm_volt: [[900, 1200]; 4], fan_pwm_min: 20, fan_max_rpm: 3000,
                 fan_acoustic_limit: 0, fan_throttling_rpm: 0, fan_target_temp: 74,
                 fan_target_gfx_clock: 1200, fan_zero_rpm_enable: false, fan_stop_temp: 50,
-                fan_start_temp: 60, temp_limit_0: 115, caps: [true, true, true, true, true, true, false],
+                fan_start_temp: 60, temp_limit_0: 115, caps: [true, true, true, true, true, true, false], orig_caps: [true, true, true, true, true, true, false], orig_pcaps: 0, orig_oc_gfx: 0, orig_oc_mem: 0, orig_oc_pwr: 0,
             };
             let vddc_off = u16_at(0x03E) as usize;
             if vddc_off > 0 && vddc_off + 2 <= b.len() {
@@ -435,7 +441,7 @@ impl VegaParsedState {
                 if (50..=95).contains(&t_op) { st.fan_target_temp = t_op; }
             }
             let pt_off = u16_at(0x042) as usize;
-            if pt_off > 0 && pt_off + 0x59 <= b.len() {
+            if pt_off > 0 && pt_off + 0x59 <= b.len() && b[pt_off] >= 2 {
                 let tdc_v = u16_at(pt_off + 0x55);
                 let pwr_v = u16_at(pt_off + 0x57);
                 if (40..=400).contains(&tdc_v) { st.tdc_gfx = tdc_v; }
@@ -449,6 +455,11 @@ impl VegaParsedState {
                 (pcaps & (1 << 12)) != 0 || st.fan_target_temp > 0, (pcaps & (1 << 2)) != 0 || st.temp_limit_0 > 0,
                 (pcaps & (1 << 14)) != 0 || st.fan_zero_rpm_enable,
             ];
+            st.orig_caps = st.caps;
+            st.orig_pcaps = pcaps;
+            st.orig_oc_gfx = st.oc_gfx_clock[1];
+            st.orig_oc_mem = st.oc_mem_clock[1];
+            st.orig_oc_pwr = st.oc_power_limit[1];
             return Some(st);
         }
         None
@@ -456,9 +467,6 @@ impl VegaParsedState {
     pub fn write_to_buf(&self, buf: &mut [u8]) -> bool {
         let frev = buf.get(2).copied().unwrap_or(0);
         if frev == 0x0B && buf.len() == 1534 && buf.len() >= 0x53C {
-            for i in 0..7 {
-                buf[0x00D + i] = if self.caps[i] { 1 } else { 0 };
-            }
             buf[0x016..0x018].copy_from_slice(&(self.power_limit_w.max(0) as u16).to_le_bytes());
             buf[0x018..0x01A].copy_from_slice(&(self.tdc_gfx.max(0) as u16).to_le_bytes());
             buf[0x01A..0x01C].copy_from_slice(&(self.tdc_soc.max(0) as u16).to_le_bytes());
@@ -480,18 +488,26 @@ impl VegaParsedState {
         }
         if frev == 0x08 && buf.len() >= 0x4A {
             let u16_at = |b: &[u8], o: usize| u16::from_le_bytes([b[o], b[o + 1]]) as usize;
-            let mut pcaps = u32::from_le_bytes([buf[0x013], buf[0x014], buf[0x015], buf[0x016]]);
-            if self.caps[0] || self.caps[1] || self.caps[2] { pcaps |= 1 << 18; } else { pcaps &= !(1 << 18); }
-            if self.caps[3] { pcaps |= 1 << 11; } else { pcaps &= !(1 << 11); }
-            if self.caps[4] { pcaps |= 1 << 12; } else { pcaps &= !(1 << 12); }
-            if self.caps[5] { pcaps |= 1 << 2; } else { pcaps &= !(1 << 2); }
-            if self.caps[6] { pcaps |= 1 << 14; } else { pcaps &= !(1 << 14); }
-            buf[0x013..0x017].copy_from_slice(&pcaps.to_le_bytes());
-            buf[0x017..0x01B].copy_from_slice(&((self.oc_gfx_clock[1].max(0) * 100) as u32).to_le_bytes());
-            buf[0x01B..0x01F].copy_from_slice(&((self.oc_mem_clock[1].max(0) * 100) as u32).to_le_bytes());
-            buf[0x01F..0x021].copy_from_slice(&(self.oc_power_limit[1] as i16).to_le_bytes());
+            if self.caps != self.orig_caps {
+                let mut pcaps = u32::from_le_bytes([buf[0x013], buf[0x014], buf[0x015], buf[0x016]]);
+                if self.caps[0] || self.caps[1] || self.caps[2] { pcaps |= 1 << 18; } else { pcaps &= !(1 << 18); }
+                if self.caps[3] { pcaps |= 1 << 11; } else { pcaps &= !(1 << 11); }
+                if self.caps[4] { pcaps |= 1 << 12; } else { pcaps &= !(1 << 12); }
+                if self.caps[5] { pcaps |= 1 << 2; } else { pcaps &= !(1 << 2); }
+                if self.caps[6] { pcaps |= 1 << 14; } else { pcaps &= !(1 << 14); }
+                buf[0x013..0x017].copy_from_slice(&pcaps.to_le_bytes());
+            }
+            if self.oc_gfx_clock[1] != self.orig_oc_gfx {
+                buf[0x017..0x01B].copy_from_slice(&((self.oc_gfx_clock[1].max(0) * 100) as u32).to_le_bytes());
+            }
+            if self.oc_mem_clock[1] != self.orig_oc_mem {
+                buf[0x01B..0x01F].copy_from_slice(&((self.oc_mem_clock[1].max(0) * 100) as u32).to_le_bytes());
+            }
+            if self.oc_power_limit[1] != self.orig_oc_pwr {
+                buf[0x01F..0x021].copy_from_slice(&(self.oc_power_limit[1] as i16).to_le_bytes());
+            }
             let pt_off = u16_at(buf, 0x042);
-            if pt_off > 0 && pt_off + 0x59 <= buf.len() {
+            if pt_off > 0 && pt_off + 0x59 <= buf.len() && buf[pt_off] >= 2 {
                 buf[pt_off + 0x55..pt_off + 0x57].copy_from_slice(&(self.tdc_gfx.max(0) as u16).to_le_bytes());
                 buf[pt_off + 0x57..pt_off + 0x59].copy_from_slice(&(self.power_limit_w.max(0) as u16).to_le_bytes());
             }

@@ -1179,6 +1179,7 @@ impl PowerPlayApp {
     }
 
     fn capture_vega_parsed(&self) -> crate::pptable_vega::VegaParsedState {
+        let base = crate::pptable_vega::VegaParsedState::parse(&self.raw_buffer, self.raw_buffer.get(2).copied().unwrap_or(0)).unwrap_or_default();
         crate::pptable_vega::VegaParsedState {
             power_limit_w: self.power_limit_w,
             tdc_gfx: self.tdc_gfx,
@@ -1204,6 +1205,7 @@ impl PowerPlayApp {
             fan_start_temp: self.fan_start_temp,
             temp_limit_0: self.temp_limits[0],
             caps: [self.gpu_clock_limit, self.memory_clock_limit, self.power_limit_feat, self.min_fan_speed, self.fan_target_temp_limit, self.operating_temp_limit, self.zero_rpm],
+            ..base
         }
     }
 }
