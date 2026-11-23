@@ -135,22 +135,22 @@ const _: () = {
 };
 
 impl AtomSmcDpmInfoV4_5 {
-    pub fn from_bytes(buf: &[u8]) -> Option<&Self> {
-        let aligned_storage: Vec<u8>;
-        let buf: &[u8] = if buf.len() == 1674 && u16::from_le_bytes([buf[5], buf[6]]) == 0x01E2 {
-            let mut v = vec![0u8; 1924];
-            let dst = std::mem::offset_of!(Self, socket_power_limit_ac) - 0x00C;
-            let inner_n = (1674 - 0x01E2).min(1924 - dst);
-            v[dst..dst + inner_n].copy_from_slice(&buf[0x01E2..0x01E2 + inner_n]);
-            aligned_storage = v;
-            &aligned_storage
-        } else {
-            buf
-        };
-        if buf.len() < size_of::<Self>() || buf.len() >= 2400 || !matches!(buf.get(2), Some(0x0C | 0x0D)) {
+    pub fn from_bytes(b: &[u8]) -> Option<&'static Self> {
+        if b.len() < 1674 || (b[2] != 0x0C && b[2] != 0x0D) {
             return None;
         }
-        Some(unsafe { &*(buf.as_ptr() as *const Self) })
+        let mut arr = [0u8; 1924];
+        if b.len() == 1674 && u16::from_le_bytes([b[5], b[6]]) == 0x01E2 {
+            let dst = std::mem::offset_of!(Self, socket_power_limit_ac) - 0x00C;
+            arr[..dst.min(0x01E2)].copy_from_slice(&b[..dst.min(0x01E2)]);
+            let inner_n = (1674 - 0x01E2).min(1924 - dst);
+            arr[dst..dst + inner_n].copy_from_slice(&b[0x01E2..0x01E2 + inner_n]);
+        } else {
+            let n = b.len().min(1924);
+            arr[..n].copy_from_slice(&b[..n]);
+        }
+        let leaked = Box::leak(Box::new(arr));
+        Some(unsafe { &*(leaked.as_ptr() as *const Self) })
     }
 
     pub fn from_bytes_mut(buf: &mut [u8]) -> Option<&mut Self> {
