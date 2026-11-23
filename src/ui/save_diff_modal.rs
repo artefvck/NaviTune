@@ -184,3 +184,48 @@ impl PowerPlayApp {
         self.show_save_diff_modal = open;
     }
 }
+
+/// Collects up to `max_entries` changed byte offsets `(offset, old_byte, new_byte)` safely across
+/// buffers of differing lengths without panicking or allocating unbounded diff rows in the UI.
+pub(crate) type BoundedByteDelta = (usize, Option<u8>, Option<u8>);
+
+pub(crate) fn collect_bounded_byte_diffs(
+    baseline: &[u8],
+    current: &[u8],
+    max_entries: usize,
+) -> (Vec<BoundedByteDelta>, usize) {
+    let max_len = baseline.len().max(current.len());
+    let mut total_diffs = 0usize;
+    let mut preview = Vec::with_capacity(max_entries.min(256));
+    for idx in 0..max_len {
+        let old_b = baseline.get(idx).copied();
+        let new_b = current.get(idx).copied();
+        if old_b != new_b {
+            if preview.len() < max_entries {
+                preview.push((idx, old_b, new_b));
+            }
+            total_diffs += 1;
+        }
+    }
+    (preview, total_diffs)
+}
+
+#[cfg(test)]
+mod save_diff_modal_bounds_tests {
+    use super::collect_bounded_byte_diffs;
+
+    #[test]
+    fn bounded_diff_handles_mismatched_and_large_buffers_safely() {
+        let base = vec![0xAAu8; 5424];
+        let mut cur = base.clone();
+        cur[0] = 0xBB;
+        cur[100] = 0xCC;
+        cur.push(0xDD);
+
+        let (preview, total) = collect_bounded_byte_diffs(&base, &cur, 2);
+        assert_eq!(total, 3);
+        assert_eq!(preview.len(), 2);
+        assert_eq!(preview[0], (0, Some(0xAA), Some(0xBB)));
+        assert_eq!(preview[1], (100, Some(0xAA), Some(0xCC)));
+    }
+}

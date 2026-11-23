@@ -101,6 +101,8 @@ impl PowerPlayApp {
         vars.push(("gfx_dpm_range".to_string(), crate::ui::cards::format_dpm_range(&self.freq_gfx)));
         vars.push(("modified_bytes".to_string(), self.modified_byte_count().to_string()));
         vars.push(("validation_warnings".to_string(), self.validate_tunables().len().to_string()));
+        let (_, diff_preview_total) = crate::ui::save_diff_modal::collect_bounded_byte_diffs(&self.baseline_buffer, &self.raw_buffer, 64);
+        vars.push(("diff_preview_total".to_string(), diff_preview_total.to_string()));
         vars.sort_by(|a, b| a.0.cmp(&b.0));
 
         let mut out = String::new();
