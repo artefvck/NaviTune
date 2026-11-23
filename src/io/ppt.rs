@@ -224,6 +224,120 @@ impl PowerPlayApp {
             return;
         }
 
+        if let Some(r1p) = crate::pptable_rdna1::Rdna1ParsedState::parse(&b) {
+            let zero_t1_buf = [0u8; 1924];
+            let t1 = unsafe { &*(zero_t1_buf.as_ptr() as *const crate::pptable_rdna1::AtomSmcDpmInfoV4_5) };
+            let _ = &t1;
+            let did = self.vbios_buffer.as_deref()
+                .and_then(|vb| crate::vbios::inspect_vbios_info(vb, self.vbios_ppt_offset.unwrap_or(0)))
+                .map(|vi| vi.device_id)
+                .unwrap_or(0);
+            let chip1 = t1.detect_chip(did);
+
+            let f = { t1.od_feature_flags };
+            self.gpu_clock_limit = f[0] != 0;
+            self.gpu_clock_curve = f[1] != 0;
+            self.memory_clock_limit = f[2] != 0;
+            self.zero_rpm = f[3] != 0;
+            self.min_fan_speed = f[4] != 0;
+            self.fan_target_temp_limit = f[5] != 0;
+            self.operating_temp_limit = f[6] != 0;
+            self.fan_acoustic_rpm = f[7] != 0;
+            self.fan_curve = f[8] != 0;
+            self.power_limit_feat = f[9] != 0;
+            self.timing_tuning = f[10] != 0;
+            self.power_mode = f[11] != 0;
+
+            let mask = { t1.features_to_run };
+            for bit in 0..64 {
+                self.smu_features[bit] = (mask & (1u64 << bit)) != 0;
+            }
+
+            let od_min = { t1.od_settings_min };
+            let od_max = { t1.od_settings_max };
+            self.oc_gfx_clock = [od_min[0] as i32, od_max[0] as i32];
+            self.oc_mem_clock = [od_min[1] as i32, od_max[1] as i32];
+            self.oc_power_limit = [od_min[2] as i32, od_max[2] as i32];
+            self.oc_fan_rpm = [od_min[3] as i32, od_max[3] as i32];
+            self.oc_fan_acoustic_rpm = [od_min[4] as i32, od_max[4] as i32];
+
+            let ppt0 = { r1p.power_limit_w } as i32;
+            self.power_limit_w = if ppt0 > 0 { ppt0 } else { ({ t1.boost_power_limit }) as i32 };
+            self.tdc_gfx = { r1p.tdc_gfx } as i32;
+            self.tdc_soc = { r1p.tdc_soc } as i32;
+
+            self.volt_gfx = [{ r1p.min_volt_gfx } as i32 / 4, { r1p.max_volt_gfx } as i32 / 4];
+            self.volt_soc = [{ r1p.min_volt_soc } as i32 / 4, { r1p.max_volt_soc } as i32 / 4];
+            self.ulv_gfx = [{ r1p.ulv_vmin_gfx } as i32 / 4, { 0i16 } as i32 / 4];
+            self.ulv_soc = [{ r1p.ulv_vmin_soc } as i32 / 4, { 0i16 } as i32 / 4];
+
+            let desc = { t1.dpm_descriptor };
+            let gfx_n = (desc[0] as usize).clamp(1, 16);
+            let soc_n = (desc[1] as usize).clamp(1, 8);
+            let fclk_n = (desc[3] as usize).clamp(1, 8);
+            let dclk_n = (desc[4] as usize).clamp(1, 8);
+            let vclk_n = (desc[5] as usize).clamp(1, 8);
+            let dcef_n = (desc[6] as usize).clamp(1, 8);
+            let disp_n = (desc[7] as usize).clamp(1, 8);
+            let pix_n = (desc[8] as usize).clamp(1, 8);
+            let phy_n = (desc[9] as usize).clamp(1, 8);
+
+            let ft_gfx = { t1.freq_table_gfx };
+            let ft_soc = { t1.freq_table_socclk };
+            let ft_uclk = { t1.freq_table_uclk };
+            let ft_fclk = { t1.freq_table_fclk };
+            let ft_vclk = { t1.freq_table_vclk };
+            let ft_dclk = { t1.freq_table_dclk };
+            let ft_dcef = { t1.freq_table_dcefclk };
+            let ft_disp = { t1.freq_table_dispclk };
+            let ft_pix = { t1.freq_table_pixclk };
+            let ft_phy = { t1.freq_table_phyclk };
+
+            self.freq_gfx = [ft_gfx[0] as i32, ft_gfx[gfx_n - 1] as i32];
+            self.freq_soc = [ft_soc[0] as i32, ft_soc[soc_n - 1] as i32];
+            self.freq_fclk = [ft_fclk[0] as i32, ft_fclk[fclk_n - 1] as i32];
+            self.freq_vclk = [ft_vclk[0] as i32, ft_vclk[vclk_n - 1] as i32];
+            self.freq_dclk = [ft_dclk[0] as i32, ft_dclk[dclk_n - 1] as i32];
+            self.freq_dcefclk = [ft_dcef[0] as i32, ft_dcef[dcef_n - 1] as i32];
+            self.freq_dispclk = [ft_disp[0] as i32, ft_disp[disp_n - 1] as i32];
+            self.freq_pixclk = [ft_pix[0] as i32, ft_pix[pix_n - 1] as i32];
+            self.freq_phyclk = [ft_phy[0] as i32, ft_phy[phy_n - 1] as i32];
+
+            let vddci_hi = { t1.vddci_max } as i32 / 4;
+            let mvdd_hi = { t1.mvdd_max } as i32 / 4;
+            for i in 0..4 {
+                self.mem_dpm_freq[i] = [ft_uclk[i] as i32, 1];
+                self.mem_dpm_volt[i] = [vddci_hi, mvdd_hi];
+            }
+
+            self.fan_pwm_min = { r1p.fan_pwm_min } as i32;
+            self.fan_acoustic_limit = { t1.fan_acoustic_limit_rpm } as i32;
+            self.fan_throttling_rpm = { t1.fan_throttling_rpm } as i32;
+            self.fan_max_rpm = { t1.fan_maximum_rpm } as i32;
+            self.fan_target_temp = { t1.fan_target_temperature } as i32;
+            self.fan_target_gfx_clock = { t1.fan_target_gfxclk } as i32;
+            self.fan_zero_rpm_enable = if r1p.fan_zero_rpm { 1u8 } else { 0u8 } != 0;
+            self.fan_stop_temp = { r1p.fan_stop_temp } as i32;
+            self.fan_start_temp = { r1p.fan_start_temp } as i32;
+
+            let tl = { t1.temp_limit };
+            for i in 0..7 {
+                self.temp_limits[i] = tl[i] as i32;
+            }
+
+            let vbios_tag = if let Some(voff) = self.vbios_ppt_offset {
+                format!(" | VBIOS PowerPlayInfo @ 0x{:04X}", voff)
+            } else {
+                String::new()
+            };
+            self.status_msg = format!(
+                "Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B{}]",
+                label, chip1.display_name(), frev, crev, trev, b.len(), vbios_tag
+            );
+            self.baseline_buffer = b.clone();
+            self.raw_buffer = b;
+            return;
+        }
         if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(&b) {
             let did = self.vbios_buffer.as_deref()
                 .and_then(|vb| crate::vbios::inspect_vbios_info(vb, self.vbios_ppt_offset.unwrap_or(0)))
@@ -770,6 +884,39 @@ impl PowerPlayApp {
             for i in 0..9 {
                 t3.temp_limit[i] = self.temp_limits[i] as u16;
             }
+            return;
+        }
+        if let Some(mut r1p) = crate::pptable_rdna1::Rdna1ParsedState::parse(&self.raw_buffer) {
+            let qmv = |ui_mv: i32, orig: u16| if (orig / 4) as i32 == ui_mv { orig } else { (ui_mv.max(0) * 4) as u16 };
+            let mut mask = 0u64;
+            for i in 0..64 { if self.smu_features[i] { mask |= 1u64 << i; } }
+            r1p.smu_features = mask;
+            r1p.power_limit_w = self.power_limit_w.max(0) as u16;
+            r1p.tdc_soc = self.tdc_soc.max(0) as u16;
+            r1p.tdc_gfx = self.tdc_gfx.max(0) as u16;
+            r1p.ulv_vmin_gfx = qmv(self.ulv_gfx[0], r1p.ulv_vmin_gfx);
+            r1p.ulv_vmin_soc = qmv(self.ulv_soc[0], r1p.ulv_vmin_soc);
+            r1p.min_volt_gfx = qmv(self.volt_gfx[0], r1p.min_volt_gfx);
+            r1p.max_volt_gfx = qmv(self.volt_gfx[1], r1p.max_volt_gfx);
+            r1p.min_volt_soc = qmv(self.volt_soc[0], r1p.min_volt_soc);
+            r1p.max_volt_soc = qmv(self.volt_soc[1], r1p.max_volt_soc);
+            r1p.gfx_min = self.freq_gfx[0].max(0) as u16;
+            r1p.gfx_max = self.freq_gfx[1].max(0) as u16;
+            r1p.soc_min = self.freq_soc[0].max(0) as u16;
+            r1p.soc_max = self.freq_soc[1].max(0) as u16;
+            for i in 0..4 {
+                r1p.uclk_dpm[i] = self.mem_dpm_freq[i][0].max(0) as u16;
+                r1p.mem_vddci[i] = qmv(self.mem_dpm_volt[i][0], r1p.mem_vddci[i]);
+                r1p.mem_mvdd[i] = qmv(self.mem_dpm_volt[i][1], r1p.mem_mvdd[i]);
+            }
+            r1p.fclk_min = self.freq_fclk[0].max(0) as u16;
+            r1p.fclk_max = self.freq_fclk[1].max(0) as u16;
+            r1p.fan_stop_temp = self.fan_stop_temp.max(0) as u16;
+            r1p.fan_start_temp = self.fan_start_temp.max(0) as u16;
+            r1p.fan_pwm_min = self.fan_pwm_min.max(0) as u16;
+            r1p.fan_max_rpm = self.fan_max_rpm.max(0) as u16;
+            r1p.fan_target_temp = self.fan_target_temp.max(0) as u16;
+            r1p.write_to_buf(&mut self.raw_buffer);
             return;
         }
         if crate::ppt_arch::PptArch::detect(&self.raw_buffer) == crate::ppt_arch::PptArch::Rdna1 && self.raw_buffer.len() >= 1674 {
