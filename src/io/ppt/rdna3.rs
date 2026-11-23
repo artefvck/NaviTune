@@ -42,11 +42,21 @@ impl PowerPlayApp {
 
             self.power_limit_w = { t3.socket_power_limit_ac } as i32;
             self.volt_gfx = [{ t3.min_voltage_gfx } as i32 / 4, { t3.max_voltage_gfx } as i32 / 4];
+            if self.volt_gfx[0] > self.volt_gfx[1] {
+                self.volt_gfx.swap(0, 1);
+            }
             self.volt_soc = [{ t3.min_voltage_soc } as i32 / 4, { t3.max_voltage_soc } as i32 / 4];
             self.ulv_gfx = [{ t3.ulv_voltage_vmin_gfx } as i32 / 4, 0];
             self.ulv_soc = [{ t3.ulv_voltage_vmin_soc } as i32 / 4, 0];
 
-            self.freq_gfx = [{ t3.freq_gfx_min } as i32, { t3.freq_gfx_max } as i32];
+            let mut gfx_min = { t3.freq_gfx_min } as i32;
+            if t3.header.format_revision >= 0x16 && gfx_min < 500 && b.len() > 0x695 {
+                let alt_min = u16::from_le_bytes([b[0x694], b[0x695]]) as i32;
+                if (300..=1500).contains(&alt_min) {
+                    gfx_min = alt_min;
+                }
+            }
+            self.freq_gfx = [gfx_min, { t3.freq_gfx_max } as i32];
             self.freq_soc = [500, { t3.freq_soc_max } as i32];
             self.freq_fclk = [{ t3.freq_fclk_min } as i32, { t3.freq_fclk_max } as i32];
             self.tdc_gfx = { t3.tdc_limit_gfx } as i32;
@@ -63,7 +73,13 @@ impl PowerPlayApp {
             self.fan_acoustic_limit = { t3.fan_acoustic_limit } as i32;
             self.fan_max_rpm = { t3.fan_max_rpm } as i32;
             self.fan_target_gfx_clock = { t3.fan_target_gfx_clock } as i32;
-            let raw_tt = { t3.fan_target_temp } as i32;
+            let mut raw_tt = { t3.fan_target_temp } as i32;
+            if t3.header.format_revision >= 0x16 && raw_tt < 40 && b.len() > 0x887 {
+                let alt_tt = u16::from_le_bytes([b[0x886], b[0x887]]) as i32;
+                if (50..=115).contains(&alt_tt) {
+                    raw_tt = alt_tt;
+                }
+            }
             self.fan_target_temp = if raw_tt > 200 { raw_tt / 10 } else { raw_tt };
             self.fan_zero_rpm_enable = t3.fan_zero_rpm_enable != 0;
             self.fan_stop_temp = { t3.fan_stop_temp } as i32;
@@ -108,11 +124,23 @@ impl PowerPlayApp {
             let qmv_r3 = |ui_mv: i32, orig: u16| if (orig / 4) as i32 == ui_mv { orig } else { (ui_mv.max(0) * 4) as u16 };
         t3.ulv_voltage_vmin_gfx = qmv_r3(self.ulv_gfx[0], t3.ulv_voltage_vmin_gfx);
         t3.ulv_voltage_vmin_soc = qmv_r3(self.ulv_soc[0], t3.ulv_voltage_vmin_soc);
-        t3.min_voltage_gfx = (self.volt_gfx[0] * 4) as u16;
-            t3.max_voltage_gfx = (self.volt_gfx[1] * 4) as u16;
+        if t3.min_voltage_gfx > t3.max_voltage_gfx {
+                t3.min_voltage_gfx = (self.volt_gfx[1] * 4) as u16;
+                t3.max_voltage_gfx = (self.volt_gfx[0] * 4) as u16;
+            } else {
+                t3.min_voltage_gfx = (self.volt_gfx[0] * 4) as u16;
+                t3.max_voltage_gfx = (self.volt_gfx[1] * 4) as u16;
+            }
             t3.min_voltage_soc = (self.volt_soc[0] * 4) as u16;
             t3.max_voltage_soc = (self.volt_soc[1] * 4) as u16;
-            t3.freq_gfx_min = self.freq_gfx[0] as u16;
+            if t3.header.format_revision >= 0x16 && t3.freq_gfx_min < 500 {
+                let bytes = (self.freq_gfx[0].max(0) as u16).to_le_bytes();
+                let raw = unsafe { core::slice::from_raw_parts_mut(t3 as *mut _ as *mut u8, 5424) };
+                raw[0x694] = bytes[0];
+                raw[0x695] = bytes[1];
+            } else {
+                t3.freq_gfx_min = self.freq_gfx[0] as u16;
+            }
             t3.freq_gfx_max = self.freq_gfx[1] as u16;
             t3.freq_soc_max = self.freq_soc[1] as u16;
             t3.freq_fclk_min = self.freq_fclk[0] as u16;
@@ -136,7 +164,14 @@ impl PowerPlayApp {
             t3.fan_max_rpm = self.fan_max_rpm as u16;
             t3.fan_target_gfx_clock = self.fan_target_gfx_clock as u16;
             let orig_tt = { t3.fan_target_temp };
-            t3.fan_target_temp = if orig_tt > 200 { (self.fan_target_temp * 10) as u16 } else { self.fan_target_temp as u16 };
+            if t3.header.format_revision >= 0x16 && t3.fan_target_temp < 40 {
+                let bytes = (self.fan_target_temp.max(0) as u16).to_le_bytes();
+                let raw = unsafe { core::slice::from_raw_parts_mut(t3 as *mut _ as *mut u8, 5424) };
+                raw[0x886] = bytes[0];
+                raw[0x887] = bytes[1];
+            } else {
+                t3.fan_target_temp = if orig_tt > 200 { (self.fan_target_temp * 10) as u16 } else { self.fan_target_temp as u16 };
+            }
             t3.fan_zero_rpm_enable = self.fan_zero_rpm_enable as u8;
             t3.fan_stop_temp = self.fan_stop_temp as u16;
             t3.fan_start_temp = self.fan_start_temp as u16;

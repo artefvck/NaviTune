@@ -121,8 +121,6 @@ impl PowerPlayApp {
             }
             self.ulv_gfx = [0, 0];
             self.ulv_soc = [0, 0];
-            self.freq_gfx = [0, 0];
-            self.freq_soc = [0, 0];
             self.freq_fclk = [0, 0];
             self.freq_vclk = [0, 0];
             self.freq_dclk = [0, 0];
@@ -156,6 +154,9 @@ impl PowerPlayApp {
                 self.fan_start_temp = 0;
             }
             self.temp_limits.fill(0);
+            if let Some(st) = crate::pptable_vega::VegaParsedState::parse(b, frev) {
+                self.apply_vega_parsed(st);
+            }
             self.status_msg = format!("Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B]", label, chip_v.display_name(), frev, crev, trev, b.len());
             self.baseline_buffer = b.to_owned();
             self.raw_buffer = b.to_owned();
