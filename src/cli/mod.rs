@@ -33,6 +33,17 @@ pub fn try_run_cli() -> bool {
             }
             true
         }
+        "--dump-all" => {
+            let Some(path) = args.get(1) else {
+                eprintln!("Usage: pptool --dump-all <file.rom|file.bin>");
+                std::process::exit(2);
+            };
+            if let Err(e) = cmd_dump_all(path) {
+                eprintln!("Error: {}", e);
+                std::process::exit(1);
+            }
+            true
+        }
         "--export-oc" => {
             let Some(path) = args.get(1) else {
                 eprintln!("Usage: pptool --export-oc <file.rom|file.bin> [out.plist]");
