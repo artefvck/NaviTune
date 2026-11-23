@@ -87,10 +87,19 @@ impl PowerPlayApp {
                 }
             }
             PptArch::Rdna1 => {
-                push("OD Max GFX Clock (MHz)", 0x02C, "u32", self.oc_gfx_clock[1], u32_at(0x02C));
-                push("OD Max Mem Clock (MHz)", 0x034, "u32", self.oc_mem_clock[1], u32_at(0x034));
-                push("GFX Voltage Min (mV)", 0x03C, "u32", self.volt_gfx[0], u32_at(0x03C));
-                push("GFX Voltage Max (mV)", 0x044, "u32", self.volt_gfx[1], u32_at(0x044));
+                if let Some(t) = AtomSmcDpmInfoV4_5::from_bytes(buf) {
+                    push("OD Max GFX Clock (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, od_settings_max), "u32", self.oc_gfx_clock[1], t.od_settings_max[0] as i32);
+                    push("OD Max Mem Clock (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, od_settings_max) + 8, "u32", self.oc_mem_clock[1], t.od_settings_max[2] as i32);
+                    push("Socket Power Limit (W)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, socket_power_limit_ac), "u16", self.power_limit_w, t.socket_power_limit_ac[0] as i32);
+                    push("TDC GFX Limit (A)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, tdc_limit_gfx), "u16", self.tdc_gfx, t.tdc_limit_gfx as i32);
+                    push("GFX Voltage Min (mV)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, min_voltage_gfx), "u16 / 4", self.volt_gfx[0], (t.min_voltage_gfx / 4) as i32);
+                    push("GFX Voltage Max (mV)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, max_voltage_gfx), "u16 / 4", self.volt_gfx[1], (t.max_voltage_gfx / 4) as i32);
+                    push("GFX Clock Min (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, freq_table_gfx), "u16", self.freq_gfx[0], t.freq_table_gfx[0] as i32);
+                    push("GFX Clock Max (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, freq_table_gfx) + 2, "u16", self.freq_gfx[1], t.freq_table_gfx[1] as i32);
+                    push("UCLK DPM0 (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, freq_table_uclk), "u16", self.mem_dpm_freq[0][0], t.freq_table_uclk[0] as i32);
+                    push("UCLK DPM3 (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, freq_table_uclk) + 6, "u16", self.mem_dpm_freq[3][0], t.freq_table_uclk[3] as i32);
+                    push("Fan Max RPM (RPM)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, fan_maximum_rpm), "u16", self.fan_max_rpm, t.fan_maximum_rpm as i32);
+                }
             }
             PptArch::Rdna2 => {
                 use crate::arch::rdna2::AtomSmcDpmInfoV4_9;
@@ -109,8 +118,21 @@ impl PowerPlayApp {
                 }
             }
             PptArch::Rdna3 => {
-                push("OD Max GFX Clock (MHz)", 0x038, "u32", self.oc_gfx_clock[1], u32_at(0x038));
-                push("OD Max Mem Clock (MHz)", 0x040, "u32", self.oc_mem_clock[1], u32_at(0x040));
+                if let Some(t) = AtomSmcDpmInfoV4_12::from_bytes(buf) {
+                    push("OD Max GFX Clock (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_12, od_gfx_max), "u32", self.oc_gfx_clock[1], t.od_gfx_max as i32);
+                    push("OD Max Mem Clock (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_12, od_mem_max), "u32", self.oc_mem_clock[1], t.od_mem_max as i32);
+                    push("Socket Power Limit (W)", std::mem::offset_of!(AtomSmcDpmInfoV4_12, socket_power_limit_ac), "u16", self.power_limit_w, t.socket_power_limit_ac as i32);
+                    push("TDC GFX Limit (A)", std::mem::offset_of!(AtomSmcDpmInfoV4_12, tdc_limit_gfx), "u16", self.tdc_gfx, t.tdc_limit_gfx as i32);
+                    push("GFX Voltage Min (mV)", std::mem::offset_of!(AtomSmcDpmInfoV4_12, min_voltage_gfx), "u16 / 4", self.volt_gfx[0], (t.min_voltage_gfx / 4) as i32);
+                    push("GFX Voltage Max (mV)", std::mem::offset_of!(AtomSmcDpmInfoV4_12, max_voltage_gfx), "u16 / 4", self.volt_gfx[1], (t.max_voltage_gfx / 4) as i32);
+                    push("GFX Clock Min (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_12, freq_gfx_min), "u16", self.freq_gfx[0], t.freq_gfx_min as i32);
+                    push("GFX Clock Max (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_12, freq_gfx_max), "u16", self.freq_gfx[1], t.freq_gfx_max as i32);
+                    push("SOCCLK Max (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_12, freq_soc_max), "u16", self.freq_soc[1], t.freq_soc_max as i32);
+                    push("FCLK Max (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_12, freq_fclk_max), "u16", self.freq_fclk[1], t.freq_fclk_max as i32);
+                    push("UCLK DPM0 (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_12, freq_uclk), "u16", self.mem_dpm_freq[0][0], t.freq_uclk[0] as i32);
+                    push("UCLK DPM3 (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_12, freq_uclk) + 6, "u16", self.mem_dpm_freq[3][0], t.freq_uclk[3] as i32);
+                    push("Fan Max RPM (RPM)", std::mem::offset_of!(AtomSmcDpmInfoV4_12, fan_max_rpm), "u16", self.fan_max_rpm, t.fan_max_rpm as i32);
+                }
             }
             PptArch::Unknown => {}
         }
