@@ -51,6 +51,23 @@ fn verify_all_target_vbios_parity() {
                 let pol = pptable_polaris::AtomPolarisPowerPlayTable::from_bytes(&ppt).expect("polaris parse");
                 assert!(pol.max_od_engine_clock > 0, "non-zero Polaris OD GFX clock for {:?}", path);
             }
+            PptArch::Rdna1 => {
+                if let Some(t) = pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(&ppt) {
+                    assert!(t.socket_power_limit_ac[0] > 0, "non-zero RDNA1 power limit for {:?}", path);
+                }
+            }
+            PptArch::Rdna2 => {
+                if let Some(t) = pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(&ppt) {
+                    assert!(t.socket_power_limit_ac[0] > 0, "non-zero RDNA2 power limit for {:?}", path);
+                    assert!(t.freq_gfx_max > 0, "non-zero RDNA2 GFX max for {:?}", path);
+                }
+            }
+            PptArch::Rdna3 => {
+                if let Some(t) = pptable_rdna3::AtomSmcDpmInfoV4_12::from_bytes(&ppt) {
+                    assert!(t.socket_power_limit_ac > 0, "non-zero RDNA3 power limit for {:?}", path);
+                    assert!(t.freq_gfx_max > 0, "non-zero RDNA3 GFX max for {:?}", path);
+                }
+            }
             _ => {}
         }
         checked += 1;
