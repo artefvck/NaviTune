@@ -154,3 +154,17 @@ fn cli_binary_and_reimport_roundtrip_parity_across_all_six_architectures() {
 
     let _ = fs::remove_dir_all(&tmp);
 }
+
+#[test]
+fn cli_dump_all_supports_all_six_gpu_generations_without_panic() {
+    let tmp = std::env::temp_dir().join("navitune_six_arch_dump_all");
+    let _ = fs::create_dir_all(&tmp);
+    let bin = env!("CARGO_BIN_EXE_pptool");
+    for (name, bytes) in [("polaris.bin", make_ppt_skeleton(0x07, 0x07, 0x01, 384)), ("vega10.bin", make_ppt_skeleton(0x08, 0x08, 0x01, 512)), ("vega20.bin", make_ppt_skeleton(0x0B, 0x0B, 0x01, 1924)), ("rdna1.bin", make_ppt_skeleton(0x0D, 0x0D, 0x01, 1924)), ("rdna2.bin", make_ppt_skeleton(0x0F, 0x0F, 0x01, 2470)), ("rdna3.bin", make_ppt_skeleton(0x14, 0x14, 0x01, 5424))] {
+        let p = tmp.join(name);
+        fs::write(&p, &bytes).unwrap();
+        let out = Command::new(bin).arg("--dump-all").arg(&p).output().unwrap();
+        assert_ne!(out.status.code(), Some(101));
+    }
+    let _ = fs::remove_dir_all(&tmp);
+}
