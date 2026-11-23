@@ -103,3 +103,16 @@ impl PowerPlayApp {
         }
     }
 }
+
+#[cfg(test)]
+mod safe_presets_bounds_tests {
+    use crate::app::PowerPlayApp;
+
+    #[test]
+    fn default_app_presets_preserve_valid_clock_and_voltage_ordering() {
+        let app = PowerPlayApp::default();
+        assert!(app.freq_gfx[0] <= app.freq_gfx[1]);
+        assert!(app.volt_gfx[0] <= app.volt_gfx[1]);
+        assert!(app.validate_tunables().is_empty());
+    }
+}
