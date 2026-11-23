@@ -117,8 +117,8 @@ pub struct AtomSmcDpmInfoV4_9 {
     pub _smc_temp_res: [u8; 0x39A - 0x368],     // 0x368..0x39A
     pub ulv_voltage_vmin_gfx: u16,              // 0x39A..0x39C
     pub ulv_voltage_vmin_soc: u16,              // 0x39C..0x39E
-    pub ulv_voltage_offset_gfx: u16,            // 0x39E..0x3A0
-    pub ulv_voltage_offset_soc: u16,            // 0x3A0..0x3A2
+    pub ulv_voltage_offset_gfx: i16,            // 0x39E..0x3A0
+    pub ulv_voltage_offset_soc: i16,            // 0x3A0..0x3A2
     pub _smc_volt_res0: [u8; 0x3A6 - 0x3A2],    // 0x3A2..0x3A6
     pub min_voltage_gfx: u16,                   // 0x3A6..0x3A8
     pub min_voltage_soc: u16,                   // 0x3A8..0x3AA
