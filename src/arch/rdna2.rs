@@ -114,12 +114,12 @@ pub struct AtomSmcDpmInfoV4_9 {
     pub tdc_limit_soc: u16,                     // 0x350..0x352
     pub _smc_tdc_res: [u8; 0x356 - 0x352],      // 0x352..0x356
     pub temp_limit: [u16; 9],                   // 0x356..0x368
-    pub _smc_temp_res: [u8; 0x39A - 0x368],     // 0x368..0x39A
-    pub ulv_voltage_vmin_gfx: u16,              // 0x39A..0x39C
-    pub ulv_voltage_vmin_soc: u16,              // 0x39C..0x39E
-    pub ulv_voltage_offset_gfx: i16,            // 0x39E..0x3A0
-    pub ulv_voltage_offset_soc: i16,            // 0x3A0..0x3A2
-    pub _smc_volt_res0: [u8; 0x3A6 - 0x3A2],    // 0x3A2..0x3A6
+    pub _smc_temp_res: [u8; 0x380 - 0x368],     // 0x368..0x380
+    pub ulv_voltage_vmin_gfx: u16,              // 0x380..0x382
+    pub ulv_voltage_vmin_soc: u16,              // 0x382..0x384
+    pub ulv_voltage_vmax_gfx: u16,              // 0x384..0x386
+    pub ulv_voltage_vmax_soc: u16,              // 0x386..0x388
+    pub _smc_volt_res0: [u8; 0x3A6 - 0x388],    // 0x388..0x3A6
     pub min_voltage_gfx: u16,                   // 0x3A6..0x3A8
     pub min_voltage_soc: u16,                   // 0x3A8..0x3AA
     pub max_voltage_gfx: u16,                   // 0x3AA..0x3AC
