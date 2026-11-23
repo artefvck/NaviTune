@@ -1039,6 +1039,10 @@ impl PowerPlayApp {
         let qmv = |ui_mv: i32, orig: u16| -> u16 {
             if (orig / 4) as i32 == ui_mv { orig } else { (ui_mv.max(0) * 4) as u16 }
         };
+        t.ulv_voltage_vmin_gfx = qmv(self.ulv_gfx[0], t.ulv_voltage_vmin_gfx);
+        t.ulv_voltage_vmin_soc = qmv(self.ulv_soc[0], t.ulv_voltage_vmin_soc);
+        t.ulv_voltage_offset_gfx = qmv(self.ulv_gfx[1], t.ulv_voltage_offset_gfx);
+        t.ulv_voltage_offset_soc = qmv(self.ulv_soc[1], t.ulv_voltage_offset_soc);
         t.min_voltage_gfx = qmv(self.volt_gfx[0], t.min_voltage_gfx);
         t.min_voltage_soc = qmv(self.volt_soc[0], t.min_voltage_soc);
         t.max_voltage_gfx = qmv(self.volt_gfx[1], t.max_voltage_gfx);

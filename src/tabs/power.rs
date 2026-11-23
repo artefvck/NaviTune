@@ -95,8 +95,8 @@ impl PowerPlayApp {
                         kv_row_1(ui, "Soc Vmin", "ulv_voltage_vmin_soc (0x3C6)", &mut self.ulv_soc[0], 62.0);
                     } else {
                         kv_header_2(ui, "Vmin", "Vmax", 62.0);
-                        kv_row_2(ui, "GFX", match arch { crate::ppt_arch::PptArch::Vega20 => "ulv_voltage_vmin_gfx (0x137)", crate::ppt_arch::PptArch::Rdna1 => "ulv_voltage_vmin_gfx (0x0D1)", _ => "ulv_voltage_vmin_gfx (0x380)" }, &mut self.ulv_gfx, 62.0);
-                        kv_row_2(ui, "Soc", match arch { crate::ppt_arch::PptArch::Vega20 => "ulv_voltage_vmin_soc (0x139)", crate::ppt_arch::PptArch::Rdna1 => "ulv_voltage_vmin_soc (0x0D3)", _ => "ulv_voltage_vmin_soc (0x382)" }, &mut self.ulv_soc, 62.0);
+                        kv_row_2(ui, "GFX", match arch { crate::ppt_arch::PptArch::Vega20 => "ulv_voltage_vmin_gfx (0x137)", crate::ppt_arch::PptArch::Rdna1 => "ulv_voltage_vmin_gfx (0x0D1)", _ => "ulv_voltage_vmin_gfx (0x39A)" }, &mut self.ulv_gfx, 62.0);
+                        kv_row_2(ui, "Soc", match arch { crate::ppt_arch::PptArch::Vega20 => "ulv_voltage_vmin_soc (0x139)", crate::ppt_arch::PptArch::Rdna1 => "ulv_voltage_vmin_soc (0x0D3)", _ => "ulv_voltage_vmin_soc (0x39C)" }, &mut self.ulv_soc, 62.0);
                     }
                 });
             }
