@@ -641,8 +641,8 @@ impl PowerPlayApp {
         self.probe_write_val = self.power_limit_w.to_string();
         self.tdc_gfx = t.tdc_limit_gfx as i32;
         self.tdc_soc = t.tdc_limit_soc as i32;
-        self.ulv_gfx = [t.ulv_voltage_vmin_gfx as i32 / 4, t.ulv_voltage_offset_gfx as i32 / 4];
-        self.ulv_soc = [t.ulv_voltage_vmin_soc as i32 / 4, t.ulv_voltage_offset_soc as i32 / 4];
+        self.ulv_gfx = [t.ulv_voltage_vmin_gfx as i32 / 4, t.ulv_voltage_vmax_gfx as i32 / 4];
+        self.ulv_soc = [t.ulv_voltage_vmin_soc as i32 / 4, t.ulv_voltage_vmax_soc as i32 / 4];
         self.tvmin_gfx = [t.tvmin_gfx as i32, t.tvmin_hyst_gfx as i32];
         self.tvmin_soc = [t.tvmin_soc as i32, t.tvmin_hyst_soc as i32];
         self.vmin_lh_gfx = [t.vmin_low_gfx as i32 / 4, t.vmin_high_gfx as i32 / 4];
@@ -1052,11 +1052,8 @@ impl PowerPlayApp {
         };
         t.ulv_voltage_vmin_gfx = qmv(self.ulv_gfx[0], t.ulv_voltage_vmin_gfx);
         t.ulv_voltage_vmin_soc = qmv(self.ulv_soc[0], t.ulv_voltage_vmin_soc);
-        let qmv_i = |ui_mv: i32, orig: i16| -> i16 {
-            if (orig / 4) as i32 == ui_mv { orig } else { (ui_mv * 4) as i16 }
-        };
-        t.ulv_voltage_offset_gfx = qmv_i(self.ulv_gfx[1], t.ulv_voltage_offset_gfx);
-        t.ulv_voltage_offset_soc = qmv_i(self.ulv_soc[1], t.ulv_voltage_offset_soc);
+        t.ulv_voltage_vmax_gfx = qmv(self.ulv_gfx[1], t.ulv_voltage_vmax_gfx);
+        t.ulv_voltage_vmax_soc = qmv(self.ulv_soc[1], t.ulv_voltage_vmax_soc);
         t.min_voltage_gfx = qmv(self.volt_gfx[0], t.min_voltage_gfx);
         t.min_voltage_soc = qmv(self.volt_soc[0], t.min_voltage_soc);
         t.max_voltage_gfx = qmv(self.volt_gfx[1], t.max_voltage_gfx);
