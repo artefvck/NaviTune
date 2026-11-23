@@ -75,3 +75,24 @@ fn cli_handles_corrupt_plist_and_reg_imports_without_panic() {
 
     let _ = fs::remove_dir_all(&tmp);
 }
+
+#[test]
+fn cli_rejects_oversized_64mib_input_cleanly_without_panic() {
+    let tmp = std::env::temp_dir().join("navitune_oversize_guard_test");
+    let _ = fs::create_dir_all(&tmp);
+
+    let huge_path = tmp.join("oversized_65mib.bin");
+    let f = fs::File::create(&huge_path).expect("create sparse 65 MiB file");
+    f.set_len(65 * 1024 * 1024).expect("set_len 65 MiB");
+    drop(f);
+
+    let bin = env!("CARGO_BIN_EXE_pptool");
+    let out = Command::new(bin)
+        .arg("--inspect")
+        .arg(&huge_path)
+        .output()
+        .expect("spawn pptool on 65 MiB file");
+    assert_ne!(out.status.code(), Some(101), "pptool panicked on >64 MiB input");
+
+    let _ = fs::remove_dir_all(&tmp);
+}
