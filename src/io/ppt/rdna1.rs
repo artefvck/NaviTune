@@ -29,6 +29,22 @@ impl PowerPlayApp {
             self.fan_target_temp = r1p.fan_target_temp as i32;
             self.oc_gfx_clock[1] = r1p.od_gfx_max as i32;
             self.oc_mem_clock[1] = r1p.od_uclk_max as i32;
+            let did = self.vbios_buffer.as_deref()
+                .and_then(|vb| crate::vbios::inspect_vbios_info(vb, self.vbios_ppt_offset.unwrap_or(0)))
+                .map(|vi| vi.device_id)
+                .unwrap_or(0);
+            let chip_name = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(b)
+                .map(|t1| t1.detect_chip(did).display_name().to_string())
+                .unwrap_or_else(|| "RDNA 1 (Navi 10 / Navi 14)".to_string());
+            let vbios_tag = if let Some(voff) = self.vbios_ppt_offset {
+                format!(" | VBIOS PP_PhmSoftPowerPlayTable @ 0x{:04X}", voff)
+            } else {
+                String::new()
+            };
+            self.status_msg = format!(
+                "Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B{}]",
+                label, chip_name, frev, crev, trev, b.len(), vbios_tag
+            );
             return true;
         }
         if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(b) {
