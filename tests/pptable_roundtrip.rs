@@ -639,3 +639,16 @@ fn test_power_and_ulv_offset_labels_all_six_architectures() {
     assert!(Rdna2.ulv_offset_labels().0.contains("0x380"));
     assert!(Rdna3.ulv_offset_labels().1.contains("0x3C6"));
 }
+
+#[test]
+fn test_memory_voltage_and_uclk_offset_labels_all_six_architectures() {
+    use ppt_arch::PptArch::*;
+    assert!(Rdna1.memory_voltage_offset_label().contains("0x422"));
+    assert!(Rdna2.memory_voltage_offset_label().contains("0x66A"));
+    assert!(Rdna3.memory_voltage_offset_label().contains("0x7D4"));
+    assert!(Vega20.memory_uclk_offset_label(1924).contains("0x1B5"));
+    assert!(Rdna1.memory_uclk_offset_label(1674).contains("0x37E"));
+    assert!(Rdna1.memory_uclk_offset_label(1924).contains("0x14F"));
+    assert!(Rdna2.memory_uclk_offset_label(2470).contains("0x57E"));
+    assert!(Rdna3.memory_uclk_offset_label(5424).contains("0x63C"));
+}

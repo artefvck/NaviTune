@@ -179,6 +179,25 @@ impl PptArch {
         }
     }
 
+    pub fn memory_voltage_offset_label(self) -> &'static str {
+        match self {
+            Self::Rdna1 => "mem_vddci / mem_mvdd (0x422 / 0x42A)",
+            Self::Rdna2 => "mem_vddci / mem_mvdd (0x66A / 0x672)",
+            Self::Rdna3 => "mem_vddci / mem_mvdd (0x7D4 / 0x7DC)",
+            _ => "vddci / mvdd",
+        }
+    }
+
+    pub fn memory_uclk_offset_label(self, raw_len: usize) -> &'static str {
+        match self {
+            Self::Vega20 => "freq_table_uclk (0x1B5)",
+            Self::Rdna1 => if raw_len < 1924 { "freq_table_uclk (0x37E)" } else { "freq_table_uclk (0x14F)" },
+            Self::Rdna2 => "freq_uclk (0x57E)",
+            Self::Rdna3 => "freq_uclk (0x63C)",
+            _ => "freq_uclk",
+        }
+    }
+
     pub fn ulv_offset_labels(self) -> (&'static str, &'static str) {
         match self {
             Self::Vega20 => ("min_voltage_ulv_gfx (0x155)", "min_voltage_ulv_soc (0x157)"),
