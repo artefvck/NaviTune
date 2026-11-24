@@ -92,3 +92,67 @@ fn verify_target_stable_mpt_roundtrip_and_audit() {
     let _ = std::fs::remove_file(&out_bin);
     assert!(bin_bytes.len() >= 384, "exported PPTable from stable.mpt too small: {} B", bin_bytes.len());
 }
+
+#[test]
+fn verify_all_import_export_formats_byte_exact_parity() {
+    let bin = env!("CARGO_BIN_EXE_pptool");
+    let tmp = std::env::temp_dir().join(format!("navitune_io_parity_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).expect("create tmp dir");
+
+    let samples: Vec<(&str, usize, u8, Option<u16>)> = vec![
+        ("polaris", 833, 0x07, None),
+        ("vega10", 512, 0x08, None),
+        ("vega20_1534", 1534, 0x0B, None),
+        ("vega20_1924", 1924, 0x0B, None),
+        ("rdna1_1674", 1674, 0x0C, Some(0x01E2)),
+        ("rdna1_1924", 1924, 0x0C, None),
+        ("rdna2_2470", 2470, 0x0F, None),
+        ("rdna3_5424", 5424, 0x15, None),
+    ];
+
+    for (tag, sz, frev, outer) in samples {
+        let mut raw = vec![0u8; sz];
+        raw[0..2].copy_from_slice(&(sz as u16).to_le_bytes());
+        raw[2] = frev;
+        raw[4] = if sz == 1924 { 0x01 } else { 0x02 };
+        if let Some(osz) = outer {
+            raw[5..7].copy_from_slice(&osz.to_le_bytes());
+        }
+        let src_bin = tmp.join(format!("{tag}.bin"));
+        std::fs::write(&src_bin, &raw).expect("write src bin");
+
+        let out_mpt = tmp.join(format!("{tag}.mpt"));
+        let out_oc = tmp.join(format!("{tag}.plist"));
+        let out_reg = tmp.join(format!("{tag}.reg"));
+        let out_kext = tmp.join(format!("{tag}.kext"));
+
+        let st = std::process::Command::new(bin)
+            .args([
+                "--preset", "auto-fix", src_bin.to_str().unwrap(),
+                "--export-bin", src_bin.to_str().unwrap(),
+                "--export-mpt", out_mpt.to_str().unwrap(),
+                "--export-oc", out_oc.to_str().unwrap(),
+                "--export-kext", out_kext.to_str().unwrap(),
+                "--export-reg", out_reg.to_str().unwrap(),
+            ])
+            .status()
+            .expect("run --preset export all");
+        assert!(st.success(), "export failed for {tag}");
+        assert!(out_kext.join("Contents/Info.plist").exists(), "missing Info.plist in .kext for {tag}");
+
+        let expected = std::fs::read(&src_bin).expect("read expected bin");
+        for (fmt_name, exported_path) in [("mpt", &out_mpt), ("plist", &out_oc), ("reg", &out_reg)] {
+            let re_bin = tmp.join(format!("{tag}_from_{fmt_name}.bin"));
+            let st2 = std::process::Command::new(bin)
+                .args(["--export-bin", exported_path.to_str().unwrap(), re_bin.to_str().unwrap()])
+                .status()
+                .expect("re-import format");
+            assert!(st2.success(), "re-import failed for {tag} ({fmt_name})");
+            let actual = std::fs::read(&re_bin).expect("read re-imported bin");
+            assert_eq!(expected, actual, "import/export byte mismatch for {tag} via .{fmt_name}");
+        }
+    }
+
+    let _ = std::fs::remove_dir_all(&tmp);
+}
