@@ -4,6 +4,15 @@ use crate::PowerPlayApp;
 impl PowerPlayApp {
     pub(super) fn try_apply_vega20(&mut self, b: &[u8], label: &str, frev: u8, crev: u8, trev: u8) -> bool {
         if let Some(v20) = crate::pptable_vega::AtomVega20PowerPlayTable::from_bytes_padded(b) {
+            let saved_vbios = self.vbios_buffer.take();
+            let saved_voff = self.vbios_ppt_offset.take();
+            let saved_file = self.loaded_file.take();
+            let saved_gpu = self.selected_gpu;
+            self.reset_all_values();
+            self.vbios_buffer = saved_vbios;
+            self.vbios_ppt_offset = saved_voff;
+            self.loaded_file = saved_file;
+            self.selected_gpu = saved_gpu;
             let did = self.vbios_buffer.as_deref()
                 .and_then(|vb| crate::vbios::inspect_vbios_info(vb, self.vbios_ppt_offset.unwrap_or(0)))
                 .map(|vi| vi.device_id)
