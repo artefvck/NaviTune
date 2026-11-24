@@ -62,7 +62,15 @@ pub struct AtomSmcDpmInfoV4_12 {
     pub od_acoustic_max: u32,                   // 0x117..0x11B
     pub od_temp_target: u32,                    // 0x11B..0x11F
     pub od_temp_max: u32,                       // 0x11F..0x123
-    pub _smc_pre_hdr: [u8; 0x340 - 0x123],      // 0x123..0x340
+    pub _od_min_pad: [u8; 0x1FF - 0x123],       // 0x123..0x1FF
+    pub od_gfx_min: u32,                        // 0x1FF..0x203
+    pub od_gfx_min_2: u32,                      // 0x203..0x207
+    pub od_mem_min: u32,                        // 0x207..0x20B
+    pub od_mem_min_2: u32,                      // 0x20B..0x20F
+    pub od_pwr_min: u32,                        // 0x20F..0x213
+    pub od_fan_min: u32,                        // 0x213..0x217
+    pub od_acoustic_min: u32,                   // 0x217..0x21B
+    pub _smc_pre_hdr: [u8; 0x340 - 0x21B],      // 0x21B..0x340
     pub smc_pptable_if_version: u32,            // 0x340..0x344
     pub features_to_run: u64,                   // 0x344..0x34C
     pub _smc_pwr_pad: [u8; 0x350 - 0x34C],      // 0x34C..0x350
@@ -117,6 +125,7 @@ pub struct AtomSmcDpmInfoV4_12 {
 }
 
 const _: () = assert!(size_of::<AtomSmcDpmInfoV4_12>() == 5424);
+const _: () = assert!(offset_of!(AtomSmcDpmInfoV4_12, od_gfx_min) == 0x1FF);
 const _: () = assert!(offset_of!(AtomSmcDpmInfoV4_12, tdc_limit_gfx) == 0x366);
 const _: () = assert!(offset_of!(AtomSmcDpmInfoV4_12, mem_vddci) == 0x7D4);
 const _: () = assert!(offset_of!(AtomSmcDpmInfoV4_12, pcie_gen_speed) == 0x810);
@@ -163,6 +172,11 @@ pub fn field_offset_by_name(name: &str) -> usize {
         "od_fan" => offset_of!(AtomSmcDpmInfoV4_12, od_fan_max),
         "od_acoustic" => offset_of!(AtomSmcDpmInfoV4_12, od_acoustic_max),
         "od_temp" => offset_of!(AtomSmcDpmInfoV4_12, od_temp_target),
+        "od_gfx_min" => offset_of!(AtomSmcDpmInfoV4_12, od_gfx_min),
+        "od_mem_min" => offset_of!(AtomSmcDpmInfoV4_12, od_mem_min),
+        "od_pwr_min" => offset_of!(AtomSmcDpmInfoV4_12, od_pwr_min),
+        "od_fan_min" => offset_of!(AtomSmcDpmInfoV4_12, od_fan_min),
+        "od_acoustic_min" => offset_of!(AtomSmcDpmInfoV4_12, od_acoustic_min),
         "smc_if_ver" => offset_of!(AtomSmcDpmInfoV4_12, smc_pptable_if_version),
         "smu_features" => offset_of!(AtomSmcDpmInfoV4_12, features_to_run),
         "pwr_limit_w" => offset_of!(AtomSmcDpmInfoV4_12, socket_power_limit_ac),
