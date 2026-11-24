@@ -81,19 +81,22 @@ impl PowerPlayApp {
             });
         }, |ui| {
             draw_card(ui, "Thermal Limits", |ui| {
-                let names = [
-                    ("Edge", "temp_limit (0x372)"),
-                    ("Hotspot", "temp_limit (0x374)"),
-                    ("Memory", "temp_limit (0x376)"),
-                    ("VR GFX", "temp_limit (0x378)"),
-                    ("VR Mem0", "temp_limit (0x37A)"),
-                    ("VR Mem1", "temp_limit (0x37C)"),
-                    ("VR Soc", "temp_limit (0x37E)"),
-                    ("Liquid0", "temp_limit (0x380)"),
-                    ("Liquid1", "temp_limit (0x382)"),
-                ];
-                for (i, (lbl, tag)) in names.iter().enumerate() {
-                    kv_row_1(ui, lbl, tag, &mut self.temp_limits[i], 76.0);
+                let r1_1674 = crate::pptable_rdna1::Rdna1ParsedState::parse(&self.raw_buffer);
+                let max_temps = if r1_1674.is_some() { 9 } else { arch.max_temp_entries() }.min(9);
+                let tl_base: usize = if let Some(ref r1) = r1_1674 {
+                    r1.outer_sz + 0x034
+                } else {
+                    match arch {
+                        crate::ppt_arch::PptArch::Rdna1 => 0x66B,
+                        crate::ppt_arch::PptArch::Vega20 => 0x655,
+                        crate::ppt_arch::PptArch::Rdna2 => 0x356,
+                        _ => 0x372,
+                    }
+                };
+                let names = ["Edge", "Hotspot", "Memory", "VR GFX", "VR Mem0", "VR Mem1", "VR Soc", "Liquid0", "Liquid1"];
+                for (i, lbl) in names.iter().take(max_temps).enumerate() {
+                    let tag = format!("temp_limit[{}] (0x{:03X})", i, tl_base + i * 2);
+                    kv_row_1(ui, lbl, &tag, &mut self.temp_limits[i], 76.0);
                 }
             });
             if is_rdna2 {
