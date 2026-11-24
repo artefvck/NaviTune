@@ -135,8 +135,7 @@ impl PowerPlayApp {
             if filtered.is_empty() {
                 format!("(No lines matching '{}')", query.trim())
             } else {
-                filtered.join("
-")
+                filtered.join("\n")
             }
         };
 

@@ -33,6 +33,9 @@ impl PowerPlayApp {
                 ui.horizontal(|ui| {
                     ui.strong(format!("Verified Silicon Struct: {} ({} bytes)", arch, b.len()));
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.button("Close").clicked() {
+                            self.show_struct_inspector_window = false;
+                        }
                         if ui.button("Copy Table").clicked() {
                             ui.ctx().copy_text(copy_blob);
                         }
