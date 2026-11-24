@@ -9,6 +9,11 @@ pub struct VbiosInfo {
     pub pci_vendor_name: String,
     pub bios_version: String,
     pub bios_ver_offset: Option<usize>,
+    pub board_banner: Option<String>,
+    pub build_date: Option<String>,
+    pub atom_rev: Option<(u8, u8)>,
+    pub pcir_image_count: usize,
+    pub has_uefi_gop: bool,
     pub total_size: usize,
     pub legacy_size: usize,
     pub atom_header_offset: Option<usize>,
@@ -298,11 +303,42 @@ pub fn inspect_vbios_info(buf: &[u8], ppt_offset: usize) -> Option<VbiosInfo> {
     }
 
     let has_legacy_opt_rom = slice.starts_with(&[0x55, 0xAA]);
+    let build_date = slice.get(0x50..0x58).and_then(|d| {
+        let s = String::from_utf8_lossy(d).trim_matches(['\0', ' ']).to_string();
+        (s.len() >= 6 && s.contains('/')).then_some(s)
+    });
+    let atom_rev = atom_hdr_rel.and_then(|ah| Some((*slice.get(ah + 2)?, *slice.get(ah + 3)?)));
+    let board_banner = atom_hdr_rel.and_then(|ah| {
+        let ptr = read_u16(slice, ah + 0x10)? as usize;
+        if ptr > 0 && ptr + 4 <= slice.len() {
+            let end = slice[ptr..].iter().position(|&b| b == 0 || b == b'\r' || b == b'\n').unwrap_or(48).min(64);
+            let s = String::from_utf8_lossy(&slice[ptr..ptr + end]).trim().to_string();
+            (!s.is_empty()).then_some(s)
+        } else {
+            None
+        }
+    });
+    let mut pcir_image_count = 0usize;
+    let mut has_uefi_gop = false;
+    for i in 0..buf.len().saturating_sub(0x18) {
+        if buf.get(i..i + 6) == Some(b"PCIR\x02\x10") {
+            pcir_image_count += 1;
+            if buf.get(i + 0x14) == Some(&0x03) {
+                has_uefi_gop = true;
+            }
+        }
+    }
+
     let csum_len = legacy_size.min(slice.len());
     let checksum_byte = slice.get(0x21).copied().unwrap_or(0);
     let checksum_sum = slice[..csum_len].iter().fold(0u8, |acc, &b| acc.wrapping_add(b));
 
     Some(VbiosInfo {
+        board_banner,
+        build_date,
+        atom_rev,
+        pcir_image_count,
+        has_uefi_gop,
         device_name: gpu_device_name(device_id).to_string(),
         vendor_id,
         device_id,

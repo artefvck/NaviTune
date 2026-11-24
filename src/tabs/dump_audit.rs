@@ -15,7 +15,17 @@ impl PowerPlayApp {
             if let Some(vi) = self.vbios_buffer.as_deref().and_then(|vb| crate::vbios::inspect_vbios_info(vb, off)) {
                 let psp_tag = vi.psp_dir_offset.map(|p| format!("0x{:X} ({} ent)", p, vi.psp_entry_count)).unwrap_or_else(|| "None".to_string());
                 let csum_tag = if !vi.has_legacy_opt_rom { "SPI".to_string() } else if vi.checksum_sum == 0 { format!("VALID (0x{:02X})", vi.checksum_byte) } else { format!("INVALID (0x{:02X}, sum=0x{:02X})", vi.checksum_byte, vi.checksum_sum) };
-                let _ = writeln!(out, "VBIOS Info   : Offset 0x{:06X} | DID 0x{:04X} | {} | $PSP={} | Csum={}", off, vi.device_id, vi.bios_version, psp_tag, csum_tag);
+                let _ = writeln!(out, "VBIOS Info   : Offset 0x{:06X} | DID 0x{:04X} | SVID {:04X}:{:04X} | {} | $PSP={} | Csum={}", off, vi.device_id, vi.subvendor_id, vi.subdevice_id, vi.bios_version, psp_tag, csum_tag);
+                let mut hdr_parts = Vec::new();
+                if let Some(ref b) = vi.board_banner { hdr_parts.push(format!("Board=\"{}\"", b)); }
+                if let Some(ref d) = vi.build_date { hdr_parts.push(format!("Date={}", d)); }
+                if let Some((maj, min)) = vi.atom_rev { hdr_parts.push(format!("ATOM=v{}.{}", maj, min)); }
+                if vi.pcir_image_count > 0 {
+                    hdr_parts.push(format!("ROM_Images={} ({})", vi.pcir_image_count, if vi.has_uefi_gop { "Legacy + UEFI GOP" } else { "Legacy BIOS" }));
+                }
+                if !hdr_parts.is_empty() {
+                    let _ = writeln!(out, "ROM Headers  : {}", hdr_parts.join(" | "));
+                }
             } else {
                 let _ = writeln!(out, "VBIOS Offset : 0x{:06X}", off);
             }
