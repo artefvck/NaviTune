@@ -43,6 +43,12 @@ impl PowerPlayApp {
         if !warns.is_empty() {
             let _ = writeln!(out, "Warnings     : {}", warns.join("; "));
         }
+        let _ = writeln!(out, "\n--- Supported UI Cards & Fields ({}) ---", arch.label());
+        for card in crate::ppt_arch::PptArch::ALL_CARDS {
+            if self.is_card_usable(card) {
+                let _ = writeln!(out, "  {:<28} : {}", arch.card_title(card), arch.card_inspect_fields(card, &self.raw_buffer));
+            }
+        }
         let _ = writeln!(out, "\n--- OverDrive Feature Flags ---");
         let _ = writeln!(out, "gpu_clock_limit={} gpu_clock_curve={} memory_clock_limit={} zero_rpm={} min_fan_speed={} fan_target_temp={} operating_temp={} fan_acoustic={} fan_curve={} power_limit={} timing_tuning={} power_mode={}", self.gpu_clock_limit, self.gpu_clock_curve, self.memory_clock_limit, self.zero_rpm, self.min_fan_speed, self.fan_target_temp_limit, self.operating_temp_limit, self.fan_acoustic_rpm, self.fan_curve, self.power_limit_feat, self.timing_tuning, self.power_mode);
         let _ = writeln!(out, "auto_uv_gpu={} auto_oc_gpu={} auto_oc_mem={} auto_fan_acoustic={}", self.auto_undervolt_gpu, self.auto_overclock_gpu, self.auto_overclock_mem, self.auto_fan_acoustic_limit);
