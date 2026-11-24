@@ -43,10 +43,10 @@ impl PowerPlayApp {
             crate::ppt_arch::PptArch::Rdna1 => (
                 "vmin/vmax_gfx (0x0F3 / 0x0F7)",
                 "vmin/vmax_soc (0x0F5 / 0x0F9)",
-                "socket_power_limit_ac (0x0B7)",
-                "tdc_limit_gfx (0x0D7)",
-                "tdc_limit_soc (0x0D9)",
-                if arch == crate::ppt_arch::PptArch::Vega20 { "vddci_max / mvdd_max (0x145 / 0x147)" } else { "vddci_max / mvdd_max (0x0DF / 0x0E1)" },
+                "socket_power_limit_ac (0x1EE / 0x0B7)",
+                "tdc_limit_gfx (0x20E / 0x0D7)",
+                "tdc_limit_soc (0x210 / 0x0D9)",
+                "vddci_max / mvdd_max (0x216 / 0x0DF)",
             ),
             _ => (
                 "vmin/vmax_gfx (0x3A6 / 0x3B4)",
@@ -54,7 +54,7 @@ impl PowerPlayApp {
                 "socket_power_limit_ac (0x32E / 0x350)",
                 "tdc_limit_gfx (0x34E / 0x366)",
                 "tdc_limit_soc (0x350 / 0x368)",
-                "vddci_max / mvdd_max (0x0DF / 0x0E1)",
+                "mem_vddci / mem_mvdd (0x66A / 0x7D4)",
             ),
         };
         let show_corevoltage = self.is_card_usable(crate::ppt_arch::PptCard::CoreVoltage);
