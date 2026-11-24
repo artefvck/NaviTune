@@ -33,6 +33,10 @@ impl PowerPlayApp {
         } else if crate::ppt_arch::PptArch::detect(&self.raw_buffer) == crate::ppt_arch::PptArch::Rdna1 {
             let chip1 = if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(&self.raw_buffer) {
                 t1.detect_chip(did)
+            } else if did != 0 {
+                crate::pptable_rdna1::NaviRDNA1Chip::from_did_and_clock(did, self.oc_gfx_clock[1] as u32)
+            } else if self.power_limit_w > 0 && self.power_limit_w <= 140 {
+                crate::pptable_rdna1::NaviRDNA1Chip::Navi14
             } else {
                 crate::pptable_rdna1::NaviRDNA1Chip::from_did_and_clock(did, self.oc_gfx_clock[1] as u32)
             };

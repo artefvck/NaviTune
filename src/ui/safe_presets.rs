@@ -168,6 +168,14 @@ impl PowerPlayApp {
                 if self.oc_power_limit[1] > 20 {
                     self.oc_power_limit[1] = 20;
                 }
+                if arch.is_rdna3() {
+                    self.smu_features[17] = true;
+                    self.smu_features[20] = true;
+                } else if !arch.is_gcn_subtable() && arch != PptArch::Unknown {
+                    self.smu_features[32] = true;
+                    self.smu_features[33] = true;
+                    self.smu_features[34] = true;
+                }
                 self.status_msg = format!("Auto-fixed out-of-range tunables ({:?})", arch);
             }
         }
