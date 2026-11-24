@@ -108,6 +108,7 @@ impl PowerPlayApp {
                                         ui.add_sized([62.0, 22.0], egui::DragValue::new(&mut dummy).suffix(" mV"))
                                             .on_disabled_hover_text("ULV Vmax is not present in this silicon PPTable (RDNA 2 only)");
                                     });
+                                    ui.add_space(6.0);
                                     ui.add_sized([62.0, 22.0], egui::DragValue::new(&mut pair[0]).range(0..=1600).suffix(" mV")).on_hover_text(tag);
                                 });
                             });
