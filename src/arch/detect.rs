@@ -126,7 +126,7 @@ impl PptArch {
     }
 
     pub fn has_pcie_and_lclk_limits(self) -> bool {
-        matches!(self, Self::Vega20 | Self::Rdna1 | Self::Rdna2 | Self::Rdna3)
+        matches!(self, Self::Rdna2 | Self::Rdna3)
     }
 
     pub fn clock_limit_offset_labels(self) -> (&'static str, &'static str, &'static str) {
@@ -461,7 +461,8 @@ impl PptArch {
             PptCard::CoreVoltage | PptCard::MemoryVoltage | PptCard::ClockLimits | PptCard::MemoryDpm | PptCard::OverDrive | PptCard::FanSettingsAndLimits => true,
             PptCard::ZeroRpm => !matches!(self, Self::Polaris),
             PptCard::PowerAndCurrent => !matches!(self, Self::Vega10),
-            PptCard::UlvVoltage | PptCard::PcieAndLinkClocks => !self.is_gcn_subtable(),
+            PptCard::UlvVoltage => !self.is_gcn_subtable(),
+            PptCard::PcieAndLinkClocks => self.has_pcie_and_lclk_limits(),
             PptCard::VfCurve => self.has_vf_curve_points(),
             PptCard::VidCurveAndOffset => self.has_vid_and_voltage_offset(),
             PptCard::FanCurve => self.has_fan_curve_points() && self.has_fan_acoustic_and_throttling(),
@@ -520,10 +521,13 @@ mod arch_matrix_tests {
         // Vega 20, RDNA 1, RDNA 2, RDNA 3 show Curve tab and SMU 11/13 cards
         for modern in [PptArch::Vega20, PptArch::Rdna1, PptArch::Rdna2, PptArch::Rdna3] {
             assert!(modern.supports_tab(4));
-            assert!(modern.supports_card(PptCard::PcieAndLinkClocks));
             assert!(modern.supports_card(PptCard::VfCurve));
             assert!(modern.supports_card(PptCard::ZeroRpm));
         }
+        assert!(!PptArch::Vega20.supports_card(PptCard::PcieAndLinkClocks));
+        assert!(!PptArch::Rdna1.supports_card(PptCard::PcieAndLinkClocks));
+        assert!(PptArch::Rdna2.supports_card(PptCard::PcieAndLinkClocks));
+        assert!(PptArch::Rdna3.supports_card(PptCard::PcieAndLinkClocks));
 
         // RDNA 2 exclusive cards vs RDNA 3
         assert!(PptArch::Rdna2.supports_card(PptCard::PowerModes));

@@ -393,7 +393,7 @@ fn test_frequency_cards_all_six_architectures() {
     assert!(!Polaris.has_pcie_and_lclk_limits());
     assert!(!Vega10.has_pcie_and_lclk_limits());
     for arch in [Vega20, Rdna1, Rdna2, Rdna3] {
-        assert!(arch.has_pcie_and_lclk_limits());
+        assert_eq!(arch.has_pcie_and_lclk_limits(), arch.is_rdna2() || arch.is_rdna3());
     }
     assert!(Vega20.clock_limit_offset_labels().0.contains("0x185"));
     assert!(Rdna1.clock_limit_offset_labels().1.contains("0x12F"));
