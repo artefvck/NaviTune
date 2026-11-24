@@ -66,7 +66,9 @@ impl PowerPlayApp {
             crate::card_layout::draw_arch_note_card(ui, &format!("{} — Power & Voltage Architecture", arch.label()), "This silicon revision stores power & voltage limits inside its DPM dependency tables (Frequency tab) rather than standalone HardLimit or SMU 11/13 voltage cards.");
             return;
         }
-        two_col_cards_adaptive(ui, "pwr_cols", true, true, |ui| {
+        let pwr_left_vis = show_corevoltage || show_powerandcurrent || show_ulvvoltage;
+        let pwr_right_vis = (!arch.is_gcn_subtable() && show_memoryvoltage) || show_thermalvmin;
+        two_col_cards_adaptive(ui, "pwr_cols", pwr_left_vis, pwr_right_vis, |ui| {
             if show_corevoltage {
                 draw_card(ui, arch.card_title(crate::ppt_arch::PptCard::CoreVoltage), |ui| {
                     let (gfx_vtag, soc_vtag) = arch.core_voltage_offset_labels();
