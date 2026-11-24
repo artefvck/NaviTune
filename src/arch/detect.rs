@@ -431,7 +431,7 @@ impl PptArch {
         }
         match self {
             Self::Rdna1 => Some(0x66B),
-            Self::Vega20 if buf.len() >= 1924 => Some(0x655),
+            Self::Vega20 => Some(if buf.len() >= 1924 { 0x655 } else { 0x1FA }),
             Self::Rdna2 => Some(0x356),
             Self::Rdna3 => Some(0x372),
             _ => None,

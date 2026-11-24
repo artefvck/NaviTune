@@ -73,6 +73,9 @@ impl PowerPlayApp {
             }
             if b.len() == 1534 && b.len() >= 0x53C {
                 let u16_at = |o: usize| u16::from_le_bytes([b[o], b[o + 1]]) as i32;
+                for (i, dst) in self.temp_limits.iter_mut().enumerate().take(7) {
+                    *dst = u16_at(0x1FA + i * 2);
+                }
                 self.fan_acoustic_limit = u16_at(0x536);
                 self.fan_throttling_rpm = u16_at(0x538);
                 self.fan_max_rpm = u16_at(0x53A);
@@ -231,6 +234,15 @@ impl PowerPlayApp {
                 self.auto_overclock_mem as u8, self.auto_fan_acoustic_limit as u8,
             ];
             v20_val.write_back_to_slice(&mut self.raw_buffer);
+            if self.raw_buffer.len() == 1534 && self.raw_buffer.len() >= 0x53C {
+                for (i, &lim) in self.temp_limits.iter().enumerate().take(7) {
+                    let bytes = (lim.max(0) as u16).to_le_bytes();
+                    self.raw_buffer[0x1FA + i * 2..0x1FA + i * 2 + 2].copy_from_slice(&bytes);
+                }
+                self.raw_buffer[0x536..0x538].copy_from_slice(&(self.fan_acoustic_limit.max(0) as u16).to_le_bytes());
+                self.raw_buffer[0x538..0x53A].copy_from_slice(&(self.fan_throttling_rpm.max(0) as u16).to_le_bytes());
+                self.raw_buffer[0x53A..0x53C].copy_from_slice(&(self.fan_max_rpm.max(0) as u16).to_le_bytes());
+            }
             return true;
         }
         false
