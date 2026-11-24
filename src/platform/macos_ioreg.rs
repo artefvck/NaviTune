@@ -11,6 +11,7 @@ pub struct IoregGpuEntry {
 struct PciNodeRecord {
     node_name: String,
     model: String,
+    device_id: u16,
     pci_slot: String,
     is_amd_vendor: bool,
     is_audio_class: bool,
@@ -24,10 +25,14 @@ impl PciNodeRecord {
     }
 
     fn formatted_label(&self) -> String {
-        let name = if self.model.is_empty() {
-            "AMD Radeon GPU"
-        } else {
+        let did_fallback;
+        let name = if !self.model.is_empty() {
             self.model.as_str()
+        } else if self.device_id != 0 {
+            did_fallback = format!("AMD Radeon GPU (DID 0x{:04X})", self.device_id);
+            did_fallback.as_str()
+        } else {
+            "AMD Radeon GPU"
         };
         match (self.node_name.is_empty(), self.pci_slot.is_empty()) {
             (false, false) => format!("{} ({} / {})", name, self.node_name, self.pci_slot),
@@ -147,6 +152,13 @@ impl IoregParser {
                 IoregLineKind::Property { key, val } => match key {
                     "vendor-id" => {
                         self.current.is_amd_vendor = parse_hex_bytes(val).as_deref() == Some(&[0x02, 0x10, 0x00, 0x00]);
+                    }
+                    "device-id" => {
+                        if let Some(b) = parse_hex_bytes(val) {
+                            if b.len() >= 2 {
+                                self.current.device_id = u16::from_le_bytes([b[0], b[1]]);
+                            }
+                        }
                     }
                     "class-code" => {
                         self.current.is_audio_class = parse_hex_bytes(val).as_deref() == Some(&[0x00, 0x03, 0x04, 0x00]);
@@ -309,10 +321,24 @@ mod tests {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "macos"))]
 mod macos_ioreg_resilience_tests {
+    use super::IoregParser;
+
     #[test]
-    fn ioreg_parsers_handle_empty_and_malformed_text_without_panic() {
-        let _ = std::hint::black_box(0u8);
+    fn ioreg_parsers_handle_empty_malformed_and_device_id_fallback() {
+        assert!(IoregParser::new().parse_document("").is_empty());
+        assert!(IoregParser::new().parse_document("+-o Broken\n\"vendor-id\" = <zz>").is_empty());
+
+        let w5500_no_model = r#"
+  +-o GFX0@0  <class IOPCIDevice>
+    | "vendor-id" = <02100000>
+    | "device-id" = <41730000>
+    | "class-code" = <00000300>
+    | "pcidebug" = "1:0:0"
+"#;
+        let gpus = IoregParser::new().parse_document(w5500_no_model);
+        assert_eq!(gpus.len(), 1);
+        assert!(gpus[0].label.contains("DID 0x7341"), "label={}", gpus[0].label);
     }
 }
