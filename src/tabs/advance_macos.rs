@@ -9,6 +9,27 @@ impl PowerPlayApp {
         let is_rdna2 = arch == crate::ppt_arch::PptArch::Rdna2;
         if is_rdna2 {
             ui.horizontal_wrapped(|ui| {
+                if ui.button("Apply RX 6600 (Navi 23) 500 MHz Fix")
+                    .on_hover_text("Disables VCN_PG (Bit 22) and applies macOS AMDRadeonX6000-compatible Navi 23 DPM envelope (300..2350 MHz, 1050 mV, 100 W, safe fan hysteresis)")
+                    .clicked()
+                {
+                    self.smu_features[22] = false;
+                    self.freq_gfx = [300, 2350];
+                    self.oc_gfx_clock = [300, 2450];
+                    self.volt_gfx = [762, 1050];
+                    self.power_limit_w = 100;
+                    self.tdc_gfx = 100;
+                    if self.fan_stop_temp == 0 || self.fan_stop_temp >= self.fan_start_temp {
+                        self.fan_stop_temp = 45;
+                        self.fan_start_temp = 52;
+                    }
+                    if self.fan_target_temp > 90 {
+                        self.fan_target_temp = 75;
+                    }
+                    self.sync_fields_to_buffer();
+                    self.status_msg = "Applied macOS RX 6600 (Navi 23) 500 MHz Unlock preset (VCN_PG=0, 300..2350 MHz, 1050 mV, 100 W)".to_string();
+                }
+                ui.separator();
                 let vcn_bits = [(21usize, "21: MM_DPM_PG"), (22, "22: VCN_PG"), (29, "29: DPM_VCLK"), (30, "30: DPM_DCLK")];
                 let mut all_vcn = vcn_bits.iter().all(|(b, _)| self.smu_features[*b]);
                 let panel_id = egui::Id::new("macos_vcn_panel_open");
