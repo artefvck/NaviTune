@@ -6,13 +6,16 @@
 
 ## Editing & Factory Baseline Tracking
 - **Unmodified Fields**: Rendered with a neutral slate border (`#878E9A`).
-- **Modified Fields & Checkboxes**: Highlighted in crimson (`#F0465A`) with a `●` marker on modified checkboxes; hover over any field box or checkbox to inspect its **struct field tag**, **byte offset**, and **factory default value**.
+- **Modified Fields & Checkboxes**: Highlighted in crimson (`#F0465A`) with a `●` marker on modified checkboxes; hover over any field box or checkbox to inspect its **struct field tag**, **byte offset**, **factory default value**, and live **`+Δ` / `-Δ` delta** (also mirrored in the bottom status footer).
 - **Adaptive Architecture Cards**: Cards that do not exist on the loaded GPU generation are automatically hidden, expanding active cards to full width or showing a framed architectural summary card (`draw_card`) explaining where those controls live on that silicon.
 
 ## Verification & Export
 - **Safe Tune**: Validates GFX/Memory clocks, voltage ordering (`Vmin <= Vmax` when `Vmax > 0`), power/TDC limits, thermal targets, and SMU safety flags for the detected architecture.
 - **Log / Audit Tabs**: Inspect the full system dump (`Dump Audit`), live VBIOS byte offsets (`Native Offset`), and struct layout (`Struct Window`).
-- **Advance (macOS / Linux / Windows)**: Export `PP,PhmSoftPowerPlayTable` base64/hex properties for OpenCore `DeviceProperties`, `sysfs` `pp_table` overrides on Linux, or Windows registry `PP_PhmSoftPowerPlayTable` blobs.
+- **Quick Export ▾ (Bottom Action Bar)**: One-click dropdown next to **Diff & Save** for exporting OpenCore `DeviceProperties.plist` (`PP,PhmSoftPowerPlayTable`), `RadeonPowerPlayInjector.kext`, or copying Base64 / continuous no-space Hex from any tab.
+- **Advance (macOS / Linux / Windows)**:
+  - **macOS RX 6600 (`Navi 23`) `500 MHz` Unlock**: Click **Apply RX 6600 (Navi 23) 500 MHz Fix** in **Advance -> macOS** to disable `VCN_PG` (SMU Bit `22`) and align GFX clocks (`300..2350 MHz` DPM / `2450 MHz` OD), voltage ceiling (`1050 mV`), power/TDC (`100 W` / `100 A`), and fan hysteresis (`45°C -> 52°C -> 75°C`) with macOS `AMDRadeonX6000` Navi 23 expectations so the card boosts normally instead of locking at `500 MHz`.
+  - **Software Injection vs. Hardware Flashing**: Direct SPI hardware VBIOS flashing (`amdvbflash` execution) is intentionally omitted to avoid bricking RSA-signed (`$PSP`) RDNA 2/3 cards; use OpenCore `.plist` / `.kext` / `.aml` injection on macOS, `.reg` / `.mpt` on Windows, or `sysfs` `pp_table` on Linux.
 
 ## Pre-Save Binary Diff & VBIOS Checksum Audit
 - Clicking **Diff & Save (N B)** in the bottom action bar opens a live byte-level diff table resolving every modified PPTable offset and VBIOS ROM offset to its **Struct Field** name alongside old/new byte values and automatic AtomBIOS `0x21` checksum recalculation before writing to disk.
