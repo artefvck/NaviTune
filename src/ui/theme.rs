@@ -354,10 +354,25 @@ pub fn load_saved_window_size() -> [f32; 2] {
 
 pub fn save_window_size(ctx: &egui::Context, size: egui::Vec2) {
     if size.x < 580.0 || size.y < 500.0 { return; }
-    let prev = ctx.data(|d| d.get_temp::<[i32; 2]>(egui::Id::new("saved_win_wh")).unwrap_or([0, 0]));
     let cur = [size.x.round() as i32, size.y.round() as i32];
-    if prev == cur { return; }
-    ctx.data_mut(|d| d.insert_temp(egui::Id::new("saved_win_wh"), cur));
+    let saved_id = egui::Id::new("saved_win_wh");
+    let pend_id = egui::Id::new("pending_win_wh");
+    let ts_id = egui::Id::new("pending_win_ts");
+    let now = ctx.input(|i| i.time);
+    let saved = ctx.data(|d| d.get_temp::<[i32; 2]>(saved_id).unwrap_or([0, 0]));
+    if saved == cur { return; }
+    let pend = ctx.data(|d| d.get_temp::<[i32; 2]>(pend_id).unwrap_or([0, 0]));
+    if pend != cur {
+        ctx.data_mut(|d| {
+            d.insert_temp(pend_id, cur);
+            d.insert_temp(ts_id, now);
+        });
+        ctx.request_repaint_after(std::time::Duration::from_millis(320));
+        return;
+    }
+    let changed_at = ctx.data(|d| d.get_temp::<f64>(ts_id).unwrap_or(now));
+    if now - changed_at < 0.30 { return; }
+    ctx.data_mut(|d| d.insert_temp(saved_id, cur));
     let Some(path) = theme_config_path() else { return; };
     if let Some(parent) = path.parent() { let _ = std::fs::create_dir_all(parent); }
     let existing = std::fs::read_to_string(&path).unwrap_or_default();
