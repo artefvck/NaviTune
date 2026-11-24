@@ -218,16 +218,6 @@ impl PowerPlayApp {
             for i in 0..7 { v20.temp_limit[i] = self.temp_limits[i].max(0) as u16; }
 
             v20.features_to_run = Self::build_smu_mask(&self.smu_features);
-            v20.od_feature_flags[0] = u8::from(self.gpu_clock_limit);
-            v20.od_feature_flags[1] = u8::from(self.gpu_clock_curve);
-            v20.od_feature_flags[2] = u8::from(self.memory_clock_limit);
-            v20.od_feature_flags[3] = u8::from(self.zero_rpm);
-            v20.od_feature_flags[4] = u8::from(self.min_fan_speed);
-            v20.od_feature_flags[5] = u8::from(self.fan_target_temp_limit);
-            v20.od_feature_flags[6] = u8::from(self.operating_temp_limit);
-            v20.od_feature_flags[7] = u8::from(self.fan_acoustic_rpm);
-            v20.od_feature_flags[8] = u8::from(self.fan_curve);
-            v20.od_feature_flags[9] = u8::from(self.power_limit_feat);
             v20.od_feature_flags = [
                 self.gpu_clock_limit as u8, self.gpu_clock_curve as u8,
                 self.memory_clock_limit as u8, self.zero_rpm as u8,
