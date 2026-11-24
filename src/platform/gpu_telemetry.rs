@@ -17,26 +17,41 @@ pub struct GpuTelemetry {
 
 #[cfg(target_os = "macos")]
 fn extract_ioreg_num(txt: &str, key: &str) -> Option<i64> {
-    let needle = format!("\"{}\"=", key);
-    let pos = txt.find(&needle)? + needle.len();
-    let rest = txt[pos..].trim_start();
-    let end = rest.find(|c: char| !c.is_ascii_digit() && c != '-').unwrap_or(rest.len());
-    rest[..end].parse::<i64>().ok()
+    let quoted = format!("\"{}\"", key);
+    let mut search_from = 0usize;
+    while let Some(rel) = txt[search_from..].find(&quoted) {
+        let after_key = search_from + rel + quoted.len();
+        let trimmed = txt[after_key..].trim_start();
+        if let Some(after_eq) = trimmed.strip_prefix('=') {
+            let rest = after_eq.trim_start();
+            let end = rest.find(|c: char| !c.is_ascii_digit() && c != '-').unwrap_or(rest.len());
+            if end > 0 {
+                if let Ok(v) = rest[..end].parse::<i64>() {
+                    return Some(v);
+                }
+            }
+        }
+        search_from = after_key;
+    }
+    None
 }
 
 #[cfg(target_os = "macos")]
-pub fn poll_gpu_telemetry() -> GpuTelemetry {
-    let Ok(out) = crate::platform::run_cmd_bounded(Command::new("ioreg").args(["-r", "-c", "IOAccelerator", "-l"]), 1500) else {
-        return GpuTelemetry::default();
-    };
-    let txt = String::from_utf8_lossy(&out.stdout);
-    let mut best = GpuTelemetry::default();
+fn normalize_clock_mhz(raw: i64) -> i64 {
+    if raw > 100_000 { raw / 1_000_000 } else if raw > 10_000 { raw / 100 } else { raw }
+}
 
-    for line in txt.lines() {
-        let Some(perf_pos) = line.find("\"PerformanceStatistics\"") else { continue; };
-        let slice = &line[perf_pos..];
-        let gfx = extract_ioreg_num(slice, "Core Clock(MHz)").unwrap_or(0);
-        let mem = extract_ioreg_num(slice, "Memory Clock(MHz)").unwrap_or(0);
+#[cfg(target_os = "macos")]
+fn parse_macos_accelerator_dump(txt: &str) -> GpuTelemetry {
+    let mut best_amd: Option<GpuTelemetry> = None;
+    let mut best_any: Option<GpuTelemetry> = None;
+
+    for block in txt.split("+-o ").skip(1) {
+        let header = block.lines().next().unwrap_or("");
+        let is_amd = header.contains("AMD") || header.contains("ATY") || block.contains("AMDRadeon");
+        let slice = if let Some(p) = block.find("\"PerformanceStatistics\"") { &block[p..] } else { block };
+        let gfx = normalize_clock_mhz(extract_ioreg_num(slice, "Core Clock(MHz)").unwrap_or(0));
+        let mem = normalize_clock_mhz(extract_ioreg_num(slice, "Memory Clock(MHz)").unwrap_or(0));
         let temp = extract_ioreg_num(slice, "Temperature(C)").unwrap_or(0);
         let hot = extract_ioreg_num(slice, "Hotspot Temperature(C)").unwrap_or(temp);
         let load = extract_ioreg_num(slice, "GPU Activity(%)")
@@ -49,7 +64,8 @@ pub fn poll_gpu_telemetry() -> GpuTelemetry {
             .or_else(|| extract_ioreg_num(slice, "vramUsedBytes"))
             .unwrap_or(0) / (1024 * 1024);
         let vram_free = extract_ioreg_num(slice, "vramFreeBytes").unwrap_or(0) / (1024 * 1024);
-        let vram_total = extract_ioreg_num(&txt, "VRAM,totalMB")
+        let vram_total = extract_ioreg_num(block, "VRAM,totalMB")
+            .or_else(|| extract_ioreg_num(txt, "VRAM,totalMB"))
             .unwrap_or_else(|| if vram_free > 0 { vram_used + vram_free } else { 0 });
         let cand = GpuTelemetry {
             valid: gfx > 0 || mem > 0 || temp > 0 || load > 0 || vram_total > 0,
@@ -57,11 +73,26 @@ pub fn poll_gpu_telemetry() -> GpuTelemetry {
             load_pct: load, power_w: pwr, fan_rpm: rpm, fan_pct: pct,
             vram_used_mb: vram_used, vram_total_mb: vram_total,
         };
-        if cand.valid && (cand.gfx_mhz > best.gfx_mhz || cand.temp_c > best.temp_c || !best.valid) {
-            best = cand;
+        if !cand.valid { continue; }
+        if is_amd {
+            if best_amd.as_ref().is_none_or(|b| cand.gfx_mhz > b.gfx_mhz || cand.temp_c > b.temp_c) {
+                best_amd = Some(cand.clone());
+            }
+        }
+        if best_any.as_ref().is_none_or(|b| cand.gfx_mhz > b.gfx_mhz || cand.temp_c > b.temp_c) {
+            best_any = Some(cand);
         }
     }
-    best
+    best_amd.or(best_any).unwrap_or_default()
+}
+
+#[cfg(target_os = "macos")]
+pub fn poll_gpu_telemetry() -> GpuTelemetry {
+    let Ok(out) = crate::platform::run_cmd_bounded(Command::new("ioreg").args(["-r", "-c", "IOAccelerator", "-l"]), 1500) else {
+        return GpuTelemetry::default();
+    };
+    let txt = String::from_utf8_lossy(&out.stdout);
+    parse_macos_accelerator_dump(&txt)
 }
 
 #[cfg(target_os = "linux")]
