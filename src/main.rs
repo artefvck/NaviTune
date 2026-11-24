@@ -110,8 +110,7 @@ impl eframe::App for PowerPlayApp {
         egui::TopBottomPanel::bottom("verified_status_footer")
             .exact_height(24.0)
             .show(ctx, |ui| {
-                let is_rdna3 = crate::pptable_rdna3::AtomSmcDpmInfoV4_12::from_bytes(&self.raw_buffer).is_some();
-                let is_rdna2 = !is_rdna3 && crate::pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer).is_some();
+                let footer_arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
                 let mut issues: Vec<&str> = Vec::new();
                 if !self.raw_buffer.is_empty() {
                     if self.oc_gfx_clock[0] > self.oc_gfx_clock[1] || self.oc_mem_clock[0] > self.oc_mem_clock[1] || self.oc_power_limit[0] > self.oc_power_limit[1] {
@@ -128,10 +127,13 @@ impl eframe::App for PowerPlayApp {
                     }
                 }
                 ui.horizontal(|ui| {
-                    if is_rdna3 {
-                        ui.colored_label(egui::Color32::from_rgb(95, 200, 145), egui::RichText::new("RDNA 3 · SMU 13.0").small());
-                    } else if is_rdna2 {
-                        ui.colored_label(egui::Color32::from_rgb(95, 200, 145), egui::RichText::new("RDNA 2 · SMU 11.0").small());
+                    if !self.raw_buffer.is_empty() && footer_arch != crate::ppt_arch::PptArch::Unknown {
+                        ui.colored_label(
+                            egui::Color32::from_rgb(95, 200, 145),
+                            egui::RichText::new(format!("{} · {} ({} B)", footer_arch.label(), footer_arch.smu_generation(), self.raw_buffer.len())).small(),
+                        );
+                    } else if !self.raw_buffer.is_empty() {
+                        ui.colored_label(egui::Color32::from_rgb(245, 185, 65), egui::RichText::new(format!("Unknown Table ({} B)", self.raw_buffer.len())).small());
                     } else {
                         ui.label(egui::RichText::new("No table loaded").small().weak());
                     }
