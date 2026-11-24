@@ -146,8 +146,8 @@ impl PowerPlayApp {
             (0x10 | 0x11, 2470) => "RDNA 2 (Navi 22 Navy Flounder)",
             (0x12, _) => "RDNA 2 (Navi 21/22/23)",
             (0x13, _) => "RDNA 2 (Navi 24 Beige Goby)",
-            (0x0F, _) => "RDNA 1 (Navi 10/12/14)",
-            (0x14, _) => "RDNA 3 (Navi 31/32/33)",
+            (0x0C, 1674) | (0x0D..=0x0F, _) => "RDNA 1 (Navi 10/12/14)",
+            (0x14..=0x16, _) => "RDNA 3 (Navi 31/32/33)",
             (0x0B | 0x0C, _) => "Vega 10/20",
             (0x07 | 0x08, _) => "Polaris (RX 400/500)",
             _ => "Unknown AMD Architecture",
@@ -405,7 +405,13 @@ impl PowerPlayApp {
         }
         t.od_fan_curve_min[0].temp = self.od_fan_temp[0] as u32;
         t.od_fan_curve_max[0].temp = self.od_fan_temp[1] as u32;
-
+        for i in 0..9 {
+            t.temp_limit[i] = self.temp_limits[i] as u16;
+        }
+        for i in 0..4 {
+            t.power_limit_ac[i] = self.power_limit_ac[i] as u16;
+        }
+        t.socket_power_limit_ac[0] = self.power_limit_w as u16;
     }
 
 
@@ -464,5 +470,31 @@ impl PowerPlayApp {
                 Err(e) => self.show_error("File Save Error", &e.to_string()),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod rdna2_sync_roundtrip_tests {
+    use crate::PowerPlayApp;
+
+    #[test]
+    fn rdna2_sync_persists_temp_limits_and_power_limit_ac() {
+        let mut raw = vec![0u8; 2470];
+        raw[0..2].copy_from_slice(&2470u16.to_le_bytes());
+        raw[2] = 0x0F;
+        let mut app = PowerPlayApp::default();
+        app.apply_ppt_bytes(raw, "rdna2_test.bin");
+        app.temp_limits[0] = 98;
+        app.temp_limits[1] = 108;
+        app.temp_limits[2] = 102;
+        app.power_limit_w = 235;
+        app.sync_fields_to_buffer();
+
+        let mut app2 = PowerPlayApp::default();
+        app2.apply_ppt_bytes(app.raw_buffer, "rdna2_reloaded.bin");
+        assert_eq!(app2.temp_limits[0], 98);
+        assert_eq!(app2.temp_limits[1], 108);
+        assert_eq!(app2.temp_limits[2], 102);
+        assert_eq!(app2.power_limit_w, 235);
     }
 }
