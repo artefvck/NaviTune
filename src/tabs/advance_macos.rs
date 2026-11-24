@@ -76,8 +76,27 @@ impl PowerPlayApp {
                         self.sync_fields_to_buffer();
                         self.show_opencore_copy_modal = true;
                     }
+                    let oc_key_id = egui::Id::new("macos_oc_plist_use_underscore");
+                    let mut use_underscore = ui.ctx().data(|d| d.get_temp::<bool>(oc_key_id).unwrap_or(false));
+                    let key_lbl = if use_underscore { "PP_PhmSoftPowerPlayTable" } else { "PP,PhmSoftPowerPlayTable" };
+                    if ui.button(format!("Key: {}", key_lbl)).on_hover_text("Click to toggle between PP,PhmSoftPowerPlayTable (OpenCore) and PP_PhmSoftPowerPlayTable").clicked() {
+                        use_underscore = !use_underscore;
+                        ui.ctx().data_mut(|d| d.insert_temp(oc_key_id, use_underscore));
+                    }
                     if ui.button("Export .plist").clicked() {
-                        self.save_ppt_file_with_default("DeviceProperties.plist");
+                        self.sync_fields_to_buffer();
+                        if let Some(path) = rfd::FileDialog::new()
+                            .set_file_name("DeviceProperties.plist")
+                            .add_filter("OpenCore Property List (*.plist)", &["plist"])
+                            .save_file()
+                        {
+                            let acpi_path = detect_live_acpi_gpu_path(&sel_lbl);
+                            let plist = crate::export_formats::format_opencore_plist_with_key(&self.raw_buffer, &acpi_path, key_lbl);
+                            match std::fs::write(&path, plist) {
+                                Ok(_) => self.status_msg = format!("Exported {} ({} @ {})", path.file_name().unwrap_or_default().to_string_lossy(), key_lbl, acpi_path),
+                                Err(e) => self.show_error("OpenCore .plist Export Error", &e.to_string()),
+                            }
+                        }
                     }
                     if ui.button("Export Injector .kext").clicked() {
                         self.sync_fields_to_buffer();
