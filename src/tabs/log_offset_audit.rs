@@ -99,11 +99,18 @@ impl PowerPlayApp {
                         let inn = r1.outer_sz;
                         push("OD Max GFX Clock (MHz)", 0x0E2, "u32", self.oc_gfx_clock.last().copied().unwrap_or(0), r1.od_settings_max[0] as i32);
                         push("OD Max Mem Clock (MHz)", 0x0EE, "u32", self.oc_mem_clock.last().copied().unwrap_or(0), r1.od_settings_max[1] as i32);
+                        push("od_mem_timing_ctrl", 0x11A, "u32", self.oc_mem_timing_ctrl, r1.od_mem_timing_ctrl as i32);
+                        push("od_pwr_mode_ctrl", 0x11E, "u32", self.oc_power_mode_ctrl, r1.od_pwr_mode_ctrl as i32);
+                        push("od_zero_rpm_ctrl", 0x122, "u32", self.oc_zero_rpm_ctrl, r1.od_zero_rpm_ctrl as i32);
                         push("socket_power_limit_ac", inn + 0x00C, "u16", self.power_limit_w, r1.power_limit_w as i32);
+                        push("temp_limit_edge (°C)", inn + 0x034, "u16", self.temp_limits[0], r1.temp_limit[0] as i32);
+                        push("temp_limit_hotspot (°C)", inn + 0x036, "u16", self.temp_limits[1], r1.temp_limit[1] as i32);
                         push("min_voltage_gfx (mV)", inn + 0x068, "u16/4", self.volt_gfx.first().copied().unwrap_or(0), (r1.min_volt_gfx / 4) as i32);
                         push("max_voltage_gfx (mV)", inn + 0x06C, "u16/4", self.volt_gfx.last().copied().unwrap_or(0), (r1.max_volt_gfx / 4) as i32);
                         push("freq_gfx_min (MHz)", inn + 0x14C, "u16", self.freq_gfx.first().copied().unwrap_or(0), r1.gfx_min as i32);
                         push("freq_gfx_max (MHz)", inn + 0x14E, "u16", self.freq_gfx.last().copied().unwrap_or(0), r1.gfx_max as i32);
+                        push("fan_throttling_rpm", inn + 0x298, "u16", self.fan_throttling_rpm, r1.fan_throttling_rpm as i32);
+                        push("fan_max_rpm", inn + 0x29A, "u16", self.fan_max_rpm, r1.fan_max_rpm as i32);
                         push("fan_target_temperature", inn + 0x29C, "u16", self.fan_target_temp, r1.fan_target_temp as i32);
                     } else {
                         let inn = 0x01E2usize;
