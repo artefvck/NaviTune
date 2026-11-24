@@ -38,7 +38,7 @@ src/
 │   ├── export.rs              # macOS OpenCore .plist, Windows .reg, Linux sysfs
 │   ├── import.rs              # .bin, .ppt, .rom, .plist, .reg importers
 │   ├── ppt.rs                 # PPTable load & bidirectional field sync
-│   └── vbios.rs               # AtomBIOS / PSP VBIOS extraction & 0x21 checksum patching
+│   └── vbios.rs               # AtomBIOS / 1-byte aligned $PSP VBIOS extraction & 0x21 checksum patching
 ├── platform/                  # OS detection & live GPU telemetry
 │   ├── advance_os.rs          # Host OS target helpers
 │   ├── gpu_telemetry.rs       # Live clocks, temp, power & fan telemetry
