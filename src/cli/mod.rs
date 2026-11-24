@@ -70,26 +70,28 @@ pub fn try_run_cli() -> bool {
         }
         "--preset" => {
             let (Some(preset_name), Some(path)) = (args.get(1), args.get(2)) else {
-                eprintln!("Usage: pptool --preset <quiet-undervolt|balanced-oc|auto-fix> <file> [--export-rom out.rom] [--export-bin out.bin] [--export-mpt out.mpt] [--export-oc out.plist] [--export-reg out.reg]");
+                eprintln!("Usage: pptool --preset <quiet-undervolt|balanced-oc|auto-fix> <file> [--export-rom out.rom] [--export-bin out.bin] [--export-mpt out.mpt] [--export-oc out.plist] [--export-kext out.kext] [--export-reg out.reg]");
                 std::process::exit(2);
             };
             let mut out_rom: Option<&str> = None;
             let mut out_bin: Option<&str> = None;
             let mut out_mpt: Option<&str> = None;
             let mut out_oc: Option<&str> = None;
+            let mut out_kext: Option<&str> = None;
             let mut out_reg: Option<&str> = None;
             let mut i = 3;
             while i < args.len() {
                 match args.get(i).map(String::as_str) {
-                    Some("--export-rom") => { out_rom = args.get(i + 1).map(String::as_str); i += 2; }
-                    Some("--export-bin") => { out_bin = args.get(i + 1).map(String::as_str); i += 2; }
-                    Some("--export-mpt") => { out_mpt = args.get(i + 1).map(String::as_str); i += 2; }
-                    Some("--export-oc")  => { out_oc  = args.get(i + 1).map(String::as_str); i += 2; }
-                    Some("--export-reg") => { out_reg = args.get(i + 1).map(String::as_str); i += 2; }
+                    Some("--export-rom")  => { out_rom  = args.get(i + 1).map(String::as_str); i += 2; }
+                    Some("--export-bin")  => { out_bin  = args.get(i + 1).map(String::as_str); i += 2; }
+                    Some("--export-mpt")  => { out_mpt  = args.get(i + 1).map(String::as_str); i += 2; }
+                    Some("--export-oc")   => { out_oc   = args.get(i + 1).map(String::as_str); i += 2; }
+                    Some("--export-kext") => { out_kext = args.get(i + 1).map(String::as_str); i += 2; }
+                    Some("--export-reg")  => { out_reg  = args.get(i + 1).map(String::as_str); i += 2; }
                     _ => { i += 1; }
                 }
             }
-            if let Err(e) = cmd_preset(preset_name, path, out_rom, out_bin, out_mpt, out_oc, out_reg) {
+            if let Err(e) = cmd_preset(preset_name, path, PresetExports { rom: out_rom, bin: out_bin, mpt: out_mpt, oc: out_oc, kext: out_kext, reg: out_reg }) {
                 eprintln!("Error: {}", e);
                 std::process::exit(1);
             }

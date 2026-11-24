@@ -426,10 +426,21 @@ impl PowerPlayApp {
             .add_filter("Windows Registry (*.reg)", &["reg"])
             .add_filter("MorePowerTool Profile (*.mpt)", &["mpt"])
             .add_filter("OpenCore DeviceProperties (*.plist)", &["plist"])
+            .add_filter("macOS Injector Kext (*.kext)", &["kext"])
             .save_file()
         {
             self.sync_fields_to_buffer();
             let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("bin").to_ascii_lowercase();
+            if ext == "kext" {
+                match crate::advance_os::export_macos_injector_kext(&self.raw_buffer, &path) {
+                    Ok(msg) => {
+                        crate::ui_theme::log_debug("SAVE", &msg);
+                        self.status_msg = format!("Saved to {}", path.file_name().unwrap_or_default().to_string_lossy());
+                    }
+                    Err(e) => self.show_error("macOS Kext Export Error", &e),
+                }
+                return;
+            }
             let bytes = match crate::export_formats::serialize_export_bytes(
                 &ext,
                 &self.raw_buffer,

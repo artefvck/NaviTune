@@ -45,14 +45,20 @@ pub(super) fn cmd_export_bin(src: &str, dst: &str) -> Result<(), String> {
     Ok(())
 }
 
+#[derive(Default)]
+pub(super) struct PresetExports<'a> {
+    pub rom: Option<&'a str>,
+    pub bin: Option<&'a str>,
+    pub mpt: Option<&'a str>,
+    pub oc: Option<&'a str>,
+    pub kext: Option<&'a str>,
+    pub reg: Option<&'a str>,
+}
+
 pub(super) fn cmd_preset(
     preset_name: &str,
     path: &str,
-    out_rom: Option<&str>,
-    out_bin: Option<&str>,
-    out_mpt: Option<&str>,
-    out_oc: Option<&str>,
-    out_reg: Option<&str>,
+    out: PresetExports<'_>,
 ) -> Result<(), String> {
     use crate::ui::safe_presets::SafePresetKind;
     let kind = match preset_name.to_ascii_lowercase().as_str() {
@@ -77,11 +83,11 @@ pub(super) fn cmd_preset(
     println!("GFX Clocks   : {:?} MHz | GFX mV: {:?} mV | Power: {} W | Fan Target: {} C", app.freq_gfx, app.volt_gfx, app.power_limit_w, app.fan_target_temp);
 
     for (ext, dst_opt, label) in [
-        ("rom", out_rom, "Exported ROM"),
-        ("bin", out_bin, "Exported BIN"),
-        ("mpt", out_mpt, "Exported MPT"),
-        ("plist", out_oc, "Exported OC "),
-        ("reg", out_reg, "Exported REG"),
+        ("rom", out.rom, "Exported ROM"),
+        ("bin", out.bin, "Exported BIN"),
+        ("mpt", out.mpt, "Exported MPT"),
+        ("plist", out.oc, "Exported OC "),
+        ("reg", out.reg, "Exported REG"),
     ] {
         if let Some(dst) = dst_opt {
             let bytes = export_formats::serialize_export_bytes(
@@ -95,6 +101,10 @@ pub(super) fn cmd_preset(
                 .map_err(|e| format!("Failed to write '{}': {}", dst, e))?;
             println!("{} : {} ({} B)", label, dst, bytes.len());
         }
+    }
+    if let Some(kext_dst) = out.kext {
+        let msg = crate::advance_os::export_macos_injector_kext(&app.raw_buffer, std::path::Path::new(kext_dst))?;
+        println!("Exported KEXT: {}", msg);
     }
     Ok(())
 }
