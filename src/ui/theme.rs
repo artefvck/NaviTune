@@ -324,7 +324,16 @@ fn format_utc_now() -> String {
 }
 
 pub fn log_debug(tag: &str, msg: &str) {
-    if cfg!(test) || std::env::var_os("NAVITUNE_NO_DEBUG_LOG").is_some() { return; }
+    let tmp_dir = std::env::temp_dir().to_string_lossy().into_owned();
+    if cfg!(test)
+        || std::env::var_os("NAVITUNE_NO_DEBUG_LOG").is_some()
+        || (!tmp_dir.is_empty() && msg.contains(&tmp_dir))
+        || msg.contains("navitune_resilience_test")
+        || msg.contains("navitune_six_arch_full_roundtrip")
+        || msg.contains("navitune_io_parity")
+    {
+        return;
+    }
     let Some(path) = debug_log_path() else { return; };
     if let Some(parent) = path.parent() { let _ = std::fs::create_dir_all(parent); }
     if let Ok(meta) = std::fs::metadata(&path) {
