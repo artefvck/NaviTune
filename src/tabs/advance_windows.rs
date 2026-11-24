@@ -5,7 +5,13 @@ use eframe::egui;
 
 impl PowerPlayApp {
     pub fn draw_advance_windows(&mut self, ui: &mut egui::Ui) {
-        let dpm_gfx = self.smu_features[1];
+        let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
+        let is_gcn = arch.is_gcn_subtable();
+        let dpm_gfx = if is_gcn && self.raw_buffer.len() >= 0x17 {
+            (u32::from_le_bytes([self.raw_buffer[0x13], self.raw_buffer[0x14], self.raw_buffer[0x15], self.raw_buffer[0x16]]) & 1) != 0
+        } else {
+            self.smu_features[1]
+        };
         let (pwr_w, tdc_g, vg1) = (self.power_limit_w, self.tdc_gfx, self.volt_gfx[1]);
         let od8_ok = self.gpu_clock_limit && self.power_limit_feat && self.fan_curve;
         let (clk_en, pwr_en, fan_en) = (self.gpu_clock_limit, self.power_limit_feat, self.fan_curve);
@@ -13,7 +19,7 @@ impl PowerPlayApp {
                     draw_card(ui, "Windows Status", |ui| {
                 egui::Grid::new("advance_windows_grid").num_columns(3).min_col_width(((ui.available_width() - 32.0) / 3.0).max(110.0)).striped(true).spacing([10.0, 6.0]).show(ui, |ui| {
                     ui.strong("Check"); ui.strong("State"); ui.strong("Windows Status"); ui.end_row();
-                    ui.label("DPM_GFXCLK");
+                    ui.label(if is_gcn { "POWER_CONTAINMENT" } else { "DPM_GFXCLK" });
                     ui.monospace(if dpm_gfx { "Enabled (1)" } else { "Disabled (0)" });
                     ui.colored_label(
                         if dpm_gfx { egui::Color32::from_rgb(80, 210, 120) } else { egui::Color32::from_rgb(245, 75, 95) },

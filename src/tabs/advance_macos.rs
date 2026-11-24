@@ -50,7 +50,14 @@ impl PowerPlayApp {
                 }
                 ui.label("Fan Hysteresis");
                 ui.monospace(format!("{}°C / {}°C ({}%)", fan_stop, fan_start, fan_pwm));
-                ui.colored_label(egui::Color32::from_rgb(80, 210, 120), if fan_stop < fan_start { "OK" } else { "FIX" });
+                let (hyst_lbl, hyst_col) = if fan_stop == 0 && fan_start == 0 {
+                    ("N/A", egui::Color32::from_rgb(160, 175, 195))
+                } else if fan_stop < fan_start {
+                    ("OK", egui::Color32::from_rgb(80, 210, 120))
+                } else {
+                    ("FIX", egui::Color32::from_rgb(245, 185, 65))
+                };
+                ui.colored_label(hyst_col, hyst_lbl);
                 ui.end_row();
                 ui.label("GFX Voltage");
                 ui.monospace(format!("{}..{} mV", vg0, vg1));
