@@ -7,7 +7,6 @@ impl PowerPlayApp {
 
         let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
         let _is_rdna2 = arch.is_rdna2();
-        let is_rdna1 = arch.is_rdna1() || arch.is_vega() || arch.is_gcn_subtable();
         if let Some(hint) = arch.gcn_subtable_hint("power") {
             ui.colored_label(egui::Color32::from_rgb(235, 190, 95), hint);
             ui.add_space(6.0);
@@ -98,9 +97,10 @@ impl PowerPlayApp {
             && show_memoryvoltage {
                     draw_card(ui, arch.card_title(crate::ppt_arch::PptCard::MemoryVoltage), |ui| {
                         kv_header_2(ui, "VDDCI", "MVDD", 62.0);
-                        if is_rdna1 && self.raw_buffer.len() >= 1924 {
+                        if !arch.has_per_dpm_mem_voltage() || (arch.is_rdna1() && self.raw_buffer.len() >= 1924) {
                             let prev_max = self.mem_dpm_volt[3];
-                            kv_row_2(ui, "Max (VDDCI/MVDD)", "vddci_max / mvdd_max (0x0DF / 0x0E1)", &mut self.mem_dpm_volt[3], 62.0);
+                            let rail_lbl = if arch.is_vega() { "HBM2 Rail (All DPM)" } else { "Max (VDDCI/MVDD)" };
+                            kv_row_2(ui, rail_lbl, arch.memory_voltage_offset_label(), &mut self.mem_dpm_volt[3], 62.0);
                             if self.mem_dpm_volt[3] != prev_max {
                                 for i in 0..3 {
                                     self.mem_dpm_volt[i] = self.mem_dpm_volt[3];
