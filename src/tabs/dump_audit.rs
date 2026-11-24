@@ -26,6 +26,57 @@ impl PowerPlayApp {
         }
     }
 
+    pub(crate) fn format_inspect_report(&self, source_label: &str) -> String {
+        use std::fmt::Write;
+        let mut out = String::new();
+        let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
+        let (frev, crev, trev) = (
+            self.raw_buffer.get(2).copied().unwrap_or(0),
+            self.raw_buffer.get(3).copied().unwrap_or(0),
+            self.raw_buffer.get(4).copied().unwrap_or(0),
+        );
+        let _ = writeln!(out, "File         : {}", source_label);
+        if let Some(off) = self.vbios_ppt_offset {
+            if let Some(vi) = self.vbios_buffer.as_deref().and_then(|vb| crate::vbios::inspect_vbios_info(vb, off)) {
+                let _ = writeln!(out, "VBIOS Info   : Offset 0x{:06X} | DID 0x{:04X} | {}", off, vi.device_id, vi.bios_version);
+            } else {
+                let _ = writeln!(out, "VBIOS Offset : 0x{:06X}", off);
+            }
+        }
+        let _ = writeln!(out, "Architecture : {:?} (rev 0x{:02X}.{:02X}.{:02X}, {} B)", arch, frev, crev, trev, self.raw_buffer.len());
+        let _ = writeln!(out, "Status       : {}", self.status_msg);
+        let _ = writeln!(out, "GFX Clocks   : {} .. {} MHz (OD: {} .. {} MHz)", self.freq_gfx[0], self.freq_gfx[1], self.oc_gfx_clock[0], self.oc_gfx_clock[1]);
+        let _ = writeln!(out, "SOC / FCLK   : SOC {} .. {} MHz | FCLK {} .. {} MHz (Boost: {} MHz)", self.freq_soc[0], self.freq_soc[1], self.freq_fclk[0], self.freq_fclk[1], self.fclk_boost_freq);
+        let uclk_peak = self.mem_dpm_freq.iter().map(|d| d[0]).max().unwrap_or(0);
+        let _ = writeln!(out, "Memory/UCLK  : DPM0={} MHz .. Peak={} MHz (OD: {} .. {} MHz)", self.mem_dpm_freq[0][0], uclk_peak, self.oc_mem_clock[0], self.oc_mem_clock[1]);
+        let _ = writeln!(out, "GFX / SOC mV : GFX {} .. {} mV (ULV {} mV) | SOC {} .. {} mV", self.volt_gfx[0], self.volt_gfx[1], self.ulv_gfx[0], self.volt_soc[0], self.volt_soc[1]);
+        let _ = writeln!(out, "Power & TDC  : {} W (OD: {} .. {}%) | TDC GFX={} A, Soc={} A", self.power_limit_w, self.oc_power_limit[0], self.oc_power_limit[1], self.tdc_gfx, self.tdc_soc);
+        let _ = writeln!(out, "Fan Targets  : PWM Min={}%, Max={} RPM, Stop/Start={}/{} C, Target={} C, ZeroRPM={}", self.fan_pwm_min, self.fan_max_rpm, self.fan_stop_temp, self.fan_start_temp, self.fan_target_temp, self.fan_zero_rpm_enable);
+        let warns = self.validate_tunables();
+        if !warns.is_empty() {
+            let _ = writeln!(out, "Warnings     : {}", warns.join("; "));
+        }
+        let _ = writeln!(out, "\n--- OverDrive Feature Flags ---");
+        let _ = writeln!(out, "gpu_clock_limit={} gpu_clock_curve={} memory_clock_limit={} zero_rpm={} min_fan_speed={} fan_target_temp={} operating_temp={} fan_acoustic={} fan_curve={} power_limit={} timing_tuning={} power_mode={}", self.gpu_clock_limit, self.gpu_clock_curve, self.memory_clock_limit, self.zero_rpm, self.min_fan_speed, self.fan_target_temp_limit, self.operating_temp_limit, self.fan_acoustic_rpm, self.fan_curve, self.power_limit_feat, self.timing_tuning, self.power_mode);
+        let _ = writeln!(out, "auto_uv_gpu={} auto_oc_gpu={} auto_oc_mem={} auto_fan_acoustic={}", self.auto_undervolt_gpu, self.auto_overclock_gpu, self.auto_overclock_mem, self.auto_fan_acoustic_limit);
+        let mut smu_mask = 0u64;
+        let mut bits = Vec::new();
+        for (bit, &en) in self.smu_features.iter().enumerate() {
+            if en { smu_mask |= 1u64 << bit; bits.push(bit.to_string()); }
+        }
+        let _ = writeln!(out, "\n--- SMU Features ---\nMask         : 0x{:016X} ({} enabled)\nEnabled Bits : {}", smu_mask, bits.len(), if bits.is_empty() { "none".to_string() } else { bits.join(", ") });
+        let _ = writeln!(out, "\n--- OverDrive Limits & Controls ---\noc_gfx_clock : {:?} MHz | oc_mem_clock : {:?} MHz | oc_power_limit : {:?} %\noc_fan_rpm   : {:?} RPM | oc_acoustic  : {:?} RPM\nControls     : mem_timing={} power_mode={} zero_rpm={}", self.oc_gfx_clock, self.oc_mem_clock, self.oc_power_limit, self.oc_fan_rpm, self.oc_fan_acoustic_rpm, self.oc_mem_timing_ctrl, self.oc_power_mode_ctrl, self.oc_zero_rpm_ctrl);
+        let _ = writeln!(out, "\n--- Power, TDC, Thermal & Power Modes ---\npower_limit_w: {} W | power_limit_ac : {:?} W\ntdc_gfx      : {} A | tdc_soc        : {} A\ntemp_limits  : {:?} C\nPM Presets   : Quiet={:?} Balanced={:?} Turbo={:?} Rage={:?}\nAC Acoustic  : Quiet={:?} Balanced={:?} Turbo={:?} Rage={:?}", self.power_limit_w, self.power_limit_ac, self.tdc_gfx, self.tdc_soc, self.temp_limits, self.pm_quiet, self.pm_balanced, self.pm_turbo, self.pm_rage, self.ac_quiet, self.ac_balanced, self.ac_turbo, self.ac_rage);
+        let _ = writeln!(out, "\n--- Voltages, ULV, TVmin, AVFS & DCBTC ---\nvolt_gfx     : {:?} mV | volt_soc : {:?} mV\nulv_gfx      : {:?} mV | ulv_soc  : {:?} mV\ntvmin_gfx    : {:?} | tvmin_soc : {:?}\nvmin_lh_gfx  : {:?} mV | vmin_lh_soc : {:?} mV\nStatic V GFX : a={:.6} b={:.6} c={:.6} | Off: a={:.6} b={:.6} c={:.6}\nStatic V SOC : a={:.6} b={:.6} c={:.6} | Off: a={:.6} b={:.6} c={:.6}\nDCBTC        : gfx_en={} soc_en={} min={:?} max={:?} gb={:?} dctol={:?}", self.volt_gfx, self.volt_soc, self.ulv_gfx, self.ulv_soc, self.tvmin_gfx, self.tvmin_soc, self.vmin_lh_gfx, self.vmin_lh_soc, self.static_volt_a[0], self.static_volt_b[0], self.static_volt_c[0], self.static_off_a[0], self.static_off_b[0], self.static_off_c[0], self.static_volt_a[1], self.static_volt_b[1], self.static_volt_c[1], self.static_off_a[1], self.static_off_b[1], self.static_off_c[1], self.dcbtc_gfx_en, self.dcbtc_soc_en, self.dcbtc_min, self.dcbtc_max, self.dcbtc_gb, self.dctol);
+        let _ = writeln!(out, "\n--- Clock Domains & PCIe ---\nGFX          : {:?} MHz | SOC  : {:?} MHz | FCLK : {:?} MHz (boost {} MHz)\nVCLK         : {:?} MHz | DCLK : {:?} MHz | LCLK : {:?} MHz\nDCEFCLK      : {:?} MHz | DISP : {:?} MHz | PIX  : {:?} MHz | PHY : {:?} MHz | DTB : {:?} MHz\nPCIe         : Gen {:?} | Lanes {:?}", self.freq_gfx, self.freq_soc, self.freq_fclk, self.fclk_boost_freq, self.freq_vclk, self.freq_dclk, self.lclk_mhz, self.freq_dcefclk, self.freq_dispclk, self.freq_pixclk, self.freq_phyclk, self.freq_dtbclk, self.pcie_gen_speed, self.pcie_lane_count);
+        let _ = writeln!(out, "\n--- Memory / UCLK DPM States ---");
+        for i in 0..4 {
+            let _ = writeln!(out, "DPM{}         : UCLK={} MHz (div={}) | VDDCI={} mV | MVDD={} mV", i, self.mem_dpm_freq[i][0], self.mem_dpm_freq[i][1], self.mem_dpm_volt[i][0], self.mem_dpm_volt[i][1]);
+        }
+        let _ = writeln!(out, "\n--- Fan Controller & 5-Point Curve ---\nPWM Min={}%| Acoustic={} RPM | Throttling={} RPM | Max={} RPM | Mode={} | Hyst={}\nTarget Temp={} C | Target GFX={} MHz | ZeroRPM={} | Stop={} C | Start={} C\nOD Fan Range : Temp={:?} C | Speed={:?}% | Curve Temp={:?} C | Curve PWM={:?}%", self.fan_pwm_min, self.fan_acoustic_limit, self.fan_throttling_rpm, self.fan_max_rpm, self.fan_mode, self.fan_hyst_ctrl, self.fan_target_temp, self.fan_target_gfx_clock, self.fan_zero_rpm_enable, self.fan_stop_temp, self.fan_start_temp, self.od_fan_temp, self.od_fan_speed, self.fan_curve_temp, self.fan_curve_pwm);
+        out
+    }
+
     pub(crate) fn build_full_debug_dump(&self) -> String {
         let mut smu_mask = 0u64;
         for (bit, &en) in self.smu_features.iter().enumerate() {
@@ -113,8 +164,8 @@ impl PowerPlayApp {
         vars.push(("theme_badge_alpha".to_string(), badge.a().to_string()));
         vars.sort_by(|a, b| a.0.cmp(&b.0));
 
-        let mut out = String::new();
-        out.push_str("=== NaviTune FULL SYSTEM & TABLE DEBUG DUMP ===\n");
+        let mut out = self.format_inspect_report(&self.loaded_file.as_ref().map(|p| p.to_string_lossy()).unwrap_or_else(|| "GUI Buffer".into()));
+        out.push_str("\n=== NaviTune FULL SYSTEM & TABLE DEBUG DUMP ===\n");
         out.push_str(&format!("OS / Arch        : {} / {}\n", std::env::consts::OS, std::env::consts::ARCH));
         out.push_str(&format!("Selected GPU     : {}\n", gpu_desc));
         out.push_str(&format!("Telemetry Active : {}\n", self.telemetry_data.lock().is_ok()));
