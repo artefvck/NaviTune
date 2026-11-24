@@ -107,9 +107,9 @@ impl PowerPlayApp {
                                 }
                             }
                         } else {
-                            let mv_off = if is_rdna1 { "0x422 / 0x42A" } else { "0x66A / 0x7D4" };
+                            let mv_lbl = arch.memory_voltage_offset_label();
                             for (i, volt) in self.mem_dpm_volt.iter_mut().enumerate().take(4) {
-                                kv_row_2(ui, &format!("DPM {}", i), &format!("vddci/mvdd_{} ({})", i, mv_off), volt, 62.0);
+                                kv_row_2(ui, &format!("DPM {}", i), &format!("DPM{} · {}", i, mv_lbl), volt, 62.0);
                             }
                         }
                     });

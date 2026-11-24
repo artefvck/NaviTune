@@ -82,23 +82,15 @@ impl PowerPlayApp {
         }, |ui| {
             if show_memorydpm {
                 draw_card(ui, arch.card_title(crate::ppt_arch::PptCard::MemoryDpm), |ui| {
+                    let uclk_lbl = arch.memory_uclk_offset_label(self.raw_buffer.len());
                     if is_rdna3 || is_rdna1 {
-                        let off = if is_rdna3 {
-                            "0x63C"
-                        } else if arch == crate::ppt_arch::PptArch::Vega20 {
-                            "0x1B5"
-                        } else if let Some(r1) = crate::pptable_rdna1::Rdna1ParsedState::parse(&self.raw_buffer) {
-                            if r1.outer_sz == 0x01E2 { "0x37E" } else { "0x14F" }
-                        } else {
-                            "0x14F"
-                        };
                         for (i, freq) in self.mem_dpm_freq.iter_mut().enumerate().take(4) {
-                            kv_row_1(ui, &format!("DPM {} (MHz)", i), &format!("freq_uclk[{}] ({})", i, off), &mut freq[0], 62.0);
+                            kv_row_1(ui, &format!("DPM {} (MHz)", i), &format!("DPM{} · {}", i, uclk_lbl), &mut freq[0], 62.0);
                         }
                     } else {
                         kv_header_2(ui, "Freq (MHz)", "Div", 62.0);
                         for (i, freq) in self.mem_dpm_freq.iter_mut().enumerate().take(4) {
-                            kv_row_2(ui, &format!("DPM {}", i), &format!("freq_uclk[{}] (0x57E)", i), freq, 62.0);
+                            kv_row_2(ui, &format!("DPM {}", i), &format!("DPM{} · {}", i, uclk_lbl), freq, 62.0);
                         }
                     }
                 });
