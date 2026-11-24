@@ -520,6 +520,7 @@ impl PowerPlayApp {
         let telem = self.telemetry_data.clone();
         let active_tab = self.active_tab;
         let advance_os_tab = self.advance_os_tab;
+        let prev_gen = self.baseline_gen;
         *self = Self::default();
         self.gpus = gpus;
         self.ioreg_entries = entries;
@@ -528,7 +529,7 @@ impl PowerPlayApp {
         self.telemetry_data = telem;
         self.active_tab = active_tab;
         self.advance_os_tab = advance_os_tab;
-        self.baseline_gen = self.baseline_gen.wrapping_add(1);
+        self.baseline_gen = prev_gen.wrapping_add(1);
     }
 
     pub fn refresh_ioreg_gpus(&mut self) {
