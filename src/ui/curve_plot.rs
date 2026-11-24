@@ -119,9 +119,11 @@ impl PowerPlayApp {
         );
         if plot.width() <= 20.0 || plot.height() <= 20.0 { return; }
 
+        let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
+        let v_ceil = if arch.is_rdna3() || arch == crate::ppt_arch::PptArch::Vega20 { 1250 } else { 1200 };
         let f_axis_min = 300.0_f32;
         let f_axis_max = (self.oc_gfx_clock[1].max(self.freq_gfx[1]).max(2200) as f32 + 100.0).min(3400.0);
-        let (v_axis_min, v_axis_max) = (600.0_f32, 1250.0_f32);
+        let (v_axis_min, v_axis_max) = (600.0_f32, (v_ceil as f32 + 50.0).max(self.volt_gfx[1] as f32 + 25.0));
 
         let to_screen = |mhz: f32, mv: f32| -> egui::Pos2 {
             let nx = normalize_curve_axis(mhz, f_axis_min, f_axis_max);
@@ -134,10 +136,17 @@ impl PowerPlayApp {
             ((f_axis_min + nx * (f_axis_max - f_axis_min)).round() as i32, (v_axis_min + ny * (v_axis_max - v_axis_min)).round() as i32)
         };
 
-        for mv in [650, 800, 950, 1100, 1200] {
+        for mv in [650, 800, 950, 1100, 1250] {
+            if (mv as f32) > v_axis_max { continue; }
             let y = to_screen(f_axis_min, mv as f32).y;
             painter.line_segment([egui::pos2(plot.left(), y), egui::pos2(plot.right(), y)], egui::Stroke::new(1.0_f32, egui::Color32::from_rgba_unmultiplied(120, 145, 185, 28)));
             painter.text(egui::pos2(rect.left() + 4.0, y), egui::Align2::LEFT_CENTER, format!("{}mV", mv), egui::FontId::proportional(10.0), egui::Color32::from_rgb(145, 165, 195));
+        }
+        for mhz in [500, 1000, 1500, 2000, 2500, 3000] {
+            if (mhz as f32) >= f_axis_max { continue; }
+            let x = to_screen(mhz as f32, v_axis_min).x;
+            painter.line_segment([egui::pos2(x, plot.top()), egui::pos2(x, plot.bottom())], egui::Stroke::new(1.0_f32, egui::Color32::from_rgba_unmultiplied(120, 145, 185, 28)));
+            painter.text(egui::pos2(x, rect.bottom() - 4.0), egui::Align2::CENTER_BOTTOM, format!("{}MHz", mhz), egui::FontId::proportional(10.0), egui::Color32::from_rgb(145, 165, 195));
         }
 
         let f0 = self.freq_gfx[0].max(300) as f32;
@@ -184,7 +193,7 @@ impl PowerPlayApp {
                 } else {
                     let ceiling = if self.oc_gfx_clock[1] > 0 { self.oc_gfx_clock[1] } else { 3200 };
                     self.freq_gfx[1] = new_f.clamp(self.freq_gfx[0] + 50, ceiling);
-                    if self.volt_gfx[1] > 0 { self.volt_gfx[1] = new_v.clamp(self.volt_gfx[0].max(650), 1200); }
+                    if self.volt_gfx[1] > 0 { self.volt_gfx[1] = new_v.clamp(self.volt_gfx[0].max(650), v_ceil); }
                 }
                 ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("ppt_dirty"), true));
             }
