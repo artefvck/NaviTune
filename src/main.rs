@@ -65,8 +65,6 @@ enum Tab {
     Frequency,
     Curve,
     Fan,
-    Advance,
-    SafeTune,
     More,
     Log,
 }
@@ -348,8 +346,6 @@ impl eframe::App for PowerPlayApp {
                     (Tab::Frequency, "Frequency"),
                     (Tab::Curve, "Curve"),
                     (Tab::Fan, "Fan"),
-                    (Tab::Advance, "Advance"),
-                    (Tab::SafeTune, "Safe Tune"),
                     (Tab::More, "More"),
                     (Tab::Log, "Log"),
                 ] {
@@ -375,8 +371,6 @@ impl eframe::App for PowerPlayApp {
                     Tab::Frequency => self.draw_frequency_tab(ui),
                     Tab::Curve => self.draw_curve_tab(ui),
                     Tab::Fan => self.draw_fan_tab(ui),
-                    Tab::Advance => self.draw_advance(ui),
-                    Tab::SafeTune => self.draw_safe_tune_tab(ui),
                     Tab::More => self.render_debug_more(ui),
                     Tab::Log => self.draw_log(ui),
                 }
