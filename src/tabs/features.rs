@@ -24,7 +24,6 @@ impl PowerPlayApp {
             "OverDrive Features"
         };
 
-        let ctx = ctx.clone();
         let draw_od_item = |ui: &mut egui::Ui, flag: &mut bool, lbl: &str, tag: &str| {
             let base_id = egui::Id::new(("od_feat_base", gen, tag));
             let base_val = ctx.data_mut(|d| {
