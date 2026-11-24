@@ -33,6 +33,10 @@ impl PowerPlayApp {
         {
             issues.push("PCIe / LCLK Min > Max");
         }
+        if !issues.is_empty() {
+            ui.colored_label(egui::Color32::from_rgb(245, 185, 65), format!("Clock Check: {}", issues.join(" | ")));
+            ui.add_space(4.0);
+        }
 
 
         let show_clocklimits = self.is_card_usable(crate::ppt_arch::PptCard::ClockLimits);

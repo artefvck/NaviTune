@@ -37,6 +37,10 @@ impl PowerPlayApp {
                 }
             }
         }
+        if !issues.is_empty() {
+            ui.colored_label(egui::Color32::from_rgb(245, 185, 65), format!("Fan Check: {}", issues.join(" | ")));
+            ui.add_space(4.0);
+        }
 
 
         let show_zerorpm = self.is_card_usable(crate::ppt_arch::PptCard::ZeroRpm);

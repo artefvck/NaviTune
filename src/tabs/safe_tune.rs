@@ -96,13 +96,16 @@ impl PowerPlayApp {
         let pwr_sev = if self.power_limit_w <= 0 || self.tdc_gfx <= 0 || self.power_limit_w > max_w + 50 { 2 } else if self.power_limit_w < min_w || self.power_limit_w > max_w || self.tdc_gfx > max_tdc_gfx || self.tdc_soc > max_tdc_soc { 1 } else { 0 };
         checks.push(("Power", "PPT & TDC GFX / Soc", format!("{} W | {} A / {} A", self.power_limit_w, self.tdc_gfx, self.tdc_soc), format!("{}..{} W | TDC <= {}/{} A", min_w, max_w, max_tdc_gfx, max_tdc_soc), pwr_sev, "Calibrated to factory silicon VRM current & socket board power limits."));
 
-        let mut mem_v_sev = 0u8;
-        for volt in self.mem_dpm_volt.iter().take(4) {
-            let vddci = volt[0];
-            let mvdd = volt[1];
-            if vddci > mvdd || mvdd > 1425 { mem_v_sev = 2; } else if (vddci > 900 || mvdd > 1365) && mem_v_sev < 1 { mem_v_sev = 1; }
+        let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
+        if arch.has_per_dpm_mem_voltage() {
+            let mut mem_v_sev = 0u8;
+            for volt in self.mem_dpm_volt.iter().take(4) {
+                let vddci = volt[0];
+                let mvdd = volt[1];
+                if vddci > mvdd || mvdd > 1425 { mem_v_sev = 2; } else if (vddci > 900 || mvdd > 1365) && mem_v_sev < 1 { mem_v_sev = 1; }
+            }
+            checks.push(("Memory", "VDDCI / MVDD DPM 0..3", format!("DPM3: {} / {} mV", self.mem_dpm_volt.iter().map(|d| d[0]).max().unwrap_or(0), self.mem_dpm_volt.iter().map(|d| d[1]).max().unwrap_or(0)), "VDDCI <= MVDD <= 1365 mV".to_string(), mem_v_sev, "Factory DPM3 is 800..850 mV VDDCI / 1350 mV MVDD; keep MVDD <= 1365 mV on air."));
         }
-        checks.push(("Memory", "VDDCI / MVDD DPM 0..3", format!("DPM3: {} / {} mV", self.mem_dpm_volt.iter().map(|d| d[0]).max().unwrap_or(0), self.mem_dpm_volt.iter().map(|d| d[1]).max().unwrap_or(0)), "VDDCI <= MVDD <= 1365 mV".to_string(), mem_v_sev, "Factory DPM3 is 800..850 mV VDDCI / 1350 mV MVDD; keep MVDD <= 1365 mV on air."));
 
         let edge_lim = self.temp_limits[0];
         let hotspot_lim = self.temp_limits[1];
@@ -110,7 +113,6 @@ impl PowerPlayApp {
         let has_zrpm = self.fan_stop_temp > 0 || self.fan_start_temp > 0;
         let rpm_inv = self.fan_max_rpm > 0 && (self.fan_throttling_rpm > self.fan_max_rpm || self.fan_acoustic_limit > self.fan_max_rpm);
         let rpm_warn = self.fan_throttling_rpm > 0 && self.fan_acoustic_limit > self.fan_throttling_rpm;
-        let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
         let (safe_edge, safe_hot, safe_mem) = arch.safe_thermal_ceilings();
         let temp_risk = edge_lim > safe_edge + 5 || hotspot_lim > safe_hot + 5 || mem_lim > safe_mem + 5;
         let temp_warn = edge_lim > safe_edge || hotspot_lim > safe_hot || mem_lim > safe_mem;
