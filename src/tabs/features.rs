@@ -390,3 +390,14 @@ impl PowerPlayApp {
             });
         }
     }
+
+// W5500_UNCHECKED_OD_INIT: keep factory baseline intact while rendering OverDrive checkboxes unchecked on load
+#[allow(dead_code)]
+pub fn reset_active_overdrive_mask(sppt: &mut [u8]) -> u32 {
+    if sppt.len() >= 0x14 {
+        let stock = u32::from_le_bytes([sppt[0x10], sppt[0x11], sppt[0x12], sppt[0x13]]);
+        sppt[0x10..0x14].copy_from_slice(&0u32.to_le_bytes());
+        return stock;
+    }
+    0
+}
