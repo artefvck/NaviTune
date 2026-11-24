@@ -324,6 +324,7 @@ fn format_utc_now() -> String {
 }
 
 pub fn log_debug(tag: &str, msg: &str) {
+    if cfg!(test) || std::env::var_os("NAVITUNE_NO_DEBUG_LOG").is_some() { return; }
     let Some(path) = debug_log_path() else { return; };
     if let Some(parent) = path.parent() { let _ = std::fs::create_dir_all(parent); }
     if let Ok(meta) = std::fs::metadata(&path) {
