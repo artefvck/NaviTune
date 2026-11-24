@@ -186,6 +186,9 @@ pub struct Rdna1ParsedState {
     pub fan_target_temp: u16,
     pub fan_target_gfx: u16,
     pub fan_zero_rpm: bool,
+    pub od_settings_min: [u32; 5],
+    pub od_settings_max: [u32; 5],
+    pub od_feature_flags: [u8; 16],
     pub od_gfx_max: u32,
     pub od_uclk_max: u32,
 }
@@ -235,7 +238,15 @@ impl Rdna1ParsedState {
             fan_target_temp: u16_at(inn, 0x29C),
             fan_target_gfx: u16_at(inn, 0x29E),
             fan_zero_rpm: inn[0x2A3] != 0,
-            od_gfx_max: u32_at(b, 0x0EA),
+            od_settings_min: [u32_at(b, 0x162), u32_at(b, 0x16E), u32_at(b, 0x186), u32_at(b, 0x18A), u32_at(b, 0x18E)],
+            od_settings_max: [u32_at(b, 0x0E2), u32_at(b, 0x0EE), u32_at(b, 0x106), u32_at(b, 0x10A), u32_at(b, 0x10E)],
+            od_feature_flags: [
+                b[0x0C2], b[0x0C3], b[0x0C4], b[0x0C5],
+                b[0x0C6], b[0x0C7], b[0x0C8], b[0x0C9],
+                b[0x0CA], b[0x0CB], b[0x0CC], b[0x0CD],
+                b[0x0CE], b[0x0CF], b[0x0D0], b[0x0D1],
+            ],
+            od_gfx_max: u32_at(b, 0x0E2),
             od_uclk_max: u32_at(b, 0x0EE),
         })
     }
@@ -244,8 +255,14 @@ impl Rdna1ParsedState {
         if b.len() < self.outer_sz + 0x2A6 {
             return;
         }
-        b[0x0EA..0x0EE].copy_from_slice(&self.od_gfx_max.to_le_bytes());
-        b[0x0EE..0x0F2].copy_from_slice(&self.od_uclk_max.to_le_bytes());
+        let max_offs = [0x0E2usize, 0x0EE, 0x106, 0x10A, 0x10E];
+        let min_offs = [0x162usize, 0x16E, 0x186, 0x18A, 0x18E];
+        for i in 0..5 {
+            let max_v = if i == 0 && self.od_gfx_max != self.od_settings_max[0] { self.od_gfx_max } else if i == 1 && self.od_uclk_max != self.od_settings_max[1] { self.od_uclk_max } else { self.od_settings_max[i] };
+            b[max_offs[i]..max_offs[i] + 4].copy_from_slice(&max_v.to_le_bytes());
+            b[min_offs[i]..min_offs[i] + 4].copy_from_slice(&self.od_settings_min[i].to_le_bytes());
+        }
+        b[0x0C2..0x0D2].copy_from_slice(&self.od_feature_flags);
         let inn = &mut b[self.outer_sz..];
         let put_u16 = |s: &mut [u8], o: usize, v: u16| s[o..o + 2].copy_from_slice(&v.to_le_bytes());
         let put_u32 = |s: &mut [u8], o: usize, v: u32| s[o..o + 4].copy_from_slice(&v.to_le_bytes());
