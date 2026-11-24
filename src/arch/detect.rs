@@ -137,7 +137,7 @@ impl PptArch {
                 "N/A (GCN4/5)",
             ),
             Self::Vega20 => ("freq_table_gfx (0x185)", "freq_table_socclk (0x195)", "freq_table_fclk (0x1C5)"),
-            Self::Rdna1 => ("freq_table_gfx (0x11F)", "freq_table_socclk (0x12F)", "freq_table_fclk (0x15F)"),
+            Self::Rdna1 => ("freq_table_gfx (0x32E / 0x11F)", "freq_table_socclk (0x33E / 0x12F)", "freq_table_fclk (0x36E / 0x15F)"),
             Self::Rdna2 => ("freq_gfx (0x52E)", "freq_soc (0x56E)", "freq_fclk (0x5D6)"),
             Self::Rdna3 => ("freq_gfx (0x5EC)", "freq_soc (0x60E)", "freq_fclk (0x62C)"),
             Self::Unknown => ("GFX Clock", "Soc Clock", "FCLK"),
@@ -148,7 +148,7 @@ impl PptArch {
         match self {
             Self::Polaris | Self::Vega10 => ("hard_limit_table_offset VDDC (mV)", "N/A (GCN4/5)"),
             Self::Vega20 => ("min/max_voltage_gfx (0x11F)", "min/max_voltage_soc (0x123)"),
-            Self::Rdna1 => ("min/max_voltage_gfx (0x0B9)", "min/max_voltage_soc (0x0BD)"),
+            Self::Rdna1 => ("min/max_voltage_gfx (0x24A / 0x0B9)", "min/max_voltage_soc (0x24E / 0x0BD)"),
             Self::Rdna2 => ("min/max_voltage_gfx (0x378)", "min/max_voltage_soc (0x37C)"),
             Self::Rdna3 => ("min/max_voltage_gfx (0x3BC)", "min/max_voltage_soc (0x3C0)"),
             Self::Unknown => ("GFX Voltage (mV)", "Soc Voltage (mV)"),
@@ -228,10 +228,10 @@ impl PptArch {
                 "fan_table_offset Stop/Start Temp (°C)",
             ),
             Self::Vega20 | Self::Rdna1 => (
-                "fan_pwm_min (SMU 11.0)",
-                "fan_max_rpm (SMU 11.0)",
-                "fan_target_temp (SMU 11.0)",
-                "fan_zero_rpm_enable (SMU 11.0)",
+                "fan_pwm_min (0x476 / 0x68B)",
+                "fan_max_rpm (0x47C / 0x691)",
+                "fan_target_temp (0x482 / 0x697)",
+                "fan_zero_rpm_enable (0x482 / 0x697)",
             ),
             Self::Rdna2 => (
                 "fan_pwm_min (0x8B8)",
