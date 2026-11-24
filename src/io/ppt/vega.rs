@@ -239,6 +239,7 @@ impl PowerPlayApp {
                 self.auto_overclock_mem as u8, self.auto_fan_acoustic_limit as u8,
             ];
             v20_val.write_back_to_slice(&mut self.raw_buffer);
+            return true;
         }
         false
     }

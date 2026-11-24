@@ -95,18 +95,25 @@ impl PowerPlayApp {
                     push("Fan Max RPM (RPM)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, fan_maximum_rpm), "u16", self.fan_max_rpm, t.fan_maximum_rpm as i32);
                 }
                 if !matched_v45 && buf.len() >= 1674 {
-                    let inn = 0x36usize;
-                    let (pwr, vmin, vmax, gmin, gmax, ftemp) = if let Some(r1) = crate::arch::rdna1::Rdna1ParsedState::parse(buf) {
-                        (r1.power_limit_w as i32, r1.min_volt_gfx as i32 / 4, r1.max_volt_gfx as i32 / 4, r1.gfx_min as i32, r1.gfx_max as i32, r1.fan_target_temp as i32)
+                    if let Some(r1) = crate::arch::rdna1::Rdna1ParsedState::parse(buf) {
+                        let inn = r1.outer_sz;
+                        push("OD Max GFX Clock (MHz)", 0x0E2, "u32", self.oc_gfx_clock.last().copied().unwrap_or(0), r1.od_settings_max[0] as i32);
+                        push("OD Max Mem Clock (MHz)", 0x0EE, "u32", self.oc_mem_clock.last().copied().unwrap_or(0), r1.od_settings_max[1] as i32);
+                        push("socket_power_limit_ac", inn + 0x00C, "u16", self.power_limit_w, r1.power_limit_w as i32);
+                        push("min_voltage_gfx (mV)", inn + 0x068, "u16/4", self.volt_gfx.first().copied().unwrap_or(0), (r1.min_volt_gfx / 4) as i32);
+                        push("max_voltage_gfx (mV)", inn + 0x06C, "u16/4", self.volt_gfx.last().copied().unwrap_or(0), (r1.max_volt_gfx / 4) as i32);
+                        push("freq_gfx_min (MHz)", inn + 0x14C, "u16", self.freq_gfx.first().copied().unwrap_or(0), r1.gfx_min as i32);
+                        push("freq_gfx_max (MHz)", inn + 0x14E, "u16", self.freq_gfx.last().copied().unwrap_or(0), r1.gfx_max as i32);
+                        push("fan_target_temperature", inn + 0x29C, "u16", self.fan_target_temp, r1.fan_target_temp as i32);
                     } else {
-                        (u16_at(inn + 0x00C), u16_at(inn + 0x068) / 4, u16_at(inn + 0x06C) / 4, u16_at(inn + 0x104), u16_at(inn + 0x106), u16_at(inn + 0x29C))
-                    };
-                    push("socket_power_limit_ac", inn + 0x00C, "u16", self.power_limit_w, pwr);
-                    push("min_voltage_gfx (mV)", inn + 0x068, "u16/4", self.volt_gfx.first().copied().unwrap_or(0), vmin);
-                    push("max_voltage_gfx (mV)", inn + 0x06C, "u16/4", self.volt_gfx.last().copied().unwrap_or(0), vmax);
-                    push("freq_gfx_min (MHz)", inn + 0x104, "u16", self.freq_gfx.first().copied().unwrap_or(0), gmin);
-                    push("freq_gfx_max (MHz)", inn + 0x106, "u16", self.freq_gfx.last().copied().unwrap_or(0), gmax);
-                    push("fan_target_temperature", inn + 0x29C, "u16", self.fan_target_temp, ftemp);
+                        let inn = 0x01E2usize;
+                        push("socket_power_limit_ac", inn + 0x00C, "u16", self.power_limit_w, u16_at(inn + 0x00C));
+                        push("min_voltage_gfx (mV)", inn + 0x068, "u16/4", self.volt_gfx.first().copied().unwrap_or(0), u16_at(inn + 0x068) / 4);
+                        push("max_voltage_gfx (mV)", inn + 0x06C, "u16/4", self.volt_gfx.last().copied().unwrap_or(0), u16_at(inn + 0x06C) / 4);
+                        push("freq_gfx_min (MHz)", inn + 0x14C, "u16", self.freq_gfx.first().copied().unwrap_or(0), u16_at(inn + 0x14C));
+                        push("freq_gfx_max (MHz)", inn + 0x14E, "u16", self.freq_gfx.last().copied().unwrap_or(0), u16_at(inn + 0x14E));
+                        push("fan_target_temperature", inn + 0x29C, "u16", self.fan_target_temp, u16_at(inn + 0x29C));
+                    }
                 }
             }
             PptArch::Rdna2 => {
