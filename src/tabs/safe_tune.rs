@@ -41,7 +41,7 @@ impl PowerPlayApp {
                 crate::pptable_rdna1::NaviRDNA1Chip::from_did_and_clock(did, self.oc_gfx_clock[1] as u32)
             };
             match chip1 {
-                crate::pptable_rdna1::NaviRDNA1Chip::Navi10 => (chip1.display_name(), false, 1200, 1200, 150, 225, 210, 32, 950, 95, 1500, 1150, 16),
+                crate::pptable_rdna1::NaviRDNA1Chip::Navi10 => (chip1.display_name(), false, 1200, 1200, 150, 225, 210, 32, 950, 95, 1250, 1150, 16),
                 crate::pptable_rdna1::NaviRDNA1Chip::Navi12 => (chip1.display_name(), false, 1150, 1150, 85, 150, 140, 28, 900, 95, 1400, 1100, 16),
                 crate::pptable_rdna1::NaviRDNA1Chip::Navi14 => (chip1.display_name(), false, 1150, 1150, 50, 130, 125, 24, 900, 95, 1400, 1100, 8),
                 crate::pptable_rdna1::NaviRDNA1Chip::UnknownRdna1 => (chip1.display_name(), false, 1200, 1200, 50, 225, 210, 32, 950, 95, 1400, 1100, 16),
@@ -116,8 +116,10 @@ impl PowerPlayApp {
         let fan_sev = if rpm_inv || (has_zrpm && (self.fan_stop_temp >= self.fan_start_temp || (self.fan_target_temp >= 45 && self.fan_start_temp >= self.fan_target_temp))) || temp_risk { 2 } else if rpm_warn || self.fan_target_temp > max_fan_tgt || self.fan_pwm_min < 10 || temp_warn { 1 } else { 0 };
         checks.push(("Thermal", "Fan & TempLimits (Edge/Hot/Mem)", format!("Tgt {}° ({}/{} RPM) | {}/{}/{}°C", self.fan_target_temp, self.fan_throttling_rpm, self.fan_max_rpm, edge_lim, hotspot_lim, mem_lim), format!("Tgt <= {}°, Throttle <= Max RPM | <= {}/{}/{}°C", max_fan_tgt, safe_edge, safe_hot, safe_mem), fan_sev, "Validates Zero-RPM hysteresis, Throttling/Max fan RPM ordering, and TempLimit[0..2] (Edge/Hotspot/Mem)."));
 
-        let od_pwr_sev = if self.oc_power_limit[0] > self.oc_power_limit[1] || self.oc_power_limit[1] > 30 { 2 } else if self.oc_power_limit[0] < -10 || self.oc_power_limit[1] > 20 { 1 } else { 0 };
-        checks.push(("OverDrive", "OD Power Slider (%)", format!("{}% .. +{}%", self.oc_power_limit[0], self.oc_power_limit[1]), "-6% .. +20% (Factory Range)".to_string(), od_pwr_sev, "Standard AMD OverDrive power slider allows up to +15%..+20% around socket PPT."));
+        let is_rdna1 = crate::ppt_arch::PptArch::detect(&self.raw_buffer).is_rdna1();
+        let min_od_pwr = if is_rdna1 { -50 } else { -10 };
+        let od_pwr_sev = if self.oc_power_limit[0] > self.oc_power_limit[1] || self.oc_power_limit[1] > 30 { 2 } else if self.oc_power_limit[0] < min_od_pwr || self.oc_power_limit[1] > 20 { 1 } else { 0 };
+        checks.push(("OverDrive", "OD Power Slider (%)", format!("{}% .. +{}%", self.oc_power_limit[0], self.oc_power_limit[1]), format!("{}% .. +20% (Factory Range)", if is_rdna1 { -50 } else { -6 }), od_pwr_sev, "Standard AMD OverDrive power slider allows up to +15%..+20% around socket PPT."));
 
         let fclk_sev = if self.freq_fclk[0] > self.freq_fclk[1] || self.freq_soc[0] > self.freq_soc[1] { 2 } else if self.freq_fclk[1] < min_fclk || self.freq_soc[1] < min_soc { 1 } else { 0 };
         if !is_gcn {
@@ -140,6 +142,8 @@ impl PowerPlayApp {
 
         let prot_ok = if is_rdna3 {
             self.smu_features.get(17).copied().unwrap_or(true) && self.smu_features.get(20).copied().unwrap_or(true)
+        } else if is_rdna1 {
+            self.smu_features.get(31).copied().unwrap_or(true) && self.smu_features.get(32).copied().unwrap_or(true) && self.smu_features.get(33).copied().unwrap_or(true)
         } else {
             self.smu_features.get(32).copied().unwrap_or(true) && self.smu_features.get(33).copied().unwrap_or(true) && self.smu_features.get(34).copied().unwrap_or(true)
         };
