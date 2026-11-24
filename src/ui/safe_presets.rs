@@ -43,9 +43,10 @@ impl PowerPlayApp {
         match kind {
             SafePresetKind::QuietUndervolt => {
                 if caps.supports_direct_mv {
+                    let vmin_floor = self.volt_gfx.first().copied().unwrap_or(780).max(780);
                     if let Some(vmax) = self.volt_gfx.last_mut() {
-                        if *vmax > 850 {
-                            *vmax = (*vmax - 65).clamp(780, caps.v_cap);
+                        if *vmax > vmin_floor + 20 {
+                            *vmax = (*vmax - 65).clamp(vmin_floor, caps.v_cap.max(vmin_floor));
                         }
                     }
                 }
@@ -55,8 +56,9 @@ impl PowerPlayApp {
                         *ac0 = self.power_limit_w;
                     }
                 }
-                if self.fan_target_temp > 55 {
-                    self.fan_target_temp = (self.fan_target_temp - 4).clamp(55, caps.fan_cap);
+                let min_tgt = (self.fan_start_temp + 5).max(55);
+                if self.fan_target_temp > min_tgt {
+                    self.fan_target_temp = (self.fan_target_temp - 4).clamp(min_tgt, caps.fan_cap.max(min_tgt));
                 }
                 if caps.supports_zero_rpm && self.fan_start_temp > 0 {
                     self.fan_zero_rpm_enable = true;
@@ -85,8 +87,9 @@ impl PowerPlayApp {
                         }
                     }
                 }
-                if self.fan_target_temp > 60 {
-                    self.fan_target_temp = (self.fan_target_temp - 3).clamp(58, caps.fan_cap);
+                let min_tgt = (self.fan_start_temp + 5).max(58);
+                if self.fan_target_temp > min_tgt {
+                    self.fan_target_temp = (self.fan_target_temp - 3).clamp(min_tgt, caps.fan_cap.max(min_tgt));
                 }
                 self.status_msg = format!("Applied Balanced OC preset ({:?})", arch);
             }
