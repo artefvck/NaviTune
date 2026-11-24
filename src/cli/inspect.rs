@@ -39,11 +39,10 @@ pub(super) fn cmd_inspect(path: &str) -> Result<(), String> {
     if !warns.is_empty() {
         println!("Warnings     : {}", warns.join("; "));
     }
-    Ok(())
+    cmd_dump_all(path)
 }
 
 pub(super) fn cmd_dump_all(path: &str) -> Result<(), String> {
-    cmd_inspect(path)?;
     let (mut app, _) = load_app_from_path(path)?;
     app.sync_fields_to_buffer();
     println!("\n--- OverDrive Feature Flags ---");

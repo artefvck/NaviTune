@@ -34,3 +34,23 @@ fn test_all_target_vbios_roms() {
         }
     }
 }
+
+#[test]
+fn w5500_vbios_inspect_and_unchecked_od() {
+    let p = std::path::Path::new("target/AMD.RadeonProW5500.8192.191230.rom");
+    if !p.exists() { return; }
+    let rom = std::fs::read(p).expect("read W5500 ROM");
+    let hdr = u16::from_le_bytes([rom[0x48], rom[0x49]]) as usize;
+    let master = u16::from_le_bytes([rom[hdr + 0x20], rom[hdr + 0x21]]) as usize;
+    let ppt_off = u16::from_le_bytes([rom[master + 0x22], rom[master + 0x23]]) as usize;
+    let ppt_len = u16::from_le_bytes([rom[ppt_off], rom[ppt_off + 1]]) as usize;
+    assert_eq!(ppt_off, 0xCC42);
+    assert_eq!(ppt_len, 1674);
+    let mut sppt = rom[ppt_off..ppt_off + ppt_len].to_vec();
+    let orig = sppt.clone();
+    assert_eq!(orig, sppt, "0-byte unmodified round-trip parity");
+    let stock_mask = u32::from_le_bytes([sppt[0x10], sppt[0x11], sppt[0x12], sppt[0x13]]);
+    assert_eq!(stock_mask, 0x0000_0800);
+    sppt[0x10..0x14].copy_from_slice(&0u32.to_le_bytes());
+    assert_eq!(u32::from_le_bytes([sppt[0x10], sppt[0x11], sppt[0x12], sppt[0x13]]), 0);
+}
