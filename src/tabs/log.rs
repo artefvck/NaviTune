@@ -18,9 +18,6 @@ impl PowerPlayApp {
             if ui.button("Struct Window").clicked() {
                 self.show_struct_inspector_window = !self.show_struct_inspector_window;
             }
-            if ui.button("Dump Audit -> debug.log").clicked() {
-                self.dump_audit_to_debug_log();
-            }
         });
         ui.separator();
         match self.debug_subtab {
