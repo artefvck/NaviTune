@@ -178,7 +178,7 @@ pub struct Rdna1ParsedState {
     pub fclk_max: u16,
     pub mem_vddci: [u16; 4],
     pub mem_mvdd: [u16; 4],
-    pub temp_limit: [u16; 7],
+    pub temp_limit: [u16; 9],
     pub fan_stop_temp: u16,
     pub fan_start_temp: u16,
     pub fan_pwm_min: u16,
@@ -232,7 +232,7 @@ impl Rdna1ParsedState {
             fclk_max: u16_at(inn, 0x1B6),
             mem_vddci: [u16_at(inn, 0x240), u16_at(inn, 0x242), u16_at(inn, 0x244), u16_at(inn, 0x246)],
             mem_mvdd: [u16_at(inn, 0x248), u16_at(inn, 0x24A), u16_at(inn, 0x24C), u16_at(inn, 0x24E)],
-            temp_limit: [0; 7],
+            temp_limit: [u16_at(inn, 0x034), u16_at(inn, 0x036), u16_at(inn, 0x038), u16_at(inn, 0x03A), u16_at(inn, 0x03C), u16_at(inn, 0x03E), u16_at(inn, 0x040), u16_at(inn, 0x042), u16_at(inn, 0x044)],
             fan_stop_temp: u16_at(inn, 0x27C),
             fan_start_temp: u16_at(inn, 0x27E),
             fan_pwm_min: u16_at(inn, 0x294),
@@ -296,6 +296,7 @@ impl Rdna1ParsedState {
         }
         put_u16(inn, 0x1B4, self.fclk_min);
         put_u16(inn, 0x1B6, self.fclk_max);
+        for (i, &lim) in self.temp_limit.iter().enumerate() { put_u16(inn, 0x034 + i * 2, lim); }
         put_u16(inn, 0x27C, self.fan_stop_temp);
         put_u16(inn, 0x27E, self.fan_start_temp);
         put_u16(inn, 0x294, self.fan_pwm_min);
