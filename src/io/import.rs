@@ -1,37 +1,3 @@
-fn decode_base64(input: &str) -> Result<Vec<u8>, String> {
-    let mut table = [255u8; 256];
-    for (i, &c) in b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".iter().enumerate() {
-        table[c as usize] = i as u8;
-    }
-    let clean: Vec<u8> = input.bytes().filter(|b| !b.is_ascii_whitespace()).collect();
-    if clean.is_empty() {
-        return Err("Empty Base64 payload in .mpt file".into());
-    }
-    let mut out = Vec::with_capacity(clean.len() * 3 / 4);
-    for chunk in clean.chunks(4) {
-        if chunk.len() < 4 {
-            break;
-        }
-        let a = table[chunk[0] as usize];
-        let b = table[chunk[1] as usize];
-        if a == 255 || b == 255 {
-            return Err("Invalid Base64 character in .mpt PowerPlayTable".into());
-        }
-        out.push((a << 2) | (b >> 4));
-        if chunk[2] != b'=' {
-            let c = table[chunk[2] as usize];
-            if c == 255 { return Err("Invalid Base64 character".into()); }
-            out.push(((b & 0x0f) << 4) | (c >> 2));
-            if chunk[3] != b'=' {
-                let d = table[chunk[3] as usize];
-                if d == 255 { return Err("Invalid Base64 character".into()); }
-                out.push(((c & 0x03) << 6) | d);
-            }
-        }
-    }
-    Ok(out)
-}
-
 fn decode_text_auto(raw: &[u8]) -> String {
     if raw.starts_with(&[0xFF, 0xFE]) {
         let u16s: Vec<u16> = raw[2..]
@@ -118,7 +84,7 @@ pub fn parse_mpt_ppt(raw: &[u8]) -> Result<Vec<u8>, String> {
                         return Ok(bytes);
                     }
                 }
-                let decoded = decode_base64(inner)?;
+                let decoded = decode_base64_clean(inner)?;
                 if decoded.len() >= 64 {
                     return Ok(decoded);
                 }
@@ -161,7 +127,7 @@ fn decode_base64_clean(input: &str) -> Result<Vec<u8>, String> {
 }
 
 pub fn parse_plist_ppt(raw: &[u8]) -> Result<Vec<u8>, String> {
-    let txt = String::from_utf8_lossy(raw);
+    let txt = decode_text_auto(raw);
     let key_pos = txt
         .find("PP_PhmSoftPowerPlayTable")
         .or_else(|| txt.find("PP,PhmSoftPowerPlayTable"))
