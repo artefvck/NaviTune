@@ -98,18 +98,22 @@ impl PowerPlayApp {
                             crate::ppt_arch::PptArch::Rdna1 => ("min_voltage_ulv_gfx (0x246 / 0x0ED)", "min_voltage_ulv_soc (0x248 / 0x0EF)"),
                             _ => ("min_voltage_ulv_gfx (0x137)", "min_voltage_ulv_soc (0x139)"),
                         };
+                        let w = dynamic_box_w(ui, 62.0, 2);
                         for (lbl, tag, pair) in [("GFX", ug_tag, &mut self.ulv_gfx), ("Soc", us_tag, &mut self.ulv_soc)] {
                             ui.horizontal(|ui| {
-                                ui.label(lbl).on_hover_text(tag);
-                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                    ui.add_enabled_ui(false, |ui| {
-                                        let mut dummy = 0i32;
-                                        ui.add_sized([62.0, 22.0], egui::DragValue::new(&mut dummy).suffix(" mV"))
-                                            .on_disabled_hover_text("ULV Vmax is not present in this silicon PPTable (RDNA 2 only)");
-                                    });
-                                    ui.add_space(6.0);
-                                    ui.add_sized([62.0, 22.0], egui::DragValue::new(&mut pair[0]).range(0..=1600).suffix(" mV")).on_hover_text(tag);
+                                ui.spacing_mut().item_spacing.x = 6.0;
+                                ui.ctx().data_mut(|d| {
+                                    d.insert_temp(egui::Id::new("cur_field_info"), (lbl.to_string(), tag.to_string()));
+                                    d.insert_temp(egui::Id::new("cur_box_idx"), 0usize);
                                 });
+                                crate::num_box(ui, &mut pair[0], w);
+                                ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("cur_box_idx"), 1usize));
+                                ui.add_enabled_ui(false, |ui| {
+                                    let mut dummy = 0i32;
+                                    crate::num_box(ui, &mut dummy, w);
+                                }).response.on_disabled_hover_text("ULV Vmax is not present in this silicon PPTable (RDNA 2 only)");
+                                ui.add_space(2.0);
+                                label_with_var(ui, lbl, tag);
                             });
                         }
                     } else {
