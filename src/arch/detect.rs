@@ -265,45 +265,69 @@ impl PptArch {
         matches!(self, Self::Vega20 | Self::Rdna1 | Self::Rdna2 | Self::Rdna3)
     }
 
-    pub fn fan_offset_labels(self) -> (&'static str, &'static str, &'static str, &'static str) {
+    #[allow(clippy::type_complexity)]
+    pub fn fan_offset_labels(self) -> (&'static str, &'static str, &'static str, &'static str, &'static str, &'static str, &'static str, &'static str) {
         match self {
-            Self::Polaris => (
+            Self::Polaris | Self::Vega10 => (
                 "fan_table_offset PWM Min (%)",
+                "N/A (GCN4/5)",
+                "N/A (GCN4/5)",
                 "fan_table_offset Max RPM",
                 "fan_table_offset Target Temp (°C)",
                 "fan_table_offset Target GFX (MHz)",
-            ),
-            Self::Vega10 => (
-                "fan_table_offset PWM Min (%)",
-                "fan_table_offset Max RPM",
-                "fan_table_offset Target Temp (°C)",
-                "fan_table_offset Stop/Start Temp (°C)",
+                "fan_table_offset Stop Temp (°C)",
+                "fan_table_offset Start Temp (°C)",
             ),
             Self::Vega20 => (
                 "fan_pwm_min (0x675)",
-                "fan_max_rpm (0x67B)",
-                "fan_target_temp (0x67D)",
-                "fan_zero_rpm_enable (0x681)",
+                "fan_acoustic_limit_rpm (0x677)",
+                "fan_throttling_rpm (0x679)",
+                "fan_maximum_rpm (0x67B)",
+                "fan_target_temperature (0x67D)",
+                "fan_target_gfxclk (0x67F)",
+                "fan_stop_temp (0x663)",
+                "fan_start_temp (0x665)",
             ),
             Self::Rdna1 => (
                 "fan_pwm_min (0x476 / 0x68B)",
+                "fan_acoustic_rpm (0x478 / 0x68D)",
+                "fan_throttling_rpm (0x47A / 0x68F)",
                 "fan_max_rpm (0x47C / 0x691)",
                 "fan_target_temp (0x47E / 0x693)",
-                "fan_zero_rpm_enable (0x485 / 0x697)",
+                "fan_target_gfx (0x480 / 0x695)",
+                "fan_stop_temp (0x45E / 0x679)",
+                "fan_start_temp (0x460 / 0x67B)",
             ),
             Self::Rdna2 => (
                 "fan_pwm_min (0x716)",
+                "fan_acoustic_limit (0x718)",
+                "fan_throttling_rpm (0x71A)",
                 "fan_max_rpm (0x71C)",
                 "fan_target_temp (0x720)",
-                "fan_zero_rpm_enable (0x726)",
+                "fan_target_gfx_clock (0x722)",
+                "fan_stop_temp (0x6FE)",
+                "fan_start_temp (0x700)",
             ),
             Self::Rdna3 => (
                 "fan_pwm_min (0x86C)",
+                "fan_acoustic_limit (0x86E)",
+                "fan_throttling_rpm (0x86A)",
                 "fan_max_rpm (0x870)",
                 "fan_target_temp (0x878)",
-                "fan_zero_rpm_enable (0x87C)",
+                "fan_target_gfx_clock (0x876)",
+                "fan_stop_temp (0x81E)",
+                "fan_start_temp (0x838)",
             ),
-            Self::Unknown => ("Fan PWM Min", "Fan Max RPM", "Fan Target Temp", "Zero RPM"),
+            Self::Unknown => (
+                "Fan PWM Min",
+                "Fan Acoustic Limit",
+                "Fan Throttling RPM",
+                "Fan Max RPM",
+                "Fan Target Temp",
+                "Fan Target GFX Clock",
+                "Fan Stop Temp",
+                "Fan Start Temp",
+            ),
         }
     }
 

@@ -6,7 +6,6 @@ impl PowerPlayApp {
         use crate::card_layout::*;
 
         let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
-        let _fan_tags = arch.fan_offset_labels();
         let is_rdna3 = arch.is_rdna3();
         let is_rdna2 = arch.is_rdna2();
         let is_rdna1 = arch.is_rdna1() || arch.is_vega() || arch.is_gcn_subtable();
@@ -50,18 +49,7 @@ impl PowerPlayApp {
             crate::card_layout::draw_arch_note_card(ui, &format!("{} — Thermal & Fan Architecture", arch.label()), "No discrete fan or thermal sub-table is present in this PPTable revision.");
             return;
         }
-        let r1_1674 = crate::pptable_rdna1::Rdna1ParsedState::parse(&self.raw_buffer);
-        let (pwm_t, ac_t, thr_t, max_t, tgt_t, gfx_t, stop_t, start_t) = if r1_1674.is_some() {
-            ("fan_pwm_min (0x476)", "fan_acoustic_rpm (0x478)", "fan_throttling_rpm (0x47A)", "fan_max_rpm (0x47C)", "fan_target_temp (0x47E)", "fan_target_gfx (0x480)", "fan_stop_temp (0x45E)", "fan_start_temp (0x460)")
-        } else if arch == crate::ppt_arch::PptArch::Rdna1 {
-            ("fan_pwm_min (0x68B)", "fan_acoustic_limit_rpm (0x68D)", "fan_throttling_rpm (0x68F)", "fan_maximum_rpm (0x691)", "fan_target_temperature (0x693)", "fan_target_gfxclk (0x695)", "fan_stop_temp (0x679)", "fan_start_temp (0x67B)")
-        } else if arch == crate::ppt_arch::PptArch::Vega20 {
-            ("fan_pwm_min (0x675)", "fan_acoustic_limit_rpm (0x677)", "fan_throttling_rpm (0x679)", "fan_maximum_rpm (0x67B)", "fan_target_temperature (0x67D)", "fan_target_gfxclk (0x67F)", "fan_stop_temp (0x663)", "fan_start_temp (0x665)")
-        } else if is_rdna3 {
-            ("fan_pwm_min (0x86C)", "fan_acoustic_limit (0x86E)", "fan_throttling_rpm (0x86A)", "fan_max_rpm (0x870)", "fan_target_temp (0x878)", "fan_target_gfx_clock (0x876)", "fan_stop_temp (0x81E)", "fan_start_temp (0x838)")
-        } else {
-            ("fan_pwm_min (0x716)", "fan_acoustic_limit (0x718)", "fan_throttling_rpm (0x71A)", "fan_max_rpm (0x71C)", "fan_target_temp (0x720)", "fan_target_gfx_clock (0x722)", "fan_stop_temp (0x6FE)", "fan_start_temp (0x700)")
-        };
+        let (pwm_t, ac_t, thr_t, max_t, tgt_t, gfx_t, stop_t, start_t) = arch.fan_offset_labels();
         two_col_cards_adaptive(ui, "fan_cols", true, show_zerorpm || show_fancurve, |ui| {
             draw_card(ui, "Fan Settings", |ui| {
                 crate::card_layout::kv_header_1(ui, "Value", 74.0);

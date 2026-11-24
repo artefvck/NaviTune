@@ -426,7 +426,7 @@ fn test_fan_cards_all_six_architectures() {
         assert!(arch.has_fan_acoustic_and_throttling());
     }
     assert!(Polaris.fan_offset_labels().0.contains("fan_table_offset"));
-    assert!(Vega10.fan_offset_labels().3.contains("Stop/Start"));
+    assert!(Vega10.fan_offset_labels().6.contains("Stop Temp"));
     assert!(Rdna2.fan_offset_labels().0.contains("0x716"));
     assert!(Rdna3.fan_offset_labels().0.contains("0x86C"));
 }
