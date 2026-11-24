@@ -18,8 +18,8 @@ impl PowerPlayApp {
 
         let (t_min, t_max) = (25.0_f32, 105.0_f32);
         let to_screen = |temp: f32, pwm: f32| -> egui::Pos2 {
-            let nx = ((temp - t_min) / (t_max - t_min)).clamp(0.0, 1.0);
-            let ny = (pwm / 100.0).clamp(0.0, 1.0);
+            let nx = normalize_curve_axis(temp, t_min, t_max);
+            let ny = normalize_curve_axis(pwm, 0.0, 100.0);
             egui::pos2(plot.left() + nx * plot.width(), plot.bottom() - ny * plot.height())
         };
         let from_screen = |pos: egui::Pos2| -> (i32, i32) {
@@ -85,9 +85,22 @@ impl PowerPlayApp {
         }
         if response.drag_stopped() { ui.ctx().data_mut(|d| d.insert_temp(drag_id, None::<usize>)); }
 
-        for (_, hp, tag) in &handles {
-            painter.circle_filled(*hp, 5.5, egui::Color32::from_rgb(255, 195, 70));
-            painter.circle_stroke(*hp, 5.5, egui::Stroke::new(1.2_f32, egui::Color32::from_rgb(18, 23, 33)));
+        let active_fan: Option<usize> = ui.ctx().data(|d| d.get_temp(drag_id)).flatten();
+        let hover_pos = response.hover_pos();
+        for (hid, hp, tag) in &handles {
+            let is_hot = active_fan == Some(*hid) || hover_pos.is_some_and(|p| hp.distance(p) <= 14.0);
+            if is_hot {
+                ui.ctx().set_cursor_icon(if active_fan.is_some() { egui::CursorIcon::Grabbing } else { egui::CursorIcon::Grab });
+                let readout = match *hid {
+                    0 => format!("Stop: {} °C · 0%", self.fan_stop_temp),
+                    1 if has_zrpm => format!("Start: {} °C · {}%", self.fan_start_temp, pwm_min),
+                    1 => format!("Min: 45 °C · {}%", pwm_min),
+                    _ => format!("Target: {} °C · {}%", tgt_t, 75.max(pwm_min)),
+                };
+                painter.text(egui::pos2(plot.left() + 6.0, plot.top() + 4.0), egui::Align2::LEFT_TOP, readout, egui::FontId::proportional(10.5), egui::Color32::from_rgb(255, 215, 110));
+            }
+            painter.circle_filled(*hp, if is_hot { 6.5 } else { 5.5 }, egui::Color32::from_rgb(255, 195, 70));
+            painter.circle_stroke(*hp, if is_hot { 6.5 } else { 5.5 }, egui::Stroke::new(1.2_f32, egui::Color32::from_rgb(18, 23, 33)));
             painter.text(egui::pos2(hp.x, hp.y - 9.0), egui::Align2::CENTER_BOTTOM, *tag, egui::FontId::proportional(10.0), egui::Color32::from_rgb(225, 235, 250));
         }
     }
@@ -111,8 +124,8 @@ impl PowerPlayApp {
         let (v_axis_min, v_axis_max) = (600.0_f32, 1250.0_f32);
 
         let to_screen = |mhz: f32, mv: f32| -> egui::Pos2 {
-            let nx = ((mhz - f_axis_min) / (f_axis_max - f_axis_min)).clamp(0.0, 1.0);
-            let ny = ((mv - v_axis_min) / (v_axis_max - v_axis_min)).clamp(0.0, 1.0);
+            let nx = normalize_curve_axis(mhz, f_axis_min, f_axis_max);
+            let ny = normalize_curve_axis(mv, v_axis_min, v_axis_max);
             egui::pos2(plot.left() + nx * plot.width(), plot.bottom() - ny * plot.height())
         };
         let from_screen = |pos: egui::Pos2| -> (i32, i32) {
@@ -132,13 +145,21 @@ impl PowerPlayApp {
         let v0 = if self.volt_gfx[0] > 0 { self.volt_gfx[0] as f32 } else { 750.0 };
         let v1 = if self.volt_gfx[1] > 0 { self.volt_gfx[1] as f32 } else { 1125.0 };
 
+        let (ca, cb, cc) = (self.static_volt_a[0] as f32, self.static_volt_b[0] as f32, self.static_volt_c[0] as f32);
+        let has_quad = ca.abs() > 1e-6 || cb.abs() > 1e-6;
         let mut curve_pts = Vec::with_capacity(29);
         for s in 0..=28 {
             let t = s as f32 / 28.0;
             let f = f0 + t * (f1 - f0);
-            let quad_bias = 0.12_f32;
-            let u = t * t * (1.0 + quad_bias) - t * quad_bias;
-            let v = (v0 + u.clamp(0.0, 1.15) * (v1 - v0)).clamp(v_axis_min, v_axis_max);
+            let v = if has_quad {
+                let f_ghz = f / 1000.0;
+                let mv = (ca * f_ghz * f_ghz + cb * f_ghz + cc) * 1000.0;
+                if mv.is_finite() && mv > 400.0 { mv.clamp(v0.min(v_axis_min), v1.max(v_axis_max)) } else { v0 + t * (v1 - v0) }
+            } else {
+                let quad_bias = 0.12_f32;
+                let u = t * t * (1.0 + quad_bias) - t * quad_bias;
+                (v0 + u.clamp(0.0, 1.15) * (v1 - v0)).clamp(v_axis_min, v_axis_max)
+            };
             curve_pts.push(to_screen(f, v));
         }
         for w in curve_pts.windows(2) {
@@ -170,9 +191,21 @@ impl PowerPlayApp {
         }
         if response.drag_stopped() { ui.ctx().data_mut(|d| d.insert_temp(drag_id, None::<usize>)); }
 
-        for (_, hp, tag) in &handles {
-            painter.circle_filled(*hp, 5.5, egui::Color32::from_rgb(255, 195, 70));
-            painter.circle_stroke(*hp, 5.5, egui::Stroke::new(1.2_f32, egui::Color32::from_rgb(18, 23, 33)));
+        let active_vf: Option<usize> = ui.ctx().data(|d| d.get_temp(drag_id)).flatten();
+        let hover_pos = response.hover_pos();
+        for (hid, hp, tag) in &handles {
+            let is_hot = active_vf == Some(*hid) || hover_pos.is_some_and(|p| hp.distance(p) <= 14.0);
+            if is_hot {
+                ui.ctx().set_cursor_icon(if active_vf.is_some() { egui::CursorIcon::Grabbing } else { egui::CursorIcon::Grab });
+                let readout = if *hid == 0 {
+                    format!("Min: {} MHz · {} mV", f0 as i32, v0 as i32)
+                } else {
+                    format!("Max: {} MHz · {} mV", f1 as i32, v1 as i32)
+                };
+                painter.text(egui::pos2(plot.left() + 6.0, plot.top() + 4.0), egui::Align2::LEFT_TOP, readout, egui::FontId::proportional(10.5), egui::Color32::from_rgb(130, 235, 175));
+            }
+            painter.circle_filled(*hp, if is_hot { 6.5 } else { 5.5 }, egui::Color32::from_rgb(255, 195, 70));
+            painter.circle_stroke(*hp, if is_hot { 6.5 } else { 5.5 }, egui::Stroke::new(1.2_f32, egui::Color32::from_rgb(18, 23, 33)));
             painter.text(egui::pos2(hp.x, hp.y - 9.0), egui::Align2::CENTER_BOTTOM, *tag, egui::FontId::proportional(10.0), egui::Color32::from_rgb(225, 235, 250));
         }
     }
