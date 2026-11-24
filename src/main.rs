@@ -67,6 +67,7 @@ enum Tab {
     Fan,
     Advance,
     SafeTune,
+    Inspect,
     More,
     Log,
 }
@@ -350,6 +351,7 @@ impl eframe::App for PowerPlayApp {
                     (Tab::Fan, "Fan"),
                     (Tab::Advance, "Advance"),
                     (Tab::SafeTune, "Safe Tune"),
+                    (Tab::Inspect, "Inspect"),
                     (Tab::More, "More"),
                     (Tab::Log, "Log"),
                 ] {
@@ -377,6 +379,7 @@ impl eframe::App for PowerPlayApp {
                     Tab::Fan => self.draw_fan_tab(ui),
                     Tab::Advance => self.draw_advance(ui),
                     Tab::SafeTune => self.draw_safe_tune_tab(ui),
+                    Tab::Inspect => self.draw_inspect_tab(ui),
                     Tab::More => self.render_debug_more(ui),
                     Tab::Log => self.draw_log(ui),
                 }
