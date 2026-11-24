@@ -627,3 +627,15 @@ fn test_hide_unusable_cards_all_six_architectures() {
     assert!(!Rdna3.supports_card(PowerModeAcoustic));
     assert!(!Rdna3.supports_card(ThermalVmin));
 }
+
+#[test]
+fn test_power_and_ulv_offset_labels_all_six_architectures() {
+    use ppt_arch::PptArch::*;
+    assert!(Vega20.power_offset_labels().0.contains("0x11D"));
+    assert!(Rdna1.power_offset_labels().0.contains("0x1EE"));
+    assert!(Rdna2.power_offset_labels().1.contains("0x34E"));
+    assert!(Rdna3.power_offset_labels().2.contains("0x368"));
+    assert!(Rdna1.ulv_offset_labels().0.contains("0x246"));
+    assert!(Rdna2.ulv_offset_labels().0.contains("0x380"));
+    assert!(Rdna3.ulv_offset_labels().1.contains("0x3C6"));
+}

@@ -30,32 +30,7 @@ impl PowerPlayApp {
             ui.add_space(4.0);
         }
 
-        let (_vg_tag, _vs_tag, ppt_tag, tdcg_tag, tdcs_tag, _memv_tag) = match arch {
-            crate::ppt_arch::PptArch::Vega20 => (
-                "vmin/vmax_gfx (0x159 / 0x15D)",
-                "vmin/vmax_soc (0x15B / 0x15F)",
-                "socket_power_limit_ac (0x11D)",
-                "tdc_limit_gfx (0x13D)",
-                "tdc_limit_soc (0x13F)",
-                "vddci_max / mvdd_max (0x145 / 0x147)",
-            ),
-            crate::ppt_arch::PptArch::Rdna1 => (
-                "vmin/vmax_gfx (0x0F3 / 0x0F7)",
-                "vmin/vmax_soc (0x0F5 / 0x0F9)",
-                "socket_power_limit_ac (0x1EE / 0x0B7)",
-                "tdc_limit_gfx (0x20E / 0x0D7)",
-                "tdc_limit_soc (0x210 / 0x0D9)",
-                "vddci_max / mvdd_max (0x216 / 0x0DF)",
-            ),
-            _ => (
-                "vmin/vmax_gfx (0x3A6 / 0x3B4)",
-                "vmin/vmax_soc (0x3AA / 0x3B8)",
-                "socket_power_limit_ac (0x32E / 0x350)",
-                "tdc_limit_gfx (0x34E / 0x366)",
-                "tdc_limit_soc (0x350 / 0x368)",
-                "mem_vddci / mem_mvdd (0x66A / 0x7D4)",
-            ),
-        };
+        let (ppt_tag, tdcg_tag, tdcs_tag, _memv_tag) = arch.power_offset_labels();
         let show_corevoltage = self.is_card_usable(crate::ppt_arch::PptCard::CoreVoltage);
         let show_memoryvoltage = self.is_card_usable(crate::ppt_arch::PptCard::MemoryVoltage);
         let show_powerandcurrent = self.is_card_usable(crate::ppt_arch::PptCard::PowerAndCurrent);
@@ -92,12 +67,8 @@ impl PowerPlayApp {
             if show_ulvvoltage {
                 draw_card(ui, arch.card_title(crate::ppt_arch::PptCard::UlvVoltage), |ui| {
                     kv_header_2(ui, "Vmin", "Vmax", 62.0);
+                    let (ug_tag, us_tag) = arch.ulv_offset_labels();
                     if !arch.is_rdna2() {
-                        let (ug_tag, us_tag) = match arch {
-                            crate::ppt_arch::PptArch::Rdna3 => ("ulv_voltage_vmin_gfx (0x3C4)", "ulv_voltage_vmin_soc (0x3C6)"),
-                            crate::ppt_arch::PptArch::Rdna1 => ("min_voltage_ulv_gfx (0x246 / 0x0ED)", "min_voltage_ulv_soc (0x248 / 0x0EF)"),
-                            _ => ("min_voltage_ulv_gfx (0x137)", "min_voltage_ulv_soc (0x139)"),
-                        };
                         let w = dynamic_box_w(ui, 62.0, 2);
                         for (lbl, tag, pair) in [("GFX", ug_tag, &mut self.ulv_gfx), ("Soc", us_tag, &mut self.ulv_soc)] {
                             ui.horizontal(|ui| {
@@ -117,8 +88,8 @@ impl PowerPlayApp {
                             });
                         }
                     } else {
-                        kv_row_2(ui, "GFX", "ulv_voltage_vmin_gfx / vmax_gfx (0x380 / 0x384)", &mut self.ulv_gfx, 62.0);
-                        kv_row_2(ui, "Soc", "ulv_voltage_vmin_soc / vmax_soc (0x382 / 0x386)", &mut self.ulv_soc, 62.0);
+                        kv_row_2(ui, "GFX", ug_tag, &mut self.ulv_gfx, 62.0);
+                        kv_row_2(ui, "Soc", us_tag, &mut self.ulv_soc, 62.0);
                     }
                 });
             }

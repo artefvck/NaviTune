@@ -144,6 +144,51 @@ impl PptArch {
         }
     }
 
+    pub fn power_offset_labels(self) -> (&'static str, &'static str, &'static str, &'static str) {
+        match self {
+            Self::Vega20 => (
+                "socket_power_limit_ac (0x11D)",
+                "tdc_limit_gfx (0x13D)",
+                "tdc_limit_soc (0x13F)",
+                "vddci_max / mvdd_max (0x145 / 0x147)",
+            ),
+            Self::Rdna1 => (
+                "socket_power_limit_ac (0x1EE / 0x0B7)",
+                "tdc_limit_gfx (0x212 / 0x0D7)",
+                "tdc_limit_soc (0x20E / 0x0D9)",
+                "mem_vddci/mvdd (0x422 / 0x0DF)",
+            ),
+            Self::Rdna2 => (
+                "socket_power_limit_ac (0x32E)",
+                "tdc_limit_gfx (0x34E)",
+                "tdc_limit_soc (0x350)",
+                "mem_vddci / mem_mvdd (0x66A / 0x672)",
+            ),
+            Self::Rdna3 => (
+                "socket_power_limit_ac (0x350)",
+                "tdc_limit_gfx (0x366)",
+                "tdc_limit_soc (0x368)",
+                "mem_vddci / mem_mvdd (0x7D4 / 0x7DC)",
+            ),
+            _ => (
+                "Power Limit (W)",
+                "TDC GFX (A)",
+                "TDC Soc (A)",
+                "Memory Voltage (mV)",
+            ),
+        }
+    }
+
+    pub fn ulv_offset_labels(self) -> (&'static str, &'static str) {
+        match self {
+            Self::Vega20 => ("min_voltage_ulv_gfx (0x155)", "min_voltage_ulv_soc (0x157)"),
+            Self::Rdna1 => ("min_voltage_ulv_gfx (0x246 / 0x0EF)", "min_voltage_ulv_soc (0x248 / 0x0F1)"),
+            Self::Rdna2 => ("ulv_voltage_vmin_gfx / vmax_gfx (0x380 / 0x384)", "ulv_voltage_vmin_soc / vmax_soc (0x382 / 0x386)"),
+            Self::Rdna3 => ("ulv_voltage_vmin_gfx (0x3C4)", "ulv_voltage_vmin_soc (0x3C6)"),
+            _ => ("ULV GFX (mV)", "ULV Soc (mV)"),
+        }
+    }
+
     pub fn core_voltage_offset_labels(self) -> (&'static str, &'static str) {
         match self {
             Self::Polaris | Self::Vega10 => ("hard_limit_table_offset VDDC (mV)", "N/A (GCN4/5)"),
