@@ -38,7 +38,9 @@ impl PowerPlayApp {
         let _ = writeln!(out, "File         : {}", source_label);
         if let Some(off) = self.vbios_ppt_offset {
             if let Some(vi) = self.vbios_buffer.as_deref().and_then(|vb| crate::vbios::inspect_vbios_info(vb, off)) {
-                let _ = writeln!(out, "VBIOS Info   : Offset 0x{:06X} | DID 0x{:04X} | {}", off, vi.device_id, vi.bios_version);
+                let psp_tag = vi.psp_dir_offset.map(|p| format!("0x{:X} ({} ent)", p, vi.psp_entry_count)).unwrap_or_else(|| "None".to_string());
+                let csum_tag = if !vi.has_legacy_opt_rom { "SPI".to_string() } else if vi.checksum_sum == 0 { format!("VALID (0x{:02X})", vi.checksum_byte) } else { format!("INVALID (0x{:02X}, sum=0x{:02X})", vi.checksum_byte, vi.checksum_sum) };
+                let _ = writeln!(out, "VBIOS Info   : Offset 0x{:06X} | DID 0x{:04X} | {} | $PSP={} | Csum={}", off, vi.device_id, vi.bios_version, psp_tag, csum_tag);
             } else {
                 let _ = writeln!(out, "VBIOS Offset : 0x{:06X}", off);
             }
@@ -74,6 +76,16 @@ impl PowerPlayApp {
             let _ = writeln!(out, "DPM{}         : UCLK={} MHz (div={}) | VDDCI={} mV | MVDD={} mV", i, self.mem_dpm_freq[i][0], self.mem_dpm_freq[i][1], self.mem_dpm_volt[i][0], self.mem_dpm_volt[i][1]);
         }
         let _ = writeln!(out, "\n--- Fan Controller & 5-Point Curve ---\nPWM Min={}%| Acoustic={} RPM | Throttling={} RPM | Max={} RPM | Mode={} | Hyst={}\nTarget Temp={} C | Target GFX={} MHz | ZeroRPM={} | Stop={} C | Start={} C\nOD Fan Range : Temp={:?} C | Speed={:?}% | Curve Temp={:?} C | Curve PWM={:?}%", self.fan_pwm_min, self.fan_acoustic_limit, self.fan_throttling_rpm, self.fan_max_rpm, self.fan_mode, self.fan_hyst_ctrl, self.fan_target_temp, self.fan_target_gfx_clock, self.fan_zero_rpm_enable, self.fan_stop_temp, self.fan_start_temp, self.od_fan_temp, self.od_fan_speed, self.fan_curve_temp, self.fan_curve_pwm);
+        if let Some((struct_arch, entries)) = crate::tabs::native_offset::collect_native_struct_entries(&self.raw_buffer) {
+            let _ = writeln!(out, "\n--- Verified Offset Map ({}) ---", struct_arch);
+            for (sec, name, offset, len, val) in entries {
+                let end = (offset + len).min(self.raw_buffer.len());
+                let hex: String = self.raw_buffer.get(offset..end).unwrap_or_default()
+                    .iter().take(8).map(|x| format!("{:02X}", x)).collect::<Vec<_>>().join(" ");
+                let voff_tag = self.vbios_ppt_offset.map(|vo| format!(" | VBIOS 0x{:06X}", vo + offset)).unwrap_or_default();
+                let _ = writeln!(out, "  0x{:03X}{} | {:<10} | {:<32} | {:<23} | {}", offset, voff_tag, sec, name, hex, val);
+            }
+        }
         out
     }
 
