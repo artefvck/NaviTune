@@ -18,44 +18,47 @@ impl PowerPlayApp {
         if !self.show_opencore_copy_modal {
             return;
         }
-        let mut open = true;
         let b64 = crate::export_formats::encode_base64(&self.raw_buffer);
         let hex_raw = format_raw_hex_nospace(&self.raw_buffer);
-        egui::Window::new("OpenCore Base64 & Raw Hex (No-Space)")
-            .open(&mut open)
-            .collapsible(false)
-            .resizable(true)
-            .default_width(540.0)
-            .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
-            .show(ctx, |ui| {
-                ui.label(format!("Synced PPTable payload ({} bytes):", self.raw_buffer.len()));
+        let payload_len = self.raw_buffer.len();
+        let vp_id = egui::ViewportId::from_hash_of("opencore_copy_external_viewport");
+        let builder = egui::ViewportBuilder::default()
+            .with_title("OpenCore Base64 & Raw Hex (No-Space)")
+            .with_inner_size([560.0, 340.0])
+            .with_min_inner_size([400.0, 260.0])
+            .with_resizable(true);
+
+        ctx.show_viewport_immediate(vp_id, builder, |vp_ctx, _class| {
+            if vp_ctx.input(|i| i.viewport().close_requested()) {
+                self.show_opencore_copy_modal = false;
+            }
+            egui::CentralPanel::default().show(vp_ctx, |ui| {
+                ui.label(format!("Synced PPTable payload ({} bytes):", payload_len));
                 ui.add_space(6.0);
                 ui.horizontal_wrapped(|ui| {
                     if ui.button("Copy Base64").clicked() {
-                        ui.ctx().copy_text(b64.clone());
+                        vp_ctx.copy_text(b64.clone());
                         self.status_msg = format!("Copied OpenCore Base64 ({} chars)", b64.len());
                     }
                     if ui.button("Copy Hex Raw (No Spaces)").clicked() {
-                        ui.ctx().copy_text(hex_raw.clone());
+                        vp_ctx.copy_text(hex_raw.clone());
                         self.status_msg = format!("Copied Raw No-Space Hex ({} chars)", hex_raw.len());
                     }
                 });
                 ui.add_space(8.0);
                 ui.strong("Base64 (OpenCore <data>):");
-                let mut b64_view = b64;
-                egui::ScrollArea::vertical().id_salt("oc_b64_scroll").max_height(90.0).show(ui, |ui| {
+                let mut b64_view = b64.clone();
+                egui::ScrollArea::vertical().id_salt("oc_b64_scroll").max_height(96.0).show(ui, |ui| {
                     ui.add(egui::TextEdit::multiline(&mut b64_view).font(egui::TextStyle::Monospace).desired_width(f32::INFINITY));
                 });
                 ui.add_space(6.0);
                 ui.strong("Hex Raw (No Spaces — ProperTree / OCC Data):");
-                let mut hex_view = hex_raw;
-                egui::ScrollArea::vertical().id_salt("oc_hex_scroll").max_height(90.0).show(ui, |ui| {
+                let mut hex_view = hex_raw.clone();
+                egui::ScrollArea::vertical().id_salt("oc_hex_scroll").max_height(96.0).show(ui, |ui| {
                     ui.add(egui::TextEdit::multiline(&mut hex_view).font(egui::TextStyle::Monospace).desired_width(f32::INFINITY));
                 });
             });
-        if !open {
-            self.show_opencore_copy_modal = false;
-        }
+        });
     }
 }
 
