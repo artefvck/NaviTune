@@ -55,7 +55,7 @@ impl PowerPlayApp {
         crate::card_layout::draw_card(ui, card_title, |ui| {
             if !loaded { ui.disable(); }
             let is_gcn = arch.is_gcn_subtable();
-            let mut items: Vec<(&mut bool, &str, &str, bool)> = vec![
+            let left_items: [(&mut bool, &str, &str, bool); 8] = [
                 (&mut self.gpu_clock_limit, "GPU Clock Limit", "od_feat_0", true),
                 (&mut self.gpu_clock_curve, "GPU Clock Curve", "od_feat_1", !is_gcn),
                 (&mut self.memory_clock_limit, "Memory Clock Limit", "od_feat_2", true),
@@ -64,6 +64,8 @@ impl PowerPlayApp {
                 (&mut self.fan_target_temp_limit, "Fan Target Temperature Limit", "od_feat_5", true),
                 (&mut self.operating_temp_limit, "Operating Temperature Limit", "od_feat_6", true),
                 (&mut self.fan_acoustic_rpm, "Fan Acoustic RPM", "od_feat_7", !is_gcn),
+            ];
+            let right_items: [(&mut bool, &str, &str, bool); 8] = [
                 (&mut self.fan_curve, "Fan Curve", "od_feat_8", !is_gcn),
                 (&mut self.power_limit_feat, "Power Limit", "od_feat_9", true),
                 (&mut self.timing_tuning, "Timing Tuning", "od_feat_10", !is_gcn),
@@ -73,20 +75,12 @@ impl PowerPlayApp {
                 (&mut self.auto_overclock_mem, "Auto Overclock Memory", "od_feat_14", !is_gcn),
                 (&mut self.auto_fan_acoustic_limit, "Auto Fan Acoustic Limit", "od_feat_15", !is_gcn),
             ];
-            items.retain(|it| it.3);
-            if ui.available_width() >= 520.0 {
-                let mid = (items.len() + 1) / 2;
-                let right = items.split_off(mid);
-                ui.columns(2, |cols| {
-                    cols[0].spacing_mut().item_spacing.y = 4.0;
-                    cols[1].spacing_mut().item_spacing.y = 4.0;
-                    for (f, l, t, _) in items { draw_od_item(&mut cols[0], f, l, t); }
-                    for (f, l, t, _) in right { draw_od_item(&mut cols[1], f, l, t); }
-                });
-            } else {
-                ui.spacing_mut().item_spacing.y = 4.0;
-                for (f, l, t, _) in items { draw_od_item(ui, f, l, t); }
-            }
+            ui.columns(2, |cols| {
+                cols[0].spacing_mut().item_spacing.y = 4.0;
+                cols[1].spacing_mut().item_spacing.y = 4.0;
+                for (f, l, t, sup) in left_items { if sup { draw_od_item(&mut cols[0], f, l, t); } }
+                for (f, l, t, sup) in right_items { if sup { draw_od_item(&mut cols[1], f, l, t); } }
+            });
         });
 
         if self.show_smu_features_window {
