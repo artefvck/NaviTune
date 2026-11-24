@@ -6,7 +6,7 @@ pub mod curve;
 pub mod fan;
 pub mod features;
 pub mod frequency;
-pub mod inspect;
+pub mod log_inspect;
 pub mod log_capture;
 pub mod dump_audit;
 pub mod native_offset;
