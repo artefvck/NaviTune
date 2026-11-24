@@ -74,10 +74,8 @@ fn parse_macos_accelerator_dump(txt: &str) -> GpuTelemetry {
             vram_used_mb: vram_used, vram_total_mb: vram_total,
         };
         if !cand.valid { continue; }
-        if is_amd {
-            if best_amd.as_ref().is_none_or(|b| cand.gfx_mhz > b.gfx_mhz || cand.temp_c > b.temp_c) {
-                best_amd = Some(cand.clone());
-            }
+        if is_amd && best_amd.as_ref().is_none_or(|b| cand.gfx_mhz > b.gfx_mhz || cand.temp_c > b.temp_c) {
+            best_amd = Some(cand.clone());
         }
         if best_any.as_ref().is_none_or(|b| cand.gfx_mhz > b.gfx_mhz || cand.temp_c > b.temp_c) {
             best_any = Some(cand);
