@@ -54,6 +54,7 @@ impl PowerPlayApp {
             self.oc_fan_rpm = [r1p.od_settings_min[3] as i32, r1p.od_settings_max[3] as i32];
             self.oc_fan_acoustic_rpm = [r1p.od_settings_min[4] as i32, r1p.od_settings_max[4] as i32];
             self.fan_acoustic_limit = r1p.fan_acoustic_rpm as i32;
+            self.fan_throttling_rpm = r1p.fan_throttling_rpm as i32;
             self.fan_target_gfx_clock = r1p.fan_target_gfx as i32;
             self.fan_zero_rpm_enable = r1p.fan_zero_rpm;
             self.static_volt_a[0] = r1p.curve_gfx[0] as f64;
