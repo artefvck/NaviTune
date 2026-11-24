@@ -5,13 +5,24 @@ use eframe::egui;
 
 impl PowerPlayApp {
     pub fn draw_advance_linux(&mut self, ui: &mut egui::Ui) {
-        let (dpm_gfx, gfxoff, baco) = (self.smu_features[1], self.smu_features[20], self.smu_features[21]);
+        let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
+        let is_gcn = arch.is_gcn_subtable();
+        let plat_caps = if is_gcn && self.raw_buffer.len() >= 0x17 {
+            u32::from_le_bytes([self.raw_buffer[0x13], self.raw_buffer[0x14], self.raw_buffer[0x15], self.raw_buffer[0x16]])
+        } else {
+            0
+        };
+        let (dpm_gfx, gfxoff, baco) = if is_gcn {
+            ((plat_caps & 1) != 0, false, (plat_caps & (1 << 21)) != 0)
+        } else {
+            (self.smu_features[1], self.smu_features[17], self.smu_features[18])
+        };
         let sel_lbl = self.gpus.get(self.selected_gpu).cloned().unwrap_or_default();
 
                     draw_card(ui, "Linux Status", |ui| {
                 egui::Grid::new("advance_linux_grid").num_columns(3).min_col_width(((ui.available_width() - 32.0) / 3.0).max(110.0)).striped(true).spacing([10.0, 6.0]).show(ui, |ui| {
                     ui.strong("Check"); ui.strong("State"); ui.strong("Linux Status"); ui.end_row();
-                    ui.label("DPM_GFXCLK");
+                    ui.label(if is_gcn { "POWER_CONTAINMENT" } else { "DPM_GFXCLK" });
                     ui.monospace(if dpm_gfx { "Enabled (1)" } else { "Disabled (0)" });
                     ui.colored_label(
                         if dpm_gfx { egui::Color32::from_rgb(80, 210, 120) } else { egui::Color32::from_rgb(245, 75, 95) },
