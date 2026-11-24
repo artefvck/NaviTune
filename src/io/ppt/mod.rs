@@ -298,6 +298,7 @@ impl PowerPlayApp {
         self.status_msg = format!("Loaded {} [{} | rev 0x{:02X}.{:02X} | {} B{}]", label, arch_label, frev, crev, b.len(), vbios_tag);
         self.baseline_buffer = b.clone();
             self.raw_buffer = b;
+            self.baseline_gen = self.baseline_gen.wrapping_add(1);
     }
 
     pub fn sync_fields_to_buffer(&mut self) {

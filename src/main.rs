@@ -90,12 +90,7 @@ impl eframe::App for PowerPlayApp {
         if let Some(rect) = ctx.input(|i| i.viewport().inner_rect) { crate::ui_theme::save_window_size(ctx, rect.size()); }
         ctx.data_mut(|d| {
             d.insert_temp(egui::Id::new("ppt_loaded"), !self.raw_buffer.is_empty());
-            let prev_lbl = d.get_temp::<String>(egui::Id::new("ppt_loaded_label")).unwrap_or_default();
-            if prev_lbl != self.status_msg {
-                d.insert_temp(egui::Id::new("ppt_loaded_label"), self.status_msg.clone());
-                let gen = d.get_temp::<u64>(egui::Id::new("ppt_baseline_gen")).unwrap_or(0).wrapping_add(1);
-                d.insert_temp(egui::Id::new("ppt_baseline_gen"), gen);
-            }
+            d.insert_temp(egui::Id::new("ppt_baseline_gen"), self.baseline_gen);
         });
         self.render_error_modal(ctx);
         if ctx.data_mut(|d| {
