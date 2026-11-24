@@ -99,13 +99,18 @@ impl PowerPlayApp {
 
         let mut open = self.show_save_diff_modal;
         let mut close_modal = false;
+        let vp_id = egui::ViewportId::from_hash_of("save_diff_external_viewport");
+        let builder = egui::ViewportBuilder::default()
+            .with_title("Pre-Save Binary Diff & Checksum Audit")
+            .with_inner_size([620.0, 420.0])
+            .with_min_inner_size([440.0, 280.0])
+            .with_resizable(true);
 
-        egui::Window::new("Pre-Save Binary Diff & Checksum Audit")
-            .open(&mut open)
-            .collapsible(false)
-            .resizable(true)
-            .default_size([560.0, 380.0])
-            .show(ctx, |ui| {
+        ctx.show_viewport_immediate(vp_id, builder, |vp_ctx, _class| {
+            if vp_ctx.input(|i| i.viewport().close_requested()) {
+                close_modal = true;
+            }
+            egui::CentralPanel::default().show(vp_ctx, |ui| {
                 ui.horizontal(|ui| {
                     ui.strong(format!("Modified Bytes: {}", diffs.len()));
                     if let Some((old_c, new_c)) = csum_preview {
@@ -203,6 +208,7 @@ impl PowerPlayApp {
                     }
                 });
             });
+        });
 
         if close_modal {
             open = false;
