@@ -2,7 +2,7 @@
 set -euo pipefail
 
 APP_NAME="NaviTune"
-BIN_NAME="pptool"
+BIN_NAME="navitune"
 TARGET="x86_64-unknown-linux-gnu"
 VERSION="$(grep -m1 '^version' Cargo.toml | cut -d '"' -f2)"
 DIST_DIR="dist"
@@ -34,12 +34,12 @@ Type=Application
 Name=NaviTune
 GenericName=RDNA 2 PowerPlay Table Editor
 Comment=Inspect, edit, validate, and export AMD RDNA 2 Soft PowerPlay Tables
-Exec=pptool
+Exec=navitune
 Icon=navitune
 Terminal=false
 Categories=System;Settings;HardwareSettings;Utility;
 Keywords=AMD;Radeon;RDNA2;PowerPlay;PPTable;VBIOS;GPU;
-StartupWMClass=pptool
+StartupWMClass=navitune
 DESKTOP
 
 TAR_PATH="${DIST_DIR}/${APP_NAME}-${VERSION}-Linux-x86_64.tar.gz"

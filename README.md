@@ -1,4 +1,4 @@
-# NaviTune (`pptool`)
+# NaviTune (`navitune`)
 
 Cross-platform desktop GUI and headless CLI tool for inspecting, auditing, and tuning AMD Radeon **PowerPlayTables (`PPTable`)** and **VBIOS ROMs** across **Polaris (`SMU 8.0`)**, **Vega 10 (`SMU 9.0`)**, **Vega 20 (`SMU 11.0`)**, **RDNA 1 (`V4_5`)**, **RDNA 2 (`V4_9`)**, and **RDNA 3 (`V4_12`)**.
 
@@ -10,7 +10,7 @@ Cross-platform desktop GUI and headless CLI tool for inspecting, auditing, and t
   - **macOS (Hackintosh / eGPU)**: Export OpenCore `DeviceProperties` `.plist` (`PP,PhmSoftPowerPlayTable`), copy Base64 or continuous no-space Hex (`ProperTree` / `OCC`), generate codeless injector `.kext` bundles, or compile ACPI `SSDT-sPPT.aml`.
   - **Windows**: Import/export MorePowerTool `.mpt` profiles and Windows Registry `.reg` (`PP_PhmSoftPowerPlayTable`) keys.
   - **Linux**: Read/write `amdgpu` `sysfs` `pp_table` overrides with `POWER_CONTAINMENT`, `DPM_GFXCLK`, `GFXOFF`, and `BACO` status checks.
-- **Headless CLI (`pptool`)**: Inspect, audit UI-vs-struct offset parity, diff two ROMs/tables, and apply calibrated presets (`quiet-undervolt`, `balanced-oc`, `auto-fix`) directly from the terminal.
+- **Headless CLI (`navitune`)**: Inspect, audit UI-vs-struct offset parity, diff two ROMs/tables, and apply calibrated presets (`quiet-undervolt`, `balanced-oc`, `auto-fix`) directly from the terminal.
 
 ## Quick Start
 
@@ -60,7 +60,7 @@ NaviTune/
 │   │   ├── rdna2.rs           # RDNA 2 V4_9 (Navi 21 / 22 / 23 / 24, 2470 B / 2690 B)
 │   │   ├── rdna3.rs           # RDNA 3 V4_12 (Navi 31 / 32 / 33, 5424 B)
 │   │   └── smu_features.rs    # SMU 11 / 13 FeaturesToRun bitmask definitions
-│   ├── cli/                   # Headless CLI subcommands (`pptool --inspect/--audit/--diff/--preset`)
+│   ├── cli/                   # Headless CLI subcommands (`navitune --inspect/--audit/--diff/--preset`)
 │   │   ├── mod.rs             # CLI argument router & unified file loader
 │   │   ├── inspect.rs         # `--inspect`, `--dump-all`, and `--help` output
 │   │   ├── audit.rs           # `--audit` parity checker & `--diff` field-resolved comparator

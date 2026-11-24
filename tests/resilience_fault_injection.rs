@@ -20,14 +20,14 @@ fn cli_inspect_handles_malformed_and_truncated_inputs_without_panic() {
     let rom_path = tmp.join("corrupt_offsets.rom");
     fs::write(&rom_path, &corrupt_rom).expect("write corrupt rom");
 
-    let bin = env!("CARGO_BIN_EXE_pptool");
+    let bin = env!("CARGO_BIN_EXE_navitune");
     for path in [&empty, &one_byte, &rom_path] {
         let out = Command::new(bin)
             .arg("--inspect")
             .arg(path)
             .output()
-            .expect("spawn pptool");
-        assert_ne!(out.status.code(), Some(101), "pptool panicked on {:?}", path);
+            .expect("spawn navitune");
+        assert_ne!(out.status.code(), Some(101), "navitune panicked on {:?}", path);
     }
 
     // Verify exporting into a non-existent nested directory fails cleanly without panic
@@ -38,8 +38,8 @@ fn cli_inspect_handles_malformed_and_truncated_inputs_without_panic() {
         .arg("--export-oc")
         .arg(&bad_export)
         .output()
-        .expect("spawn pptool export");
-    assert_ne!(out.status.code(), Some(101), "pptool panicked on invalid export target");
+        .expect("spawn navitune export");
+    assert_ne!(out.status.code(), Some(101), "navitune panicked on invalid export target");
 
     let _ = fs::remove_dir_all(&tmp);
 }
@@ -63,14 +63,14 @@ fn cli_handles_corrupt_plist_and_reg_imports_without_panic() {
     )
     .expect("write bad reg");
 
-    let bin = env!("CARGO_BIN_EXE_pptool");
+    let bin = env!("CARGO_BIN_EXE_navitune");
     for path in [&bad_plist, &bad_reg] {
         let out = Command::new(bin)
             .arg("--inspect")
             .arg(path)
             .output()
-            .expect("spawn pptool");
-        assert_ne!(out.status.code(), Some(101), "pptool panicked on {:?}", path);
+            .expect("spawn navitune");
+        assert_ne!(out.status.code(), Some(101), "navitune panicked on {:?}", path);
     }
 
     let _ = fs::remove_dir_all(&tmp);
@@ -86,13 +86,13 @@ fn cli_rejects_oversized_64mib_input_cleanly_without_panic() {
     f.set_len(65 * 1024 * 1024).expect("set_len 65 MiB");
     drop(f);
 
-    let bin = env!("CARGO_BIN_EXE_pptool");
+    let bin = env!("CARGO_BIN_EXE_navitune");
     let out = Command::new(bin)
         .arg("--inspect")
         .arg(&huge_path)
         .output()
-        .expect("spawn pptool on 65 MiB file");
-    assert_ne!(out.status.code(), Some(101), "pptool panicked on >64 MiB input");
+        .expect("spawn navitune on 65 MiB file");
+    assert_ne!(out.status.code(), Some(101), "navitune panicked on >64 MiB input");
 
     let _ = fs::remove_dir_all(&tmp);
 }
