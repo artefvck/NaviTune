@@ -381,10 +381,10 @@ fn test_core_voltage_offset_labels_all_six_architectures() {
     use ppt_arch::PptArch::*;
     assert_eq!(Polaris.core_voltage_offset_labels().0, "hard_limit_table_offset VDDC (mV)");
     assert_eq!(Vega10.core_voltage_offset_labels().0, "hard_limit_table_offset VDDC (mV)");
-    assert!(Vega20.core_voltage_offset_labels().0.contains("0x11F"));
-    assert!(Rdna1.core_voltage_offset_labels().1.contains("0x0BD"));
-    assert!(Rdna2.core_voltage_offset_labels().0.contains("0x378"));
-    assert!(Rdna3.core_voltage_offset_labels().1.contains("0x3C0"));
+    assert!(Vega20.core_voltage_offset_labels().0.contains("0x159"));
+    assert!(Rdna1.core_voltage_offset_labels().1.contains("0x0F5"));
+    assert!(Rdna2.core_voltage_offset_labels().0.contains("0x3A6"));
+    assert!(Rdna3.core_voltage_offset_labels().1.contains("0x3B8"));
 }
 
 #[test]
@@ -395,8 +395,8 @@ fn test_frequency_cards_all_six_architectures() {
     for arch in [Vega20, Rdna1, Rdna2, Rdna3] {
         assert_eq!(arch.has_pcie_and_lclk_limits(), arch.is_rdna2() || arch.is_rdna3());
     }
-    assert!(Vega20.clock_limit_offset_labels().0.contains("0x185"));
-    assert!(Rdna1.clock_limit_offset_labels().1.contains("0x12F"));
+    assert!(Vega20.clock_limit_offset_labels().0.contains("0x165"));
+    assert!(Rdna1.clock_limit_offset_labels().1.contains("0x13F"));
     assert!(Rdna2.clock_limit_offset_labels().2.contains("0x5D6"));
     assert!(Rdna3.clock_limit_offset_labels().0.contains("0x5EC"));
 }
@@ -427,8 +427,8 @@ fn test_fan_cards_all_six_architectures() {
     }
     assert!(Polaris.fan_offset_labels().0.contains("fan_table_offset"));
     assert!(Vega10.fan_offset_labels().3.contains("Stop/Start"));
-    assert!(Rdna2.fan_offset_labels().0.contains("0x8B8"));
-    assert!(Rdna3.fan_offset_labels().0.contains("0x1438"));
+    assert!(Rdna2.fan_offset_labels().0.contains("0x716"));
+    assert!(Rdna3.fan_offset_labels().0.contains("0x86C"));
 }
 
 #[test]
