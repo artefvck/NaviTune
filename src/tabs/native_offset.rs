@@ -14,11 +14,7 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<NativeStructEntr
         } else {
             ({t3.min_voltage_gfx} / 4, {t3.max_voltage_gfx} / 4)
         };
-        let (gfx_off, gfx_lo) = if t3.header.format_revision >= 0x16 && t3.freq_gfx_min < 500 && b.len() > 0x695 {
-            (0x694usize, u16::from_le_bytes([b[0x694], b[0x695]]))
-        } else {
-            (off3("freq_gfx"), {t3.freq_gfx_min})
-        };
+        let (gfx_off, gfx_lo) = t3.effective_gfx_min_offset_and_val(b);
         return Some(("RDNA 3 (V4_12)", vec![
             ("Header", "AtomCommonTableHeader", 0x000, 5, format!("size={}, rev=0x{:02X}.{:02X}.{:02X}", hdr_sz, frev, crev, trev)),
             ("OD8", "od_feature_flags[0..20]", off3("od_features"), 20, format!("{:?}", t3.od_feature_flags)),

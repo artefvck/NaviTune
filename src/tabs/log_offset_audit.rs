@@ -146,11 +146,7 @@ impl PowerPlayApp {
                     } else {
                         ((t.min_voltage_gfx / 4) as i32, (t.max_voltage_gfx / 4) as i32)
                     };
-                    let (gfx_min_off, gfx_min_val) = if t.header.format_revision >= 0x16 && t.freq_gfx_min < 500 && buf.len() > 0x695 {
-                        (0x694usize, u16::from_le_bytes([buf[0x694], buf[0x695]]) as i32)
-                    } else {
-                        (std::mem::offset_of!(AtomSmcDpmInfoV4_12, freq_gfx_min), t.freq_gfx_min as i32)
-                    };
+                    let (gfx_min_off, gfx_min_val) = t.effective_gfx_min_offset_and_val(buf);
                     push("OD Max GFX Clock (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_12, od_gfx_max), "u32", self.oc_gfx_clock[1], t.od_gfx_max as i32);
                     push("OD Max Mem Clock (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_12, od_mem_max), "u32", self.oc_mem_clock[1], t.od_mem_max as i32);
                     push("Socket Power Limit (W)", std::mem::offset_of!(AtomSmcDpmInfoV4_12, socket_power_limit_ac), "u16", self.power_limit_w, t.socket_power_limit_ac as i32);
