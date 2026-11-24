@@ -75,7 +75,8 @@ pub(super) fn cmd_diff(path_a: &str, path_b: &str, as_json: bool) -> Result<(), 
         for (off, old_b, new_b) in &entries {
             let o_s = old_b.map(|v| format!("0x{:02X}", v)).unwrap_or_else(|| "EOF".to_string());
             let n_s = new_b.map(|v| format!("0x{:02X}", v)).unwrap_or_else(|| "EOF".to_string());
-            println!("  +0x{:04X}: {} -> {}", off, o_s, n_s);
+            let fld = crate::ui::save_diff_modal::resolve_diff_field_name(&app_b.raw_buffer, *off);
+            println!("  +0x{:04X} ({:<30}): {} -> {}", off, fld, o_s, n_s);
         }
     }
     Ok(())
