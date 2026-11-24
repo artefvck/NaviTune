@@ -21,24 +21,31 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<NativeStructEntr
         };
         return Some(("RDNA 3 (V4_12)", vec![
             ("Header", "AtomCommonTableHeader", 0x000, 5, format!("size={}, rev=0x{:02X}.{:02X}.{:02X}", hdr_sz, frev, crev, trev)),
-            ("OD8", "od_feature_flags[0..16]", off3("od_features"), 16, format!("{:?}", &t3.od_feature_flags[..16])),
+            ("OD8", "od_feature_flags[0..20]", off3("od_features"), 20, format!("{:?}", t3.od_feature_flags)),
             ("OD8", "od_gfx_max / od_gfx_max_2", off3("od_gfx"), 8, format!("{} / {} MHz", {t3.od_gfx_max}, {t3.od_gfx_max_2})),
             ("OD8", "od_mem_max / od_mem_max_2", off3("od_mem"), 8, format!("{} / {} MHz", {t3.od_mem_max}, {t3.od_mem_max_2})),
-            ("OD8", "od_pwr_max", off3("od_pwr"), 4, format!("{} %", {t3.od_pwr_max})),
+            ("OD8", "od_pwr_max", off3("od_pwr"), 4, format!("+{} %", {t3.od_pwr_max})),
             ("OD8", "od_fan_max / od_acoustic_max", off3("od_fan"), 8, format!("{} / {} RPM", {t3.od_fan_max}, {t3.od_acoustic_max})),
             ("OD8", "od_temp_target / od_temp_max", off3("od_temp"), 8, format!("{} / {} °C", {t3.od_temp_target}, {t3.od_temp_max})),
             ("SMU", "smc_pptable_if_version", off3("smc_if_ver"), 4, format!("0x{:08X}", {t3.smc_pptable_if_version})),
             ("SMU", "features_to_run (u64)", off3("smu_features"), 8, format!("0x{:016X}", {t3.features_to_run})),
-            ("Power", "socket_power_limit_ac", off3("pwr_limit_w"), 2, format!("{} W", {t3.socket_power_limit_ac})),
-            ("Thermal", "temp_limit[0..5]", off3("temp_limit"), 10, format!("[{}, {}, {}, {}, {}] °C", {t3.temp_limit[0]}, {t3.temp_limit[1]}, {t3.temp_limit[2]}, {t3.temp_limit[3]}, {t3.temp_limit[4]})),
+            ("Power", "socket_power_limit_ac / ac_2", off3("pwr_limit_w"), 4, format!("{} / {} W", {t3.socket_power_limit_ac}, {t3.socket_power_limit_ac_2})),
+            ("Power", "tdc_limit_gfx / soc", off3("tdc_gfx"), 4, format!("{} A / {} A", {t3.tdc_limit_gfx}, {t3.tdc_limit_soc})),
+            ("Thermal", "temp_limit[0..9]", off3("temp_limit"), 18, format!("{:?} °C", {t3.temp_limit})),
             ("Voltage", "min/max_voltage_gfx", off3("volt_gfx"), 4, format!("{}..{} mV", vg_lo, vg_hi)),
             ("Voltage", "min/max_voltage_soc", off3("volt_soc"), 4, format!("{}..{} mV", {t3.min_voltage_soc} / 4, {t3.max_voltage_soc} / 4)),
+            ("Voltage", "ulv_voltage_vmin_gfx / soc", off3("ulv_gfx"), 4, format!("GFX={}mV, Soc={}mV", {t3.ulv_voltage_vmin_gfx} / 4, {t3.ulv_voltage_vmin_soc} / 4)),
             ("Clocks", "freq_gfx_min / max", gfx_off, 4, format!("{}..{} MHz", gfx_lo, {t3.freq_gfx_max})),
             ("Clocks", "freq_soc_max", off3("freq_soc"), 2, format!("{} MHz", {t3.freq_soc_max})),
             ("Clocks", "freq_fclk_min / max", off3("freq_fclk"), 4, format!("{}..{} MHz", {t3.freq_fclk_min}, {t3.freq_fclk_max})),
             ("Memory", "freq_uclk[0..3]", off3("mem_dpm_freq"), 8, format!("{:?} MHz", {t3.freq_uclk})),
-            ("Power", "tdc_limit_gfx / soc", off3("tdc_gfx"), 4, format!("{} A / {} A", {t3.tdc_limit_gfx}, {t3.tdc_limit_soc})),
-            ("Fan", "stop / start / target / zero", off3("fan_stop_temp"), 4, format!("Stop={}°C, Start={}°C, Target={}°C, MaxRPM={}, ZeroRPM={}", {t3.fan_stop_temp}, {t3.fan_start_temp}, { let tt = t3.fan_target_temp; if tt > 200 { tt / 10 } else { tt } }, {t3.fan_max_rpm}, {t3.fan_zero_rpm_enable})),
+            ("Memory", "mem_vddci[0..3]", off3("mem_dpm_volt"), 8, format!("DPM3={} mV", {t3.mem_vddci[3]} / 4)),
+            ("Memory", "mem_mvdd[0..3]", 0x7DC, 8, format!("DPM3={} mV", {t3.mem_mvdd[3]} / 4)),
+            ("PCIe", "pcie_gen / lanes / lclk", off3("pcie"), 12, format!("Gen {:?}, Lanes {:?}, LCLK {:?}", {t3.pcie_gen_speed}, {t3.pcie_lane_count}, {t3.lclk_freq})),
+            ("Fan", "fan_stop_temp", off3("fan_stop_temp"), 2, format!("{} °C", {t3.fan_stop_temp})),
+            ("Fan", "fan_start_temp", off3("fan_start_temp"), 2, format!("{} °C", {t3.fan_start_temp})),
+            ("Fan", "fan_throttle / pwm / acoustic / max", off3("fan_throttling"), 10, format!("Throttle={} RPM, PWM={}%, Ac={} RPM, Max={} RPM", {t3.fan_throttling_rpm}, {t3.fan_pwm_min}, {t3.fan_acoustic_limit}, {t3.fan_max_rpm})),
+            ("Fan", "fan_target_gfx / temp / zero_rpm", 0x876, 7, format!("TgtGFX={} MHz, Tgt={} °C, ZeroRPM={}", {t3.fan_target_gfx_clock}, { let tt = t3.fan_target_temp; if tt > 200 { tt / 10 } else { tt } }, {t3.fan_zero_rpm_enable})),
         ]));
     }
     if let Some(r1) = crate::pptable_rdna1::Rdna1ParsedState::parse(b) {
@@ -52,28 +59,47 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<NativeStructEntr
             ("SMU", "features_to_run (u64)", inn + 0x004, 8, format!("0x{:016X}", r1.smu_features)),
             ("Power", "power_limit_w / tdc_gfx / tdc_soc", inn + 0x00C, 38, format!("{} W | TDC GFX={} A, Soc={} A", r1.power_limit_w, r1.tdc_gfx, r1.tdc_soc)),
             ("Thermal", "temp_limit[0..9]", inn + 0x034, 18, format!("{:?} °C", r1.temp_limit)),
+            ("OD8", "od_settings_min[0..5]", 0x162, 48, format!("GFX={}, Mem={}, Pwr=-{}%, Fan={}, Ac={}", r1.od_settings_min[0], r1.od_settings_min[1], r1.od_settings_min[2], r1.od_settings_min[3], r1.od_settings_min[4])),
             ("Voltage", "ulv_vmin_gfx / soc", inn + 0x064, 4, format!("GFX={} mV, Soc={} mV", r1.ulv_vmin_gfx / 4, r1.ulv_vmin_soc / 4)),
-            ("Voltage", "min/max_voltage_gfx", inn + 0x068, 6, format!("{} .. {} mV", r1.min_volt_gfx / 4, r1.max_volt_gfx / 4)),
+            ("Voltage", "min/max_voltage_gfx / soc", inn + 0x068, 8, format!("GFX={}..{}mV, Soc={}..{}mV", r1.min_volt_gfx / 4, r1.max_volt_gfx / 4, r1.min_volt_soc / 4, r1.max_volt_soc / 4)),
+            ("Curve", "curve_gfx (a,b,c)", inn + 0x080, 12, format!("a={:.6}, b={:.6}, c={:.6}", r1.curve_gfx[0], r1.curve_gfx[1], r1.curve_gfx[2])),
             ("Clocks", "gfx_min / gfx_max", inn + 0x14C, 4, format!("{} .. {} MHz", r1.gfx_min, r1.gfx_max)),
+            ("Clocks", "soc_min / soc_max", inn + 0x16C, 4, format!("{} .. {} MHz", r1.soc_min, r1.soc_max)),
             ("Memory", "uclk_dpm[0..3]", inn + 0x19C, 8, format!("{:?} MHz", r1.uclk_dpm)),
+            ("Clocks", "fclk_min / fclk_max", inn + 0x1B4, 4, format!("{} .. {} MHz", r1.fclk_min, r1.fclk_max)),
+            ("Memory", "mem_vddci / mem_mvdd[0..3]", inn + 0x240, 16, format!("DPM3 VDDCI={}mV, MVDD={}mV", r1.mem_vddci[3] / 4, r1.mem_mvdd[3] / 4)),
             ("Fan", "fan_stop_temp / fan_start_temp", inn + 0x27C, 4, format!("Stop={} °C, Start={} °C", r1.fan_stop_temp, r1.fan_start_temp)),
             ("Fan", "fan_pwm_min / throttle / max / tgt", inn + 0x294, 16, format!("PWM {}%, Throttle {} RPM, Max {} RPM, Target {} °C, ZeroRPM={}", r1.fan_pwm_min, r1.fan_throttling_rpm, r1.fan_max_rpm, r1.fan_target_temp, r1.fan_zero_rpm)),
         ]));
     }
     if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(b) {
         let od_max = { t1.od_settings_max };
+        let od_min = { t1.od_settings_min };
         let od_flags = { t1.od_feature_flags };
         let ppt_ac = { t1.socket_power_limit_ac };
         let ft_gfx = { t1.freq_table_gfx };
+        let ft_soc = { t1.freq_table_socclk };
         let ft_uclk = { t1.freq_table_uclk };
+        let ft_fclk = { t1.freq_table_fclk };
+        let tl = { t1.temp_limit };
         return Some(("RDNA 1 (V4_5)", vec![
             ("Header", "AtomCommonTableHeader", 0x000, 5, format!("size={}, rev=0x{:02X}.{:02X}.{:02X}", hdr_sz, frev, crev, trev)),
-            ("OD8", "od_feature_flags[0..12]", 0x09B, 12, format!("{:?}", &od_flags[..12])),
             ("OD8", "od_settings_max[0..5]", 0x02F, 20, format!("GFX={}, Mem={}, Pwr=+{}%, Fan={}", od_max[0], od_max[1], od_max[2], od_max[3])),
-            ("Power", "socket_power_limit_ac / tdc", 0x0B7, 12, format!("PPT0={}W, TDC_GFX={}A, TDC_Soc={}A", ppt_ac[0], {t1.tdc_limit_gfx}, {t1.tdc_limit_soc})),
+            ("OD8", "od_settings_min[0..5]", 0x063, 20, format!("GFX={}, Mem={}, Pwr=-{}%, Fan={}", od_min[0], od_min[1], od_min[2], od_min[3])),
+            ("OD8", "od_feature_flags[0..16]", 0x09B, 16, format!("{:?}", od_flags)),
+            ("SMU", "features_to_run (u64)", 0x0AF, 8, format!("0x{:016X}", {t1.features_to_run})),
+            ("Power", "socket_power_limit_ac[0..3]", 0x0B7, 8, format!("{:?} W", ppt_ac)),
+            ("Power", "tdc_limit_gfx / soc", 0x0D7, 4, format!("{} A / {} A", {t1.tdc_limit_gfx}, {t1.tdc_limit_soc})),
+            ("Memory", "vddci_max / mvdd_max", 0x0DF, 4, format!("{} / {} mV", {t1.vddci_max}/4, {t1.mvdd_max}/4)),
+            ("Voltage", "min_voltage_ulv_gfx / soc", 0x0EF, 4, format!("GFX={}mV, Soc={}mV", {t1.min_voltage_ulv_gfx}/4, {t1.min_voltage_ulv_soc}/4)),
             ("Voltage", "GFX / Soc Vmin..Vmax", 0x0F3, 8, format!("GFX={}..{}mV, Soc={}..{}mV", {t1.min_voltage_gfx}/4, {t1.max_voltage_gfx}/4, {t1.min_voltage_soc}/4, {t1.max_voltage_soc}/4)),
-            ("Clocks", "freq_table_gfx / uclk", 0x0FF, 88, format!("GFX={}..{}MHz, UCLK_DPM3={}MHz", ft_gfx[0], ft_gfx[15], ft_uclk[3])),
-            ("Fan", "stop / start / target / zero", 0x679, 32, format!("Stop={}C, Start={}C, Target={}C, MaxRPM={}, ZeroRPM={}", {t1.fan_stop_temp}, {t1.fan_start_temp}, {t1.fan_target_temperature}, {t1.fan_maximum_rpm}, t1.fan_zero_rpm_enable)),
+            ("Clocks", "freq_table_gfx[0..15]", 0x0FF, 32, format!("{}..{} MHz", ft_gfx[0], ft_gfx[15])),
+            ("Clocks", "freq_table_socclk[0..7]", 0x13F, 16, format!("{}..{} MHz", ft_soc[0], ft_soc[7])),
+            ("Clocks", "freq_table_uclk[0..3]", 0x14F, 8, format!("{:?} MHz", ft_uclk)),
+            ("Clocks", "freq_table_fclk[0..7]", 0x197, 16, format!("{}..{} MHz", ft_fclk[0], ft_fclk[7])),
+            ("Thermal", "temp_limit[0..7]", 0x66B, 14, format!("{:?} °C", tl)),
+            ("Fan", "fan_stop_temp / fan_start_temp", 0x679, 4, format!("Stop={}°C, Start={}°C", {t1.fan_stop_temp}, {t1.fan_start_temp})),
+            ("Fan", "fan_pwm_min..zero_rpm", 0x68B, 14, format!("PWM={}%, MaxRPM={}, Tgt={}°C, ZeroRPM={}", {t1.fan_pwm_min}, {t1.fan_maximum_rpm}, {t1.fan_target_temperature}, t1.fan_zero_rpm_enable)),
         ]));
     }
     if b.len() == 1534 && frev == 0x0B {
@@ -90,12 +116,32 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<NativeStructEntr
     }
     if let Some(v20) = crate::pptable_vega::AtomVega20PowerPlayTable::from_bytes(b) {
         let od_max = { v20.od_settings_max };
+        let od_min = { v20.od_settings_min };
+        let od_flags = { v20.od_feature_flags };
         let ppt_ac = { v20.socket_power_limit_ac };
+        let ft_gfx = { v20.freq_table_gfx };
+        let ft_soc = { v20.freq_table_socclk };
+        let ft_uclk = { v20.freq_table_uclk };
+        let ft_fclk = { v20.freq_table_fclk };
+        let tl = { v20.temp_limit };
         return Some(("Vega 20 (0x0B)", vec![
             ("Header", "AtomCommonTableHeader", 0x000, 5, format!("size={}, rev=0x{:02X}.{:02X}.{:02X}", hdr_sz, frev, crev, trev)),
             ("OD8", "od_settings_max[0..4]", 0x055, 16, format!("GFX={}, Mem={}, Pwr=+{}%, Fan={}", od_max[0], od_max[1], od_max[2], od_max[3])),
-            ("Power", "socket_power_limit_ac / tdc", 0x11D, 12, format!("PPT0={}W, TDC_GFX={}A, TDC_Soc={}A", ppt_ac[0], {v20.tdc_limit_gfx}, {v20.tdc_limit_soc})),
+            ("OD8", "od_settings_min[0..4]", 0x0A9, 16, format!("GFX={}, Mem={}, Pwr=-{}%, Fan={}", od_min[0], od_min[1], od_min[2], od_min[3])),
+            ("OD8", "od_feature_flags[0..16]", 0x101, 16, format!("{:?}", od_flags)),
+            ("SMU", "features_to_run (u64)", 0x115, 8, format!("0x{:016X}", {v20.features_to_run})),
+            ("Power", "socket_power_limit_ac[0..3]", 0x11D, 8, format!("{:?} W", ppt_ac)),
+            ("Power", "tdc_limit_gfx / soc", 0x13D, 4, format!("{} A / {} A", {v20.tdc_limit_gfx}, {v20.tdc_limit_soc})),
+            ("Memory", "vddci_max / mvdd_max", 0x145, 4, format!("{} / {} mV", {v20.vddci_max}/4, {v20.mvdd_max}/4)),
+            ("Voltage", "min_voltage_ulv_gfx / soc", 0x155, 4, format!("GFX={}mV, Soc={}mV", {v20.min_voltage_ulv_gfx}/4, {v20.min_voltage_ulv_soc}/4)),
             ("Voltage", "GFX / Soc Vmin..Vmax", 0x159, 8, format!("GFX={}..{}mV, Soc={}..{}mV", {v20.min_voltage_gfx}/4, {v20.max_voltage_gfx}/4, {v20.min_voltage_soc}/4, {v20.max_voltage_soc}/4)),
+            ("Clocks", "freq_table_gfx[0..15]", 0x165, 32, format!("{}..{} MHz", ft_gfx[0], ft_gfx[15])),
+            ("Clocks", "freq_table_socclk[0..7]", 0x1A5, 16, format!("{}..{} MHz", ft_soc[0], ft_soc[7])),
+            ("Clocks", "freq_table_uclk[0..3]", 0x1B5, 8, format!("{:?} MHz", ft_uclk)),
+            ("Clocks", "freq_table_fclk[0..7]", 0x1FD, 16, format!("{}..{} MHz", ft_fclk[0], ft_fclk[7])),
+            ("Thermal", "temp_limit[0..7]", 0x655, 14, format!("{:?} °C", tl)),
+            ("Fan", "fan_stop_temp / fan_start_temp", 0x663, 4, format!("Stop={}°C, Start={}°C", {v20.fan_stop_temp}, {v20.fan_start_temp})),
+            ("Fan", "fan_pwm_min..zero_rpm", 0x675, 14, format!("PWM={}%, MaxRPM={}, Tgt={}°C, ZeroRPM={}", {v20.fan_pwm_min}, {v20.fan_maximum_rpm}, {v20.fan_target_temperature}, v20.fan_zero_rpm_enable)),
         ]));
     }
     if let Some(v10) = crate::pptable_vega::AtomVega10PowerPlayTable::from_bytes(b) {
