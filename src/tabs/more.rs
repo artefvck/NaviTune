@@ -25,11 +25,9 @@ impl PowerPlayApp {
 
         match sub {
             MoreSubTab::PowerThrottler => {
-                egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
-                    ui.columns(2, |cols| {
-                        self.render_more_power_settings_card(&mut cols[0]);
-                        self.render_more_throttler_card(&mut cols[1]);
-                    });
+                ui.columns(2, |cols| {
+                    self.render_more_power_settings_card(&mut cols[0]);
+                    self.render_more_throttler_card(&mut cols[1]);
                 });
             }
             MoreSubTab::SafeTune => self.draw_safe_tune_tab(ui),

@@ -44,6 +44,9 @@ impl PowerPlayApp {
                         vp_ctx.copy_text(hex_raw.clone());
                         self.status_msg = format!("Copied Raw No-Space Hex ({} chars)", hex_raw.len());
                     }
+                    if ui.button("Close").clicked() {
+                        self.show_opencore_copy_modal = false;
+                    }
                 });
                 ui.add_space(8.0);
                 ui.strong("Base64 (OpenCore <data>):");
