@@ -234,8 +234,12 @@ impl PowerPlayApp {
             r1p.fan_stop_temp = self.fan_stop_temp.max(0) as u16;
             r1p.fan_start_temp = self.fan_start_temp.max(0) as u16;
             r1p.fan_pwm_min = self.fan_pwm_min.max(0) as u16;
+            r1p.fan_acoustic_rpm = self.fan_acoustic_limit.max(0) as u16;
+            r1p.fan_throttling_rpm = self.fan_throttling_rpm.max(0) as u16;
             r1p.fan_max_rpm = self.fan_max_rpm.max(0) as u16;
             r1p.fan_target_temp = self.fan_target_temp.max(0) as u16;
+            r1p.fan_target_gfx = self.fan_target_gfx_clock.max(0) as u16;
+            r1p.fan_zero_rpm = self.fan_zero_rpm_enable;
             r1p.od_settings_min = [
                 self.oc_gfx_clock[0].max(0) as u32,
                 self.oc_mem_clock[0].max(0) as u32,
