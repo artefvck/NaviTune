@@ -271,7 +271,7 @@ pub fn inspect_vbios_info(buf: &[u8], ppt_offset: usize) -> Option<VbiosInfo> {
     let mut rsa_sig_offset = None;
     let mut rsa_sig_size = None;
 
-    for off in (0..buf.len().saturating_sub(16)).step_by(4) {
+    for off in 0..buf.len().saturating_sub(16) {
         if buf.get(off..off + 4) == Some(b"$PSP") {
             psp_dir_offset = Some(off);
             let count = read_u32(buf, off + 8).unwrap_or(0) as usize;
