@@ -128,9 +128,13 @@ impl eframe::App for PowerPlayApp {
                 }
                 ui.horizontal(|ui| {
                     if !self.raw_buffer.is_empty() && footer_arch != crate::ppt_arch::PptArch::Unknown {
+                        let did_str = self.vbios_buffer.as_deref()
+                            .and_then(|vb| crate::vbios::inspect_vbios_info(vb, self.vbios_ppt_offset.unwrap_or(0)))
+                            .map(|vi| format!(" · DID 0x{:04X}", vi.device_id))
+                            .unwrap_or_default();
                         ui.colored_label(
                             egui::Color32::from_rgb(95, 200, 145),
-                            egui::RichText::new(format!("{} · {} ({} B)", footer_arch.label(), footer_arch.smu_generation(), self.raw_buffer.len())).small(),
+                            egui::RichText::new(format!("{} · {} ({} B){}", footer_arch.label(), footer_arch.smu_generation(), self.raw_buffer.len(), did_str)).small(),
                         );
                     } else if !self.raw_buffer.is_empty() {
                         ui.colored_label(egui::Color32::from_rgb(245, 185, 65), egui::RichText::new(format!("Unknown Table ({} B)", self.raw_buffer.len())).small());
