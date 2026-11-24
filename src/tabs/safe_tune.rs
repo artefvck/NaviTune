@@ -43,7 +43,7 @@ impl PowerPlayApp {
             match chip1 {
                 crate::pptable_rdna1::NaviRDNA1Chip::Navi10 => (chip1.display_name(), false, 1200, 1200, 150, 225, 210, 32, 950, 95, 1250, 1150, 16),
                 crate::pptable_rdna1::NaviRDNA1Chip::Navi12 => (chip1.display_name(), false, 1150, 1150, 85, 150, 140, 28, 900, 95, 1400, 1100, 16),
-                crate::pptable_rdna1::NaviRDNA1Chip::Navi14 => (chip1.display_name(), false, 1150, 1150, 50, 130, 125, 24, 900, 95, 1400, 1100, 8),
+                crate::pptable_rdna1::NaviRDNA1Chip::Navi14 => (chip1.display_name(), false, 1150, 1150, 50, 135, 135, 24, 900, 95, 1250, 1100, 8),
                 crate::pptable_rdna1::NaviRDNA1Chip::UnknownRdna1 => (chip1.display_name(), false, 1200, 1200, 50, 225, 210, 32, 950, 95, 1400, 1100, 16),
             }
         } else if matches!(crate::ppt_arch::PptArch::detect(&self.raw_buffer), crate::ppt_arch::PptArch::Vega10 | crate::ppt_arch::PptArch::Vega20) {
@@ -110,7 +110,7 @@ impl PowerPlayApp {
         let has_zrpm = self.fan_stop_temp > 0 || self.fan_start_temp > 0;
         let rpm_inv = self.fan_max_rpm > 0 && (self.fan_throttling_rpm > self.fan_max_rpm || self.fan_acoustic_limit > self.fan_max_rpm);
         let rpm_warn = self.fan_throttling_rpm > 0 && self.fan_acoustic_limit > self.fan_throttling_rpm;
-        let (safe_edge, safe_hot, safe_mem) = if is_rdna3 { (110, 110, 108) } else { (100, 110, 105) };
+        let (safe_edge, safe_hot, safe_mem) = if is_rdna3 { (110, 110, 108) } else if crate::ppt_arch::PptArch::detect(&self.raw_buffer).is_rdna1() { (110, 110, 105) } else { (100, 110, 105) };
         let temp_risk = edge_lim > safe_edge + 5 || hotspot_lim > safe_hot + 5 || mem_lim > safe_mem + 5;
         let temp_warn = edge_lim > safe_edge || hotspot_lim > safe_hot || mem_lim > safe_mem;
         let fan_sev = if rpm_inv || (has_zrpm && (self.fan_stop_temp >= self.fan_start_temp || (self.fan_target_temp >= 45 && self.fan_start_temp >= self.fan_target_temp))) || temp_risk { 2 } else if rpm_warn || self.fan_target_temp > max_fan_tgt || self.fan_pwm_min < 10 || temp_warn { 1 } else { 0 };

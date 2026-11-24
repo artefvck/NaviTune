@@ -156,7 +156,7 @@ impl PowerPlayApp {
                         self.fan_start_temp = (self.fan_target_temp - 5).max(self.fan_stop_temp + 2);
                     }
                 }
-                let (safe_edge, safe_hot, safe_mem) = if arch.is_rdna3() { (110, 110, 108) } else { (100, 110, 105) };
+                let (safe_edge, safe_hot, safe_mem) = if arch.is_rdna3() { (110, 110, 108) } else if arch.is_rdna1() { (110, 110, 105) } else { (100, 110, 105) };
                 if self.temp_limits[0] > safe_edge {
                     self.temp_limits[0] = safe_edge;
                 }
@@ -246,7 +246,7 @@ mod safe_presets_bounds_tests {
         app.fan_stop_temp = 65;
         app.fan_start_temp = 60;
         app.fan_target_temp = 90;
-        app.temp_limits[0] = 112;
+        app.temp_limits[0] = 118;
         app.temp_limits[1] = 122;
         app.temp_limits[2] = 115;
 
@@ -254,7 +254,7 @@ mod safe_presets_bounds_tests {
         assert_eq!(app.fan_throttling_rpm, 2800);
         assert!(app.fan_stop_temp < app.fan_start_temp);
         assert!(app.fan_start_temp < app.fan_target_temp);
-        assert_eq!(app.temp_limits[0], 100);
+        assert_eq!(app.temp_limits[0], 110);
         assert_eq!(app.temp_limits[1], 110);
         assert_eq!(app.temp_limits[2], 105);
 
