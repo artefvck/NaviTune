@@ -62,6 +62,7 @@ impl PowerPlayApp {
                 }
                 if caps.supports_zero_rpm && self.fan_start_temp > 0 {
                     self.fan_zero_rpm_enable = true;
+                    self.zero_rpm = true;
                 }
                 self.status_msg = format!("Applied Quiet Undervolt preset ({:?})", arch);
             }
@@ -139,6 +140,34 @@ impl PowerPlayApp {
                 if self.fan_target_temp > caps.fan_cap {
                     self.fan_target_temp = caps.fan_cap;
                 }
+                if self.fan_max_rpm > 0 {
+                    if self.fan_throttling_rpm > self.fan_max_rpm {
+                        self.fan_throttling_rpm = self.fan_max_rpm;
+                    }
+                    if self.fan_acoustic_limit > self.fan_max_rpm {
+                        self.fan_acoustic_limit = self.fan_max_rpm;
+                    }
+                }
+                if self.fan_stop_temp > 0 || self.fan_start_temp > 0 {
+                    if self.fan_stop_temp >= self.fan_start_temp {
+                        self.fan_stop_temp = (self.fan_start_temp - 5).max(25);
+                    }
+                    if self.fan_target_temp >= 45 && self.fan_start_temp >= self.fan_target_temp {
+                        self.fan_start_temp = (self.fan_target_temp - 5).max(self.fan_stop_temp + 2);
+                    }
+                }
+                if self.temp_limits[0] > 100 {
+                    self.temp_limits[0] = 100;
+                }
+                if self.temp_limits[1] > 110 {
+                    self.temp_limits[1] = 110;
+                }
+                if self.temp_limits[2] > 105 {
+                    self.temp_limits[2] = 105;
+                }
+                if self.oc_power_limit[1] > 20 {
+                    self.oc_power_limit[1] = 20;
+                }
                 self.status_msg = format!("Auto-fixed out-of-range tunables ({:?})", arch);
             }
         }
@@ -184,5 +213,40 @@ mod safe_presets_bounds_tests {
                 assert!(app.volt_gfx.first() <= app.volt_gfx.last());
             }
         }
+    }
+
+    #[test]
+    fn rdna1_1674b_presets_and_autofix_repair_thermal_and_fan_risks() {
+        let mut app = PowerPlayApp::default();
+        let mut buf = vec![0u8; 1674];
+        buf[0..2].copy_from_slice(&1674u16.to_le_bytes());
+        buf[2] = 0x0C;
+        buf[5..7].copy_from_slice(&0x01E2u16.to_le_bytes());
+        app.raw_buffer = buf.clone();
+        app.baseline_buffer = buf;
+        app.freq_gfx = [800, 1950];
+        app.oc_gfx_clock = [800, 2100];
+        app.volt_gfx = [750, 1180];
+        app.power_limit_w = 240;
+        app.fan_max_rpm = 2800;
+        app.fan_throttling_rpm = 3400;
+        app.fan_stop_temp = 65;
+        app.fan_start_temp = 60;
+        app.fan_target_temp = 90;
+        app.temp_limits[0] = 112;
+        app.temp_limits[1] = 122;
+        app.temp_limits[2] = 115;
+
+        app.apply_safe_preset(SafePresetKind::AutoFixRisks);
+        assert_eq!(app.fan_throttling_rpm, 2800);
+        assert!(app.fan_stop_temp < app.fan_start_temp);
+        assert!(app.fan_start_temp < app.fan_target_temp);
+        assert_eq!(app.temp_limits[0], 100);
+        assert_eq!(app.temp_limits[1], 110);
+        assert_eq!(app.temp_limits[2], 105);
+
+        app.apply_safe_preset(SafePresetKind::QuietUndervolt);
+        assert!(app.fan_zero_rpm_enable);
+        assert!(app.zero_rpm);
     }
 }

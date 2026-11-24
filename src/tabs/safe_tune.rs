@@ -100,17 +100,23 @@ impl PowerPlayApp {
         }
         checks.push(("Memory", "VDDCI / MVDD DPM 0..3", format!("DPM3: {} / {} mV", self.mem_dpm_volt.iter().map(|d| d[0]).max().unwrap_or(0), self.mem_dpm_volt.iter().map(|d| d[1]).max().unwrap_or(0)), "VDDCI <= MVDD <= 1365 mV".to_string(), mem_v_sev, "Factory DPM3 is 800..850 mV VDDCI / 1350 mV MVDD; keep MVDD <= 1365 mV on air."));
 
+        let edge_lim = self.temp_limits[0];
         let hotspot_lim = self.temp_limits[1];
+        let mem_lim = self.temp_limits[2];
         let has_zrpm = self.fan_stop_temp > 0 || self.fan_start_temp > 0;
-        let fan_sev = if (has_zrpm && (self.fan_stop_temp >= self.fan_start_temp || (self.fan_target_temp >= 45 && self.fan_start_temp >= self.fan_target_temp))) || hotspot_lim > 115 { 2 } else if self.fan_target_temp > max_fan_tgt || self.fan_pwm_min < 10 || hotspot_lim > 110 { 1 } else { 0 };
-        checks.push(("Thermal", "Fan & Hotspot Limits", format!("Stop {}° / Start {}° / Tgt {}° | Hotspot {}°C", self.fan_stop_temp, self.fan_start_temp, self.fan_target_temp, hotspot_lim), format!("Stop < Start < Tgt <= {}° | Hotspot <= 110°C", max_fan_tgt), fan_sev, "Ensures smooth Zero-RPM hysteresis and safe Junction/Hotspot throttling margin."));
+        let rpm_inv = self.fan_max_rpm > 0 && (self.fan_throttling_rpm > self.fan_max_rpm || self.fan_acoustic_limit > self.fan_max_rpm);
+        let rpm_warn = self.fan_throttling_rpm > 0 && self.fan_acoustic_limit > self.fan_throttling_rpm;
+        let temp_risk = edge_lim > 105 || hotspot_lim > 115 || mem_lim > 110;
+        let temp_warn = edge_lim > 100 || hotspot_lim > 110 || mem_lim > 105;
+        let fan_sev = if rpm_inv || (has_zrpm && (self.fan_stop_temp >= self.fan_start_temp || (self.fan_target_temp >= 45 && self.fan_start_temp >= self.fan_target_temp))) || temp_risk { 2 } else if rpm_warn || self.fan_target_temp > max_fan_tgt || self.fan_pwm_min < 10 || temp_warn { 1 } else { 0 };
+        checks.push(("Thermal", "Fan & TempLimits (Edge/Hot/Mem)", format!("Tgt {}° ({}/{} RPM) | {}/{}/{}°C", self.fan_target_temp, self.fan_throttling_rpm, self.fan_max_rpm, edge_lim, hotspot_lim, mem_lim), format!("Tgt <= {}°, Throttle <= Max RPM | <= 100/110/105°C", max_fan_tgt), fan_sev, "Validates Zero-RPM hysteresis, Throttling/Max fan RPM ordering, and TempLimit[0..2] (Edge/Hotspot/Mem)."));
 
         let od_pwr_sev = if self.oc_power_limit[0] > self.oc_power_limit[1] || self.oc_power_limit[1] > 30 { 2 } else if self.oc_power_limit[0] < -10 || self.oc_power_limit[1] > 20 { 1 } else { 0 };
         checks.push(("OverDrive", "OD Power Slider (%)", format!("{}% .. +{}%", self.oc_power_limit[0], self.oc_power_limit[1]), "-6% .. +20% (Factory Range)".to_string(), od_pwr_sev, "Standard AMD OverDrive power slider allows up to +15%..+20% around socket PPT."));
 
         let fclk_sev = if self.freq_fclk[0] > self.freq_fclk[1] || self.freq_soc[0] > self.freq_soc[1] { 2 } else if self.freq_fclk[1] < min_fclk || self.freq_soc[1] < min_soc { 1 } else { 0 };
         if !is_gcn {
-        if !is_gcn && (self.freq_fclk[1] > 0 || self.freq_soc[1] > 0) {
+        if self.freq_fclk[1] > 0 || self.freq_soc[1] > 0 {
         checks.push(("Fabric", "FCLK & SoC Max Coupling", format!("FCLK {} MHz | SoC {} MHz", self.freq_fclk[1], self.freq_soc[1]), format!("FCLK >= {} MHz | SoC >= {} MHz", min_fclk, min_soc), fclk_sev, "Factory RDNA 2 runs ~1800 MHz FCLK; factory RDNA 3 runs ~1500 MHz FCLK / 2400+ MHz SoC."));
         }
 

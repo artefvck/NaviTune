@@ -115,6 +115,18 @@ pub fn try_run_cli() -> bool {
             }
             true
         }
+        "--audit" => {
+            let is_json = args.iter().skip(1).any(|a| a == "--json");
+            let Some(path) = args.iter().skip(1).find(|a| a.as_str() != "--json") else {
+                eprintln!("Usage: pptool --audit <file.rom|file.bin> [--json]");
+                std::process::exit(2);
+            };
+            if let Err(e) = cmd_audit(path, is_json) {
+                eprintln!("Error: {}", e);
+                std::process::exit(1);
+            }
+            true
+        }
         _ => false,
     }
 }
