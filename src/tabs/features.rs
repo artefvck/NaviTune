@@ -181,6 +181,12 @@ impl PowerPlayApp {
                                 egui::Color32::from_rgb(95, 200, 145),
                                 egui::RichText::new(t3.detect_chip(did).display_name()).strong(),
                             );
+                        } else if let Some(r1) = crate::pptable_rdna1::Rdna1ParsedState::parse(&self.raw_buffer) {
+                            let chip1 = crate::pptable_rdna1::NaviRDNA1Chip::from_did_and_clock(did, r1.od_settings_max[0]);
+                            ui.colored_label(
+                                egui::Color32::from_rgb(95, 200, 145),
+                                egui::RichText::new(chip1.display_name()).strong(),
+                            );
                         } else if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(&self.raw_buffer) {
                             ui.colored_label(
                                 egui::Color32::from_rgb(95, 200, 145),
@@ -317,9 +323,22 @@ impl PowerPlayApp {
                         }
 
                         ui.label("Header Verification:");
-                        let hdr_info = if let Some(t3) = crate::pptable_rdna3::AtomSmcDpmInfoV4_12::from_bytes(&self.raw_buffer) {
-                            Some(("V4_12", { t3.header.structure_size }, { t3.header.format_revision }, { t3.header.content_revision }, { t3.header.table_revision }))
-                        } else { crate::pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer).map(|t| ("V4_9", { t.header.structure_size }, { t.header.format_revision }, { t.header.content_revision }, { t.table_revision })) };
+                        let hdr_info = if self.raw_buffer.len() >= 5 && arch != crate::ppt_arch::PptArch::Unknown {
+                            let sz = u16::from_le_bytes([self.raw_buffer[0], self.raw_buffer[1]]);
+                            let ver = match arch {
+                                crate::ppt_arch::PptArch::Rdna3 => "V4_12",
+                                crate::ppt_arch::PptArch::Rdna2 => "V4_9",
+                                crate::ppt_arch::PptArch::Rdna1 if self.raw_buffer.len() < 1924 => "RDNA1_1674B",
+                                crate::ppt_arch::PptArch::Rdna1 => "V4_5",
+                                crate::ppt_arch::PptArch::Vega20 => "SMU11_V20",
+                                crate::ppt_arch::PptArch::Vega10 => "SMU9_V10",
+                                crate::ppt_arch::PptArch::Polaris => "SMU8_POL",
+                                crate::ppt_arch::PptArch::Unknown => "UNK",
+                            };
+                            Some((ver, sz, self.raw_buffer[2], self.raw_buffer[3], self.raw_buffer[4]))
+                        } else {
+                            None
+                        };
                         if let Some((ver, sz, fmt_rev, cnt_rev, tbl_rev)) = hdr_info {
                             let ok = sz as usize == self.raw_buffer.len();
                             let msg = format!(
