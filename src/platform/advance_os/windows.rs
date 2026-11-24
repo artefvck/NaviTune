@@ -35,7 +35,7 @@ fn resolve_windows_amd_subkey(selected_label: &str) -> String {
         }
         let txt = String::from_utf8_lossy(&out.stdout).to_ascii_uppercase();
         if txt.contains("VEN_1002") {
-            if txt.contains("DEV_73") || txt.contains("DEV_74") {
+            if txt.contains("DEV_73") || txt.contains("DEV_74") || txt.contains("DEV_67") || txt.contains("DEV_68") || txt.contains("DEV_66") {
                 return sub;
             }
             if first_amd.is_none() {
@@ -526,3 +526,30 @@ DefinitionBlock ("", "SSDT", 2, "XPPT", "AMDPPT", 0x00001000)
     )
 }
 
+
+#[cfg(test)]
+mod advance_os_export_tests {
+    use super::{export_macos_injector_kext, format_opencore_acpi_dsl};
+
+    #[test]
+    fn macos_kext_and_acpi_dsl_support_rdna1_1674b() {
+        let mut ppt = vec![0u8; 1674];
+        ppt[0..2].copy_from_slice(&1674u16.to_le_bytes());
+        ppt[2] = 0x0C;
+        ppt[5..7].copy_from_slice(&0x01E2u16.to_le_bytes());
+
+        let dsl = format_opencore_acpi_dsl(&ppt, "_SB.PCI0.PEG0.PEGP.GFX0", true, true);
+        assert!(dsl.contains("RDNA 1"));
+        assert!(dsl.contains("Buffer (0x068A)"));
+        assert!(dsl.contains("External (_SB_.PCI0.PEG0.PEGP.GFX0, DeviceObj)"));
+
+        let kext_dir = std::env::temp_dir().join(format!("NaviTuneTest_{}.kext", std::process::id()));
+        let _ = std::fs::remove_dir_all(&kext_dir);
+        let res = export_macos_injector_kext(&ppt, &kext_dir);
+        assert!(res.is_ok(), "kext export failed: {:?}", res);
+        let plist = std::fs::read_to_string(kext_dir.join("Contents/Info.plist")).expect("read Info.plist");
+        let _ = std::fs::remove_dir_all(&kext_dir);
+        assert!(plist.contains("0x73411002"));
+        assert!(plist.contains("0x73401002"));
+    }
+}
