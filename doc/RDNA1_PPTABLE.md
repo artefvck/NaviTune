@@ -41,4 +41,7 @@ Verified directly against `src/pptable_rdna1.rs` (`AtomSmcDpmInfoV4_5`, RX 5500 
 | `0x1E2 + 0x068` | `min_voltage_gfx` / `max_voltage_gfx` (`mV * 4`) | `u16` |
 | `0x1E2 + 0x14C` | `freq_gfx_min` / `freq_gfx_max` | `u16` |
 | `0x1E2 + 0x19C` | `freq_table_uclk` (`DPM 0..3`) | `[u16; 4]` |
-| `0x1E2 + 0x294` | `fan_pwm_min` / `fan_acoustic_rpm` / `fan_max_rpm` | `u16` |
+| `0x11A` / `0x11E` / `0x122` | `od_mem_timing_ctrl` / `od_pwr_mode_ctrl` / `od_zero_rpm_ctrl` | `u32` |
+
+| `0x1E2 + 0x034..0x046` | `temp_limit[0..9]` (`Edge` -> `Liquid1`) | `[u16; 9]` |
+| `0x1E2 + 0x294` | `fan_pwm_min` / `fan_acoustic_rpm` / `fan_throttling_rpm` / `fan_max_rpm` | `u16` |
