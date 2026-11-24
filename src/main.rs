@@ -176,6 +176,45 @@ impl eframe::App for PowerPlayApp {
                     if ui.add_enabled(!self.raw_buffer.is_empty(), egui::Button::new(diff_lbl).min_size(egui::vec2(96.0, 25.0))).clicked() {
                         self.show_save_diff_modal = true;
                     }
+                    ui.add_enabled_ui(!self.raw_buffer.is_empty(), |ui| {
+                        ui.menu_button("Quick Export ▾", |ui| {
+                            if ui.button("OpenCore DeviceProperties (.plist)").clicked() {
+                                self.sync_fields_to_buffer();
+                                let sel_lbl = self.gpus.get(self.selected_gpu).cloned().unwrap_or_default();
+                                if let Some(path) = rfd::FileDialog::new()
+                                    .set_file_name("DeviceProperties.plist")
+                                    .add_filter("OpenCore Property List (*.plist)", &["plist"])
+                                    .save_file()
+                                {
+                                    let acpi_path = crate::advance_os::detect_live_acpi_gpu_path(&sel_lbl);
+                                    let plist = crate::export_formats::format_opencore_plist_with_key(&self.raw_buffer, &acpi_path, "PP,PhmSoftPowerPlayTable");
+                                    match std::fs::write(&path, plist) {
+                                        Ok(_) => self.status_msg = format!("Exported {} ({})", path.file_name().unwrap_or_default().to_string_lossy(), acpi_path),
+                                        Err(e) => self.show_error("OpenCore .plist Export Error", &e.to_string()),
+                                    }
+                                }
+                                ui.close_menu();
+                            }
+                            if ui.button("macOS Injector (.kext)").clicked() {
+                                self.sync_fields_to_buffer();
+                                if let Some(path) = rfd::FileDialog::new()
+                                    .set_file_name("RadeonPowerPlayInjector.kext")
+                                    .save_file()
+                                {
+                                    match crate::advance_os::export_macos_injector_kext(&self.raw_buffer, &path) {
+                                        Ok(msg) => self.status_msg = msg,
+                                        Err(err) => self.show_error("Injector .kext Export Error", &err),
+                                    }
+                                }
+                                ui.close_menu();
+                            }
+                            if ui.button("Copy Base64 / Hex Raw...").clicked() {
+                                self.sync_fields_to_buffer();
+                                self.show_opencore_copy_modal = true;
+                                ui.close_menu();
+                            }
+                        });
+                    });
                     if ui.add_sized([82.0, 25.0], egui::Button::new("Reset All")).clicked() {
                         self.reset_all_values();
                     }
@@ -446,9 +485,16 @@ fn draw_tracked_drag<Num: egui::emath::Numeric + PartialEq + Copy + Send + Sync 
             };
             ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("hovered_field_banner"), info_text.clone()));
             let tip = if modified {
-                format!("{}\nFactory default: {:.4}", info_text, base_val.to_f64())
+                let cur_f = val.to_f64();
+                let base_f = base_val.to_f64();
+                let delta = cur_f - base_f;
+                if fixed_decimals.is_some() {
+                    format!("{}\nCurrent: {:.6}  |  Factory: {:.6}  ({:+.6})", info_text, cur_f, base_f, delta)
+                } else {
+                    format!("{}\nCurrent: {:.0}{}  |  Factory: {:.0}{}  ({:+.0}{})", info_text, cur_f, unit_suffix, base_f, unit_suffix, delta, unit_suffix)
+                }
             } else {
-                info_text
+                format!("{}\nFactory default (unmodified)", info_text)
             };
             resp.on_hover_text(tip);
         }
