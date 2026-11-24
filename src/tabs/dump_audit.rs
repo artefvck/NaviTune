@@ -1,31 +1,6 @@
 use crate::PowerPlayApp;
 
 impl PowerPlayApp {
-    pub(crate) fn dump_audit_to_debug_log(&mut self) {
-        self.sync_fields_to_buffer();
-        let mut dump = format!(
-            "=== FULL PPTABLE SNAPSHOT ({} bytes, source={}) ===\n",
-            self.raw_buffer.len(),
-            self.status_msg
-        );
-        dump.push_str(&format!(
-            "GFX Clock: {:?} MHz | MEM Clock: {:?} MHz | Power: {} W | TDC GFX/Soc: {}/{} A\n",
-            self.freq_gfx, self.freq_soc, self.power_limit_w, self.tdc_gfx, self.tdc_soc
-        ));
-        dump.push_str(&format!(
-            "Volt GFX: {:?} mV | Volt Soc: {:?} mV | TVmin GFX/Soc: {:?}/{:?} | Vmin LH GFX/Soc: {:?}/{:?}\n",
-            self.volt_gfx, self.volt_soc, self.tvmin_gfx, self.tvmin_soc, self.vmin_lh_gfx, self.vmin_lh_soc
-        ));
-        for (i, chunk) in self.raw_buffer.chunks(16).enumerate() {
-            let hex: Vec<String> = chunk.iter().map(|b| format!("{:02X}", b)).collect();
-            dump.push_str(&format!("0x{:04X}: {}\n", i * 16, hex.join(" ")));
-        }
-        crate::ui_theme::log_debug("SNAPSHOT", &dump);
-        if let Some(lp) = crate::ui_theme::debug_log_path() {
-            self.status_msg = format!("Dumped full audit & hex snapshot to {}", lp.display());
-        }
-    }
-
     pub(crate) fn format_inspect_report(&self, source_label: &str) -> String {
         use std::fmt::Write;
         let mut out = String::new();
