@@ -25,102 +25,68 @@ impl PowerPlayApp {
         };
 
         let ctx = ctx.clone();
+        let draw_od_item = |ui: &mut egui::Ui, flag: &mut bool, lbl: &str, tag: &str| {
+            let base_id = egui::Id::new(("od_feat_base", gen, tag));
+            let base_val = ctx.data_mut(|d| {
+                if let Some(v) = d.get_temp::<bool>(base_id) { v } else { d.insert_temp(base_id, *flag); *flag }
+            });
+            ui.horizontal(|ui| {
+                let resp = crate::ui_theme::green_checkbox(ui, flag, lbl);
+                if resp.changed() {
+                    ctx.data_mut(|d| d.insert_temp(egui::Id::new("ppt_dirty"), true));
+                }
+                if *flag != base_val {
+                    ui.colored_label(egui::Color32::from_rgb(240, 70, 90), "●");
+                }
+                if resp.hovered() || resp.clicked() {
+                    let state = if *flag { "Enabled" } else { "Disabled" };
+                    let def_str = if base_val { "Enabled" } else { "Disabled" };
+                    let info = if *flag != base_val {
+                        format!("{} › {} ({}) · {} (Factory: {})", card_title, lbl, tag, state, def_str)
+                    } else {
+                        format!("{} › {} ({}) · {}", card_title, lbl, tag, state)
+                    };
+                    ctx.data_mut(|d| d.insert_temp(egui::Id::new("hovered_field_banner"), info.clone()));
+                    resp.on_hover_text(info);
+                }
+            });
+        };
+
         crate::card_layout::draw_card(ui, card_title, |ui| {
-            if !loaded {
-                ui.disable();
-            }
+            if !loaded { ui.disable(); }
+            let is_gcn = arch.is_gcn_subtable();
+            let mut items: Vec<(&mut bool, &str, &str, bool)> = vec![
+                (&mut self.gpu_clock_limit, "GPU Clock Limit", "od_feat_0", true),
+                (&mut self.gpu_clock_curve, "GPU Clock Curve", "od_feat_1", !is_gcn),
+                (&mut self.memory_clock_limit, "Memory Clock Limit", "od_feat_2", true),
+                (&mut self.zero_rpm, "Zero RPM", "od_feat_3", arch != crate::ppt_arch::PptArch::Polaris),
+                (&mut self.min_fan_speed, "Minimum Fan Speed", "od_feat_4", true),
+                (&mut self.fan_target_temp_limit, "Fan Target Temperature Limit", "od_feat_5", true),
+                (&mut self.operating_temp_limit, "Operating Temperature Limit", "od_feat_6", true),
+                (&mut self.fan_acoustic_rpm, "Fan Acoustic RPM", "od_feat_7", !is_gcn),
+                (&mut self.fan_curve, "Fan Curve", "od_feat_8", !is_gcn),
+                (&mut self.power_limit_feat, "Power Limit", "od_feat_9", true),
+                (&mut self.timing_tuning, "Timing Tuning", "od_feat_10", !is_gcn),
+                (&mut self.power_mode, "Power Mode", "od_feat_11", arch.has_multi_power_modes()),
+                (&mut self.auto_undervolt_gpu, "Auto Undervolt GPU", "od_feat_12", !is_gcn),
+                (&mut self.auto_overclock_gpu, "Auto Overclock GPU", "od_feat_13", !is_gcn),
+                (&mut self.auto_overclock_mem, "Auto Overclock Memory", "od_feat_14", !is_gcn),
+                (&mut self.auto_fan_acoustic_limit, "Auto Fan Acoustic Limit", "od_feat_15", !is_gcn),
+            ];
+            items.retain(|it| it.3);
+            if ui.available_width() >= 520.0 {
+                let mid = (items.len() + 1) / 2;
+                let right = items.split_off(mid);
                 ui.columns(2, |cols| {
                     cols[0].spacing_mut().item_spacing.y = 4.0;
                     cols[1].spacing_mut().item_spacing.y = 4.0;
-                    let left_items: [(&mut bool, &str, &str, bool); 8] = [
-                        (&mut self.gpu_clock_limit, "GPU Clock Limit", "od_feat_0", true),
-                        (&mut self.gpu_clock_curve, "GPU Clock Curve", "od_feat_1", !arch.is_gcn_subtable()),
-                        (&mut self.memory_clock_limit, "Memory Clock Limit", "od_feat_2", true),
-                        (&mut self.zero_rpm, "Zero RPM", "od_feat_3", arch != crate::ppt_arch::PptArch::Polaris),
-                        (&mut self.min_fan_speed, "Minimum Fan Speed", "od_feat_4", true),
-                        (&mut self.fan_target_temp_limit, "Fan Target Temperature Limit", "od_feat_5", true),
-                        (&mut self.operating_temp_limit, "Operating Temperature Limit", "od_feat_6", true),
-                        (&mut self.fan_acoustic_rpm, "Fan Acoustic RPM", "od_feat_7", !arch.is_gcn_subtable()),
-                    ];
-                    for (flag, lbl, tag, supported) in left_items {
-                        if !supported {
-                            continue;
-                        }
-                        let base_id = egui::Id::new(("od_feat_base", gen, tag));
-                        let base_val = ctx.data_mut(|d| {
-                            if let Some(v) = d.get_temp::<bool>(base_id) {
-                                v
-                            } else {
-                                d.insert_temp(base_id, *flag);
-                                *flag
-                            }
-                        });
-                        cols[0].horizontal(|ui| {
-                            let resp = crate::ui_theme::green_checkbox(ui, flag, lbl);
-                            if resp.changed() {
-                                ctx.data_mut(|d| d.insert_temp(egui::Id::new("ppt_dirty"), true));
-                            }
-                            if *flag != base_val {
-                                ui.colored_label(egui::Color32::from_rgb(240, 70, 90), "●");
-                            }
-                            if resp.hovered() || resp.clicked() {
-                                let state = if *flag { "Enabled" } else { "Disabled" };
-                                let def_str = if base_val { "Enabled" } else { "Disabled" };
-                                let info = if *flag != base_val {
-                                    format!("{} › {} ({}) · {} (Factory: {})", card_title, lbl, tag, state, def_str)
-                                } else {
-                                    format!("{} › {} ({}) · {}", card_title, lbl, tag, state)
-                                };
-                                ctx.data_mut(|d| d.insert_temp(egui::Id::new("hovered_field_banner"), info.clone()));
-                                resp.on_hover_text(info);
-                            }
-                        });
-                    }
-                    let right_items: [(&mut bool, &str, &str, bool); 8] = [
-                        (&mut self.fan_curve, "Fan Curve", "od_feat_8", !arch.is_gcn_subtable()),
-                        (&mut self.power_limit_feat, "Power Limit", "od_feat_9", true),
-                        (&mut self.timing_tuning, "Timing Tuning", "od_feat_10", !arch.is_gcn_subtable()),
-                        (&mut self.power_mode, "Power Mode", "od_feat_11", arch.has_multi_power_modes()),
-                        (&mut self.auto_undervolt_gpu, "Auto Undervolt GPU", "od_feat_12", !arch.is_gcn_subtable()),
-                        (&mut self.auto_overclock_gpu, "Auto Overclock GPU", "od_feat_13", !arch.is_gcn_subtable()),
-                        (&mut self.auto_overclock_mem, "Auto Overclock Memory", "od_feat_14", !arch.is_gcn_subtable()),
-                        (&mut self.auto_fan_acoustic_limit, "Auto Fan Acoustic Limit", "od_feat_15", !arch.is_gcn_subtable()),
-                    ];
-                    for (flag, lbl, tag, supported) in right_items {
-                        if !supported {
-                            continue;
-                        }
-                        let base_id = egui::Id::new(("od_feat_base", gen, tag));
-                        let base_val = ctx.data_mut(|d| {
-                            if let Some(v) = d.get_temp::<bool>(base_id) {
-                                v
-                            } else {
-                                d.insert_temp(base_id, *flag);
-                                *flag
-                            }
-                        });
-                        cols[1].horizontal(|ui| {
-                            let resp = crate::ui_theme::green_checkbox(ui, flag, lbl);
-                            if resp.changed() {
-                                ctx.data_mut(|d| d.insert_temp(egui::Id::new("ppt_dirty"), true));
-                            }
-                            if *flag != base_val {
-                                ui.colored_label(egui::Color32::from_rgb(240, 70, 90), "●");
-                            }
-                            if resp.hovered() || resp.clicked() {
-                                let state = if *flag { "Enabled" } else { "Disabled" };
-                                let def_str = if base_val { "Enabled" } else { "Disabled" };
-                                let info = if *flag != base_val {
-                                    format!("{} › {} ({}) · {} (Factory: {})", card_title, lbl, tag, state, def_str)
-                                } else {
-                                    format!("{} › {} ({}) · {}", card_title, lbl, tag, state)
-                                };
-                                ctx.data_mut(|d| d.insert_temp(egui::Id::new("hovered_field_banner"), info.clone()));
-                                resp.on_hover_text(info);
-                            }
-                        });
-                    }
+                    for (f, l, t, _) in items { draw_od_item(&mut cols[0], f, l, t); }
+                    for (f, l, t, _) in right { draw_od_item(&mut cols[1], f, l, t); }
                 });
+            } else {
+                ui.spacing_mut().item_spacing.y = 4.0;
+                for (f, l, t, _) in items { draw_od_item(ui, f, l, t); }
+            }
         });
 
         if self.show_smu_features_window {
