@@ -54,7 +54,7 @@ impl PowerPlayApp {
             draw_card(ui, "Fan Settings", |ui| {
                 crate::card_layout::kv_header_1(ui, "Value", 74.0);
                 kv_row_1(ui, "PWM Min (%)", pwm_t, &mut self.fan_pwm_min, 62.0);
-                if !arch.is_gcn_subtable() {
+                if arch.supports_card_in_buf(crate::ppt_arch::PptCard::FanLimits, &self.raw_buffer) {
                     kv_row_1(ui, "Acoustic Limit (RPM)", ac_t, &mut self.fan_acoustic_limit, 62.0);
                     kv_row_1(ui, "Throttling RPM", thr_t, &mut self.fan_throttling_rpm, 62.0);
                 }

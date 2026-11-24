@@ -43,8 +43,10 @@ impl PowerPlayApp {
                     kv_row_2(ui, "GFX Clock (MHz)", gfx_tag, &mut self.oc_gfx_clock, 62.0);
                     kv_row_2(ui, "Memory Clock (MHz)", mem_tag, &mut self.oc_mem_clock, 62.0);
                     kv_row_2(ui, "Power Limit (%)", pwr_tag, &mut self.oc_power_limit, 62.0);
-                    kv_row_2(ui, "Fan Max RPM", fan_tag, &mut self.oc_fan_rpm, 62.0);
-                    kv_row_2(ui, "Fan Acoustic RPM", ac_tag, &mut self.oc_fan_acoustic_rpm, 62.0);
+                    if arch.supports_card_in_buf(crate::ppt_arch::PptCard::FanLimits, &self.raw_buffer) {
+                        kv_row_2(ui, "Fan Max RPM", fan_tag, &mut self.oc_fan_rpm, 62.0);
+                        kv_row_2(ui, "Fan Acoustic RPM", ac_tag, &mut self.oc_fan_acoustic_rpm, 62.0);
+                    }
                     if arch.is_rdna1() || arch.is_rdna2() {
                         ui.add_space(4.0);
                         let (mt_tag, pm_tag, zr_tag) = if arch.is_rdna1() {
