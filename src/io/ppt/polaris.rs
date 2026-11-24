@@ -67,6 +67,7 @@ impl PowerPlayApp {
             self.status_msg = format!("Loaded {} [{} | rev 0x{:02X}.{:02X}.{:02X} | {} B]", label, chip_p.display_name(), frev, crev, trev, b.len());
             self.baseline_buffer = b.to_owned();
             self.raw_buffer = b.to_owned();
+            self.baseline_gen = self.baseline_gen.wrapping_add(1);
             return true;
         }
         false
