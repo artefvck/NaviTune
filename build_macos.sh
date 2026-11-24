@@ -2,8 +2,8 @@
 set -euo pipefail
 
 APP_NAME="NaviTune"
-BIN_NAME="pptool"
-BUNDLE_ID="com.navitune.pptool"
+BIN_NAME="navitune"
+BUNDLE_ID="com.navitune.navitune"
 VERSION="$(grep -m1 '^version' Cargo.toml | cut -d '"' -f2)"
 DIST_DIR="dist"
 APP_DIR="${DIST_DIR}/${APP_NAME}.app"

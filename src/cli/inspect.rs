@@ -4,10 +4,10 @@ use crate::ppt_arch::PptArch;
 use crate::vbios;
 
 pub(super) fn print_help() {
-    println!("NaviTune (pptool) - AMD Radeon PowerPlayTable & VBIOS CLI / GUI\n  pptool --inspect <file.rom|file.bin>\n  pptool --dump-all <file.rom|file.bin>\n  pptool --export-oc <file> [out.plist]\n  pptool --export-reg <file> [out.reg]\n  pptool --preset <quiet-undervolt|balanced-oc|auto-fix> <file> [--export-rom out.rom] [--export-bin out.bin] [--export-mpt out.mpt] [--export-oc out.plist] [--export-kext out.kext] [--export-reg out.reg]
-  pptool --diff <file_a> <file_b> [--json]
-  pptool --export-bin <file.rom> <out.bin>
-  pptool --audit <file.rom|file.bin> [--json]");
+    println!("NaviTune (navitune) - AMD Radeon PowerPlayTable & VBIOS CLI / GUI\n  navitune --inspect <file.rom|file.bin>\n  navitune --dump-all <file.rom|file.bin>\n  navitune --export-oc <file> [out.plist]\n  navitune --export-reg <file> [out.reg]\n  navitune --preset <quiet-undervolt|balanced-oc|auto-fix> <file> [--export-rom out.rom] [--export-bin out.bin] [--export-mpt out.mpt] [--export-oc out.plist] [--export-kext out.kext] [--export-reg out.reg]
+  navitune --diff <file_a> <file_b> [--json]
+  navitune --export-bin <file.rom> <out.bin>
+  navitune --audit <file.rom|file.bin> [--json]");
 }
 
 pub(super) fn cmd_inspect(path: &str) -> Result<(), String> {

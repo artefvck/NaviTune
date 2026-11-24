@@ -33,7 +33,7 @@ fn cli_inspect_supports_all_six_amd_gpu_generations_without_panic() {
         ("rdna3_v4_12.bin",    make_ppt_skeleton(0x03, 0x14, 0x00, 5424)),
     ];
 
-    let bin = env!("CARGO_BIN_EXE_pptool");
+    let bin = env!("CARGO_BIN_EXE_navitune");
     for (name, bytes) in &fixtures {
         let path = tmp.join(name);
         fs::write(&path, bytes).expect("write fixture");
@@ -41,11 +41,11 @@ fn cli_inspect_supports_all_six_amd_gpu_generations_without_panic() {
             .arg("--inspect")
             .arg(&path)
             .output()
-            .expect("spawn pptool");
+            .expect("spawn navitune");
         assert_ne!(
             out.status.code(),
             Some(101),
-            "pptool panicked inspecting {} ({} bytes)",
+            "navitune panicked inspecting {} ({} bytes)",
             name,
             bytes.len()
         );
@@ -56,12 +56,12 @@ fn cli_inspect_supports_all_six_amd_gpu_generations_without_panic() {
 
 #[test]
 fn cli_help_flag_exits_cleanly_without_panic() {
-    let bin = env!("CARGO_BIN_EXE_pptool");
+    let bin = env!("CARGO_BIN_EXE_navitune");
     let out = Command::new(bin)
         .arg("--help")
         .output()
-        .expect("spawn pptool --help");
-    assert_ne!(out.status.code(), Some(101), "pptool panicked on --help");
+        .expect("spawn navitune --help");
+    assert_ne!(out.status.code(), Some(101), "navitune panicked on --help");
 }
 
 #[test]
@@ -78,7 +78,7 @@ fn cli_export_oc_and_reg_succeed_across_all_six_gpu_generations() {
         ("rdna3_v4_12.bin",    make_ppt_skeleton(0x14, 0x14, 0x01, 5424)),
     ];
 
-    let bin = env!("CARGO_BIN_EXE_pptool");
+    let bin = env!("CARGO_BIN_EXE_navitune");
     for (name, bytes) in &fixtures {
         let in_path = tmp.join(name);
         let plist_path = tmp.join(format!("{}.plist", name));
@@ -92,8 +92,8 @@ fn cli_export_oc_and_reg_succeed_across_all_six_gpu_generations() {
                 .arg(flag)
                 .arg(out_path)
                 .output()
-                .expect("spawn pptool export");
-            assert_ne!(out.status.code(), Some(101), "pptool panicked on {} {}", flag, name);
+                .expect("spawn navitune export");
+            assert_ne!(out.status.code(), Some(101), "navitune panicked on {} {}", flag, name);
         }
     }
 
@@ -114,7 +114,7 @@ fn cli_binary_and_reimport_roundtrip_parity_across_all_six_architectures() {
         ("rdna3_v4_12.bin",    make_ppt_skeleton(0x14, 0x14, 0x01, 5424)),
     ];
 
-    let bin = env!("CARGO_BIN_EXE_pptool");
+    let bin = env!("CARGO_BIN_EXE_navitune");
     for (name, bytes) in &fixtures {
         let in_path = tmp.join(name);
         let out_bin = tmp.join(format!("roundtrip_{}", name));
@@ -132,8 +132,8 @@ fn cli_binary_and_reimport_roundtrip_parity_across_all_six_architectures() {
             .arg("--export-reg")
             .arg(&out_reg)
             .output()
-            .expect("spawn pptool full roundtrip");
-        assert_ne!(res.status.code(), Some(101), "pptool panicked exporting {}", name);
+            .expect("spawn navitune full roundtrip");
+        assert_ne!(res.status.code(), Some(101), "navitune panicked exporting {}", name);
 
         for artifact in [&out_bin, &out_plist, &out_reg] {
             if artifact.exists() {
@@ -141,11 +141,11 @@ fn cli_binary_and_reimport_roundtrip_parity_across_all_six_architectures() {
                     .arg("--inspect")
                     .arg(artifact)
                     .output()
-                    .expect("spawn pptool re-inspect");
+                    .expect("spawn navitune re-inspect");
                 assert_ne!(
                     recheck.status.code(),
                     Some(101),
-                    "pptool panicked re-inspecting {:?}",
+                    "navitune panicked re-inspecting {:?}",
                     artifact
                 );
             }
@@ -159,7 +159,7 @@ fn cli_binary_and_reimport_roundtrip_parity_across_all_six_architectures() {
 fn cli_dump_all_supports_all_six_gpu_generations_without_panic() {
     let tmp = std::env::temp_dir().join("navitune_six_arch_dump_all");
     let _ = fs::create_dir_all(&tmp);
-    let bin = env!("CARGO_BIN_EXE_pptool");
+    let bin = env!("CARGO_BIN_EXE_navitune");
     for (name, bytes) in [("polaris.bin", make_ppt_skeleton(0x07, 0x07, 0x01, 384)), ("vega10.bin", make_ppt_skeleton(0x08, 0x08, 0x01, 512)), ("vega20.bin", make_ppt_skeleton(0x0B, 0x0B, 0x01, 1924)), ("rdna1.bin", make_ppt_skeleton(0x0D, 0x0D, 0x01, 1924)), ("rdna2.bin", make_ppt_skeleton(0x0F, 0x0F, 0x01, 2470)), ("rdna3.bin", make_ppt_skeleton(0x14, 0x14, 0x01, 5424))] {
         let p = tmp.join(name);
         fs::write(&p, &bytes).unwrap();
@@ -175,14 +175,14 @@ fn cli_dump_all_json_emits_valid_json_structure() {
     let _ = fs::create_dir_all(&tmp);
     let path = tmp.join("rdna3_v4_12.bin");
     fs::write(&path, make_ppt_skeleton(0x14, 0x14, 0x01, 5424)).expect("write fixture");
-    let bin = env!("CARGO_BIN_EXE_pptool");
+    let bin = env!("CARGO_BIN_EXE_navitune");
     let out = Command::new(bin)
         .arg("--dump-all")
         .arg(&path)
         .arg("--json")
         .output()
-        .expect("spawn pptool --dump-all --json");
-    assert!(out.status.success(), "pptool --dump-all --json failed");
+        .expect("spawn navitune --dump-all --json");
+    assert!(out.status.success(), "navitune --dump-all --json failed");
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(stdout.trim_start().starts_with('{') && stdout.trim_end().ends_with('}'));
     assert!(stdout.contains("\"architecture\":"));
@@ -201,15 +201,15 @@ fn cli_diff_reports_parameter_and_byte_deltas() {
     fs::write(&pa, &a_bytes).unwrap();
     fs::write(&pb, &b_bytes).unwrap();
 
-    let bin = env!("CARGO_BIN_EXE_pptool");
+    let bin = env!("CARGO_BIN_EXE_navitune");
     let out = Command::new(bin)
         .arg("--diff")
         .arg(&pa)
         .arg(&pb)
         .arg("--json")
         .output()
-        .expect("spawn pptool --diff");
-    assert!(out.status.success(), "pptool --diff failed");
+        .expect("spawn navitune --diff");
+    assert!(out.status.success(), "navitune --diff failed");
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(stdout.contains("\"modified_bytes\": 1"));
     let _ = fs::remove_dir_all(&tmp);
@@ -225,7 +225,7 @@ fn cli_preset_applies_and_exports_artifacts() {
     let out_reg = tmp.join("tuned.reg");
     fs::write(&in_path, make_ppt_skeleton(0x02, 0x0F, 0x00, 2470)).unwrap();
 
-    let bin = env!("CARGO_BIN_EXE_pptool");
+    let bin = env!("CARGO_BIN_EXE_navitune");
     let out = Command::new(bin)
         .arg("--preset")
         .arg("quiet-undervolt")
@@ -237,8 +237,8 @@ fn cli_preset_applies_and_exports_artifacts() {
         .arg("--export-reg")
         .arg(&out_reg)
         .output()
-        .expect("spawn pptool --preset");
-    assert!(out.status.success(), "pptool --preset failed");
+        .expect("spawn navitune --preset");
+    assert!(out.status.success(), "navitune --preset failed");
     assert!(out_bin.exists() && out_plist.exists() && out_reg.exists());
     let _ = fs::remove_dir_all(&tmp);
 }

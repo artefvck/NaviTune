@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $AppName = "NaviTune"
-$BinName = "pptool.exe"
+$BinName = "navitune.exe"
 $Version = (Select-String -Path "Cargo.toml" -Pattern '^version\s*=\s*"([^"]+)"' | Select-Object -First 1).Matches.Groups[1].Value
 $DistDir = "dist"
 $StageDir = Join-Path $DistDir "$AppName-$Version-Windows-x86_64"

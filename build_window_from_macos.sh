@@ -2,7 +2,7 @@
 set -euo pipefail
 
 APP_NAME="NaviTune"
-BIN_NAME="pptool.exe"
+BIN_NAME="navitune.exe"
 TARGET="x86_64-pc-windows-gnu"
 VERSION="$(grep -m1 '^version' Cargo.toml | cut -d '"' -f2)"
 DIST_DIR="dist"

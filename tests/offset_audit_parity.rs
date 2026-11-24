@@ -1,7 +1,7 @@
 
 #[test]
 fn verify_all_target_roms_cli_roundtrip() {
-    let bin = env!("CARGO_BIN_EXE_pptool");
+    let bin = env!("CARGO_BIN_EXE_navitune");
     let mut roms: Vec<std::path::PathBuf> = std::fs::read_dir("target")
         .expect("read target/")
         .filter_map(|e| e.ok().map(|d| d.path()))
@@ -67,7 +67,7 @@ fn verify_target_stable_mpt_roundtrip_and_audit() {
     if !mpt_path.exists() {
         return;
     }
-    let bin = env!("CARGO_BIN_EXE_pptool");
+    let bin = env!("CARGO_BIN_EXE_navitune");
     let inspect = std::process::Command::new(bin)
         .args(["--inspect", mpt_path.to_str().unwrap()])
         .output()
@@ -95,7 +95,7 @@ fn verify_target_stable_mpt_roundtrip_and_audit() {
 
 #[test]
 fn verify_all_import_export_formats_byte_exact_parity() {
-    let bin = env!("CARGO_BIN_EXE_pptool");
+    let bin = env!("CARGO_BIN_EXE_navitune");
     let tmp = std::env::temp_dir().join(format!("navitune_io_parity_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&tmp);
     std::fs::create_dir_all(&tmp).expect("create tmp dir");
