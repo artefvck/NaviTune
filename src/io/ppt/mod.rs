@@ -6,7 +6,6 @@ mod vega;
 use crate::pptable_rdna2::AtomSmcDpmInfoV4_9;
 use crate::PowerPlayApp;
 use rfd::FileDialog;
-use std::fs;
 
 impl PowerPlayApp {
 
@@ -50,53 +49,60 @@ impl PowerPlayApp {
 }
 
 impl PowerPlayApp {
+    pub(crate) fn load_bytes_for_path(&mut self, path: &std::path::Path, raw: Vec<u8>, label: &str) -> Result<Option<usize>, String> {
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase();
+        let mut found_off = None;
+        let bytes = match ext.as_str() {
+            "reg" => {
+                self.vbios_buffer = None;
+                self.vbios_ppt_offset = None;
+                crate::import_formats::parse_reg_ppt(&raw)?
+            }
+            "mpt" => {
+                self.vbios_buffer = None;
+                self.vbios_ppt_offset = None;
+                crate::import_formats::parse_mpt_ppt(&raw)?
+            }
+            "plist" => {
+                self.vbios_buffer = None;
+                self.vbios_ppt_offset = None;
+                crate::import_formats::parse_plist_ppt(&raw)?
+            }
+            _ if raw.starts_with(&[0x55, 0xAA]) || (ext == "rom" && raw.len() >= 65536) => {
+                let (ppt, off) = crate::vbios::extract_ppt_from_rom(&raw)?;
+                self.vbios_buffer = Some(raw);
+                self.vbios_ppt_offset = Some(off);
+                found_off = Some(off);
+                ppt
+            }
+            _ => {
+                self.vbios_buffer = None;
+                self.vbios_ppt_offset = None;
+                raw
+            }
+        };
+        self.apply_ppt_bytes(bytes, label);
+        Ok(found_off)
+    }
+
     pub fn load_ppt_file(&mut self) {
         if let Some(path) = FileDialog::new()
             .add_filter("All PowerPlay & UPP Dumps", &["bin", "rom", "reg", "mpt", "plist", "pp_table", "ppt", "dat"])
             .add_filter("All Files (*)", &["*"])
             .pick_file()
         {
-            let raw = match fs::read(&path) {
+            let raw = match crate::io::read_bounded(&path) {
                 Ok(d) => d,
                 Err(e) => {
                     self.show_error("File Read Error", &e.to_string());
                     return;
                 }
             };
-            let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase();
-            let parsed = if ext == "reg" {
-                self.vbios_buffer = None;
-                self.vbios_ppt_offset = None;
-                crate::import_formats::parse_reg_ppt(&raw)
-            } else if ext == "mpt" {
-                self.vbios_buffer = None;
-                self.vbios_ppt_offset = None;
-                crate::import_formats::parse_mpt_ppt(&raw)
-            } else if ext == "plist" {
-                self.vbios_buffer = None;
-                self.vbios_ppt_offset = None;
-                crate::import_formats::parse_plist_ppt(&raw)
-            } else if ext != "mpt" && ext != "reg" && (raw.starts_with(&[0x55, 0xAA]) || (ext == "rom" && raw.len() >= 65536)) {
-                match crate::vbios::extract_ppt_from_rom(&raw) {
-                    Ok((ppt, off)) => {
-                        self.vbios_buffer = Some(raw);
-                        self.vbios_ppt_offset = Some(off);
-                        Ok(ppt)
-                    }
-                    Err(e) => Err(e),
-                }
-            } else {
-                self.vbios_buffer = None;
-                self.vbios_ppt_offset = None;
-                Ok(raw)
-            };
-
-            match parsed {
-                Ok(bytes) => {
-                    let name = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
+            let name = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
+            match self.load_bytes_for_path(&path, raw, &name) {
+                Ok(_) => {
                     self.loaded_file = Some(path.clone());
                     self.selected_gpu = usize::MAX;
-                    self.apply_ppt_bytes(bytes, &name);
                     crate::ui_theme::log_debug("LOAD", &format!("Loaded {} ({} B) | {}", path.display(), self.raw_buffer.len(), self.status_msg));
                 }
                 Err(e) => self.show_error("Import Error", &e),
