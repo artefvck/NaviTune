@@ -45,6 +45,16 @@ pub(super) fn cmd_dump_all_json(path: &str) -> Result<(), String> {
             bits.push(bit.to_string());
         }
     }
+    let mut cards_json = Vec::new();
+    for card in PptArch::ALL_CARDS {
+        if app.is_card_usable(card) {
+            cards_json.push(format!(
+                r#"{{"card":"{}","fields":"{}"}}"#,
+                json_esc(arch.card_title(card)),
+                json_esc(arch.card_inspect_fields(card, &app.raw_buffer))
+            ));
+        }
+    }
     let vb = vbios_off
         .map(|off| off.to_string())
         .unwrap_or_else(|| "null".to_string());
@@ -66,7 +76,8 @@ pub(super) fn cmd_dump_all_json(path: &str) -> Result<(), String> {
   "power_limit_w": {},
   "tdc_a": [{}, {}],
   "temp_limits_c": {:?},
-  "fan": {{ "pwm_min": {}, "max_rpm": {}, "target_temp_c": {}, "zero_rpm": {} }}
+  "fan": {{ "pwm_min": {}, "max_rpm": {}, "target_temp_c": {}, "zero_rpm": {} }},
+  "supported_cards": [{}]
 }}"#,
         json_esc(path),
         vb,
@@ -98,7 +109,8 @@ pub(super) fn cmd_dump_all_json(path: &str) -> Result<(), String> {
         app.fan_pwm_min,
         app.fan_max_rpm,
         app.fan_target_temp,
-        app.fan_zero_rpm_enable
+        app.fan_zero_rpm_enable,
+        cards_json.join(", ")
     );
     Ok(())
 }
