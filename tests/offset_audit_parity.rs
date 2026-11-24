@@ -60,3 +60,35 @@ fn verify_all_target_roms_cli_roundtrip() {
         );
     }
 }
+
+#[test]
+fn verify_target_stable_mpt_roundtrip_and_audit() {
+    let mpt_path = std::path::Path::new("target/stable.mpt");
+    if !mpt_path.exists() {
+        return;
+    }
+    let bin = env!("CARGO_BIN_EXE_pptool");
+    let inspect = std::process::Command::new(bin)
+        .args(["--inspect", mpt_path.to_str().unwrap()])
+        .output()
+        .expect("run --inspect on stable.mpt");
+    assert!(inspect.status.success(), "--inspect failed on target/stable.mpt: {}", String::from_utf8_lossy(&inspect.stderr));
+    let stdout = String::from_utf8_lossy(&inspect.stdout);
+    assert!(!stdout.contains("Architecture : Unknown"), "Unknown architecture in target/stable.mpt: {stdout}");
+
+    let audit = std::process::Command::new(bin)
+        .args(["--audit", mpt_path.to_str().unwrap()])
+        .output()
+        .expect("run --audit on stable.mpt");
+    assert!(audit.status.success(), "--audit failed on target/stable.mpt: {}", String::from_utf8_lossy(&audit.stderr));
+
+    let out_bin = std::env::temp_dir().join(format!("navitune_stable_mpt_{}.bin", std::process::id()));
+    let export = std::process::Command::new(bin)
+        .args(["--export-bin", mpt_path.to_str().unwrap(), out_bin.to_str().unwrap()])
+        .output()
+        .expect("run --export-bin on stable.mpt");
+    assert!(export.status.success(), "--export-bin failed on target/stable.mpt: {}", String::from_utf8_lossy(&export.stderr));
+    let bin_bytes = std::fs::read(&out_bin).expect("read exported bin");
+    let _ = std::fs::remove_file(&out_bin);
+    assert!(bin_bytes.len() >= 384, "exported PPTable from stable.mpt too small: {} B", bin_bytes.len());
+}
