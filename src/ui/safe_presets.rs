@@ -156,14 +156,15 @@ impl PowerPlayApp {
                         self.fan_start_temp = (self.fan_target_temp - 5).max(self.fan_stop_temp + 2);
                     }
                 }
-                if self.temp_limits[0] > 100 {
-                    self.temp_limits[0] = 100;
+                let (safe_edge, safe_hot, safe_mem) = if arch.is_rdna3() { (110, 110, 108) } else { (100, 110, 105) };
+                if self.temp_limits[0] > safe_edge {
+                    self.temp_limits[0] = safe_edge;
                 }
-                if self.temp_limits[1] > 110 {
-                    self.temp_limits[1] = 110;
+                if self.temp_limits[1] > safe_hot {
+                    self.temp_limits[1] = safe_hot;
                 }
-                if self.temp_limits[2] > 105 {
-                    self.temp_limits[2] = 105;
+                if self.temp_limits[2] > safe_mem {
+                    self.temp_limits[2] = safe_mem;
                 }
                 if self.oc_power_limit[1] > 20 {
                     self.oc_power_limit[1] = 20;
