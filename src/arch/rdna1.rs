@@ -190,6 +190,9 @@ pub struct Rdna1ParsedState {
     pub fan_zero_rpm: bool,
     pub od_settings_min: [u32; 5],
     pub od_settings_max: [u32; 5],
+    pub od_mem_timing_ctrl: u32,
+    pub od_pwr_mode_ctrl: u32,
+    pub od_zero_rpm_ctrl: u32,
     pub od_feature_flags: [u8; 16],
     pub od_gfx_max: u32,
     pub od_uclk_max: u32,
@@ -244,6 +247,9 @@ impl Rdna1ParsedState {
             fan_zero_rpm: inn[0x2A3] != 0,
             od_settings_min: [u32_at(b, 0x162), u32_at(b, 0x16E), u32_at(b, 0x186), u32_at(b, 0x18A), u32_at(b, 0x18E)],
             od_settings_max: [u32_at(b, 0x0E2), u32_at(b, 0x0EE), u32_at(b, 0x106), u32_at(b, 0x10A), u32_at(b, 0x10E)],
+            od_mem_timing_ctrl: u32_at(b, 0x11A),
+            od_pwr_mode_ctrl: u32_at(b, 0x11E),
+            od_zero_rpm_ctrl: u32_at(b, 0x122),
             od_feature_flags: [
                 b[0x0C2], b[0x0C3], b[0x0C4], b[0x0C5],
                 b[0x0C6], b[0x0C7], b[0x0C8], b[0x0C9],
@@ -267,6 +273,9 @@ impl Rdna1ParsedState {
             b[min_offs[i]..min_offs[i] + 4].copy_from_slice(&self.od_settings_min[i].to_le_bytes());
         }
         b[0x0C2..0x0D2].copy_from_slice(&self.od_feature_flags);
+        b[0x11A..0x11E].copy_from_slice(&self.od_mem_timing_ctrl.to_le_bytes());
+        b[0x11E..0x122].copy_from_slice(&self.od_pwr_mode_ctrl.to_le_bytes());
+        b[0x122..0x126].copy_from_slice(&self.od_zero_rpm_ctrl.to_le_bytes());
         let inn = &mut b[self.outer_sz..];
         let put_u16 = |s: &mut [u8], o: usize, v: u16| s[o..o + 2].copy_from_slice(&v.to_le_bytes());
         let put_u32 = |s: &mut [u8], o: usize, v: u32| s[o..o + 4].copy_from_slice(&v.to_le_bytes());

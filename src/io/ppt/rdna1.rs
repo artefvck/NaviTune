@@ -53,6 +53,9 @@ impl PowerPlayApp {
             self.oc_power_limit = [if pwr_min_raw > pwr_max_raw { -pwr_min_raw } else { pwr_min_raw }, pwr_max_raw];
             self.oc_fan_rpm = [r1p.od_settings_min[3] as i32, r1p.od_settings_max[3] as i32];
             self.oc_fan_acoustic_rpm = [r1p.od_settings_min[4] as i32, r1p.od_settings_max[4] as i32];
+            self.oc_mem_timing_ctrl = r1p.od_mem_timing_ctrl as i32;
+            self.oc_power_mode_ctrl = r1p.od_pwr_mode_ctrl as i32;
+            self.oc_zero_rpm_ctrl = r1p.od_zero_rpm_ctrl as i32;
             self.fan_acoustic_limit = r1p.fan_acoustic_rpm as i32;
             self.fan_throttling_rpm = r1p.fan_throttling_rpm as i32;
             self.fan_target_gfx_clock = r1p.fan_target_gfx as i32;
@@ -249,6 +252,9 @@ impl PowerPlayApp {
             ];
             r1p.od_gfx_max = r1p.od_settings_max[0];
             r1p.od_uclk_max = r1p.od_settings_max[1];
+            r1p.od_mem_timing_ctrl = self.oc_mem_timing_ctrl.max(0) as u32;
+            r1p.od_pwr_mode_ctrl = self.oc_power_mode_ctrl.max(0) as u32;
+            r1p.od_zero_rpm_ctrl = self.oc_zero_rpm_ctrl.max(0) as u32;
             r1p.od_feature_flags = [
                 u8::from(self.gpu_clock_limit), u8::from(self.gpu_clock_curve),
                 u8::from(self.memory_clock_limit), u8::from(self.zero_rpm),
