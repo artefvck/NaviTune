@@ -27,7 +27,7 @@ impl PowerPlayApp {
             match chip3 {
                 NaviRDNA3Chip::Navi31PlumBonito => (chip3.display_name(), true, 1200, 1325, 260, 365, 460, 90, 1300, 105, 1400, 2200, 16),
                 NaviRDNA3Chip::Navi32WheatNas => (chip3.display_name(), true, 1200, 1325, 200, 275, 340, 75, 1350, 105, 1400, 2000, 16),
-                NaviRDNA3Chip::Navi33Hotbeige => (chip3.display_name(), true, 1200, 1325, 140, 200, 240, 60, 1150, 105, 1400, 1800, 8),
+                NaviRDNA3Chip::Navi33Hotbeige => (chip3.display_name(), true, 1200, 1325, 115, 200, 240, 60, 1150, 105, 1200, 1800, 8),
                 NaviRDNA3Chip::UnknownRdna3 => (chip3.display_name(), true, 1200, 1325, 140, 365, 460, 90, 1300, 105, 1400, 1800, 16),
             }
         } else if crate::ppt_arch::PptArch::detect(&self.raw_buffer) == crate::ppt_arch::PptArch::Rdna1 {
@@ -125,10 +125,17 @@ impl PowerPlayApp {
         checks.push(("Fabric", "FCLK & SoC Max Coupling", format!("FCLK {} MHz | SoC {} MHz", self.freq_fclk[1], self.freq_soc[1]), format!("FCLK >= {} MHz | SoC >= {} MHz", min_fclk, min_soc), fclk_sev, "Factory RDNA 2 runs ~1800 MHz FCLK; factory RDNA 3 runs ~1500 MHz FCLK / 2400+ MHz SoC."));
         }
 
-        let min_gen = if is_rdna3 { 3 } else { 4 };
-        let pcie_sev = if self.pcie_gen_speed[1] > 4 || self.pcie_lane_count[1] > expected_lanes { 2 } else if self.pcie_gen_speed[1] < min_gen || self.pcie_lane_count[1] < expected_lanes { 1 } else { 0 };
+        let (disp_gen, disp_lanes, pcie_sev) = if is_rdna3 {
+            let g = self.pcie_gen_speed[1] + 1;
+            let l = match self.pcie_lane_count[1] { 4 => 8, 6 | 7 => 16, v => v };
+            let sev = if g > 4 || l > expected_lanes { 2 } else if g < 4 || l < expected_lanes { 1 } else { 0 };
+            (g, l, sev)
+        } else {
+            let sev = if self.pcie_gen_speed[1] > 4 || self.pcie_lane_count[1] > expected_lanes { 2 } else if self.pcie_gen_speed[1] < 4 || self.pcie_lane_count[1] < expected_lanes { 1 } else { 0 };
+            (self.pcie_gen_speed[1], self.pcie_lane_count[1], sev)
+        };
         if !is_gcn && (self.pcie_gen_speed[1] > 0 || self.pcie_lane_count[1] > 0) {
-        checks.push(("PCIe Bus", "Link Gen & Lane Width", format!("Gen {} x{} lanes", self.pcie_gen_speed[1], self.pcie_lane_count[1]), format!("Gen 4 x{} lanes (Silicon Native)", expected_lanes), pcie_sev, "Navi 21/22/31/32 use PCIe 4.0 x16; Navi 23/33 use x8; Navi 24 uses x4."));
+        checks.push(("PCIe Bus", "Link Gen & Lane Width", format!("Gen {} x{} lanes", disp_gen, disp_lanes), format!("Gen 4 x{} lanes (Silicon Native)", expected_lanes), pcie_sev, "Navi 21/22/31/32 use PCIe 4.0 x16; Navi 23/33 use x8; Navi 24 uses x4."));
         }
 
         let prot_ok = if is_rdna3 {
