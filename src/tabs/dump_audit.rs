@@ -86,7 +86,7 @@ impl PowerPlayApp {
             .filter(|&b| self.smu_features[b])
             .map(|b| format!("{:02}", b))
             .collect();
-        let gpu_desc = format!("[{}]", self.selected_gpu);
+        let gpu_desc = if self.selected_gpu == usize::MAX { "None (File Mode)".to_string() } else { format!("GPU #{}", self.selected_gpu) };
 
         let mut vars: Vec<(String, String)> = vec![
             ("vid_curve_gfx_a".into(), format!("{:.6}", self.static_volt_a[0])),

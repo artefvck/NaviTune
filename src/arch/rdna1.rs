@@ -183,6 +183,7 @@ pub struct Rdna1ParsedState {
     pub fan_start_temp: u16,
     pub fan_pwm_min: u16,
     pub fan_acoustic_rpm: u16,
+    pub fan_throttling_rpm: u16,
     pub fan_max_rpm: u16,
     pub fan_target_temp: u16,
     pub fan_target_gfx: u16,
@@ -236,7 +237,8 @@ impl Rdna1ParsedState {
             fan_start_temp: u16_at(inn, 0x27E),
             fan_pwm_min: u16_at(inn, 0x294),
             fan_acoustic_rpm: u16_at(inn, 0x296),
-            fan_max_rpm: u16_at(inn, 0x298),
+            fan_throttling_rpm: u16_at(inn, 0x298),
+            fan_max_rpm: u16_at(inn, 0x29A),
             fan_target_temp: u16_at(inn, 0x29C),
             fan_target_gfx: u16_at(inn, 0x29E),
             fan_zero_rpm: inn[0x2A3] != 0,
@@ -298,7 +300,8 @@ impl Rdna1ParsedState {
         put_u16(inn, 0x27E, self.fan_start_temp);
         put_u16(inn, 0x294, self.fan_pwm_min);
         put_u16(inn, 0x296, self.fan_acoustic_rpm);
-        put_u16(inn, 0x298, self.fan_max_rpm);
+        put_u16(inn, 0x298, self.fan_throttling_rpm);
+        put_u16(inn, 0x29A, self.fan_max_rpm);
         put_u16(inn, 0x29C, self.fan_target_temp);
         put_u16(inn, 0x29E, self.fan_target_gfx);
         inn[0x2A3] = if self.fan_zero_rpm { if inn[0x2A3] != 0 { inn[0x2A3] } else { 1 } } else { 0 };
