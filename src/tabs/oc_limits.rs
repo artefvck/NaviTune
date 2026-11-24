@@ -45,10 +45,17 @@ impl PowerPlayApp {
                     kv_row_2(ui, "Power Limit (%)", pwr_tag, &mut self.oc_power_limit, 62.0);
                     kv_row_2(ui, "Fan Max RPM", fan_tag, &mut self.oc_fan_rpm, 62.0);
                     kv_row_2(ui, "Fan Acoustic RPM", ac_tag, &mut self.oc_fan_acoustic_rpm, 62.0);
-                    ui.add_space(4.0);
-                    kv_row_1(ui, "Mem Timing Ctrl", "od_mem_timing_ctrl", &mut self.oc_mem_timing_ctrl, 62.0);
-                    kv_row_1(ui, "Power Mode Ctrl", "od_pwr_mode_ctrl", &mut self.oc_power_mode_ctrl, 62.0);
-                    kv_row_1(ui, "Zero RPM Ctrl", "od_zero_rpm_ctrl", &mut self.oc_zero_rpm_ctrl, 62.0);
+                    if arch.is_rdna1() || arch.is_rdna2() {
+                        ui.add_space(4.0);
+                        let (mt_tag, pm_tag, zr_tag) = if arch.is_rdna1() {
+                            ("od_mem_timing_ctrl (0x11A)", "od_pwr_mode_ctrl (0x11E)", "od_zero_rpm_ctrl (0x122)")
+                        } else {
+                            ("od_mem_timing_ctrl (0x116)", "od_pwr_mode_ctrl (0x11A)", "od_zero_rpm_ctrl (0x126)")
+                        };
+                        kv_row_1(ui, "Mem Timing Ctrl", mt_tag, &mut self.oc_mem_timing_ctrl, 62.0);
+                        kv_row_1(ui, "Power Mode Ctrl", pm_tag, &mut self.oc_power_mode_ctrl, 62.0);
+                        kv_row_1(ui, "Zero RPM Ctrl", zr_tag, &mut self.oc_zero_rpm_ctrl, 62.0);
+                    }
                 }
             });
         }, |ui| {
