@@ -136,8 +136,8 @@ impl PptArch {
                 "hard_limit_table_offset SOCCLK (MHz)",
                 "N/A (GCN4/5)",
             ),
-            Self::Vega20 => ("freq_table_gfx (0x185)", "freq_table_socclk (0x195)", "freq_table_fclk (0x1C5)"),
-            Self::Rdna1 => ("freq_table_gfx (0x32E / 0x11F)", "freq_table_socclk (0x33E / 0x12F)", "freq_table_fclk (0x36E / 0x15F)"),
+            Self::Vega20 => ("freq_table_gfx (0x165)", "freq_table_socclk (0x1A5)", "freq_table_fclk (0x1F5)"),
+            Self::Rdna1 => ("freq_table_gfx (0x32E / 0x0FF)", "freq_table_socclk (0x34E / 0x13F)", "freq_table_fclk (0x396 / 0x187)"),
             Self::Rdna2 => ("freq_gfx (0x52E)", "freq_soc (0x56E)", "freq_fclk (0x5D6)"),
             Self::Rdna3 => ("freq_gfx (0x5EC)", "freq_soc (0x60E)", "freq_fclk (0x62C)"),
             Self::Unknown => ("GFX Clock", "Soc Clock", "FCLK"),
@@ -147,10 +147,10 @@ impl PptArch {
     pub fn core_voltage_offset_labels(self) -> (&'static str, &'static str) {
         match self {
             Self::Polaris | Self::Vega10 => ("hard_limit_table_offset VDDC (mV)", "N/A (GCN4/5)"),
-            Self::Vega20 => ("min/max_voltage_gfx (0x11F)", "min/max_voltage_soc (0x123)"),
-            Self::Rdna1 => ("min/max_voltage_gfx (0x24A / 0x0B9)", "min/max_voltage_soc (0x24E / 0x0BD)"),
-            Self::Rdna2 => ("min/max_voltage_gfx (0x378)", "min/max_voltage_soc (0x37C)"),
-            Self::Rdna3 => ("min/max_voltage_gfx (0x3BC)", "min/max_voltage_soc (0x3C0)"),
+            Self::Vega20 => ("min/max_voltage_gfx (0x159)", "min/max_voltage_soc (0x15B)"),
+            Self::Rdna1 => ("min/max_voltage_gfx (0x24A / 0x0F3)", "min/max_voltage_soc (0x24C / 0x0F5)"),
+            Self::Rdna2 => ("min/max_voltage_gfx (0x3A6)", "min/max_voltage_soc (0x3A8)"),
+            Self::Rdna3 => ("min/max_voltage_gfx (0x3B4)", "min/max_voltage_soc (0x3B8)"),
             Self::Unknown => ("GFX Voltage (mV)", "Soc Voltage (mV)"),
         }
     }
@@ -234,23 +234,29 @@ impl PptArch {
                 "fan_table_offset Target Temp (°C)",
                 "fan_table_offset Stop/Start Temp (°C)",
             ),
-            Self::Vega20 | Self::Rdna1 => (
+            Self::Vega20 => (
+                "fan_pwm_min (0x675)",
+                "fan_max_rpm (0x67B)",
+                "fan_target_temp (0x67D)",
+                "fan_zero_rpm_enable (0x681)",
+            ),
+            Self::Rdna1 => (
                 "fan_pwm_min (0x476 / 0x68B)",
                 "fan_max_rpm (0x47C / 0x691)",
-                "fan_target_temp (0x482 / 0x697)",
-                "fan_zero_rpm_enable (0x482 / 0x697)",
+                "fan_target_temp (0x47E / 0x693)",
+                "fan_zero_rpm_enable (0x485 / 0x697)",
             ),
             Self::Rdna2 => (
-                "fan_pwm_min (0x8B8)",
-                "fan_max_rpm (0x8BA)",
-                "fan_target_temp (0x8BE)",
-                "fan_zero_rpm_enable (0x8AC)",
+                "fan_pwm_min (0x716)",
+                "fan_max_rpm (0x71C)",
+                "fan_target_temp (0x720)",
+                "fan_zero_rpm_enable (0x726)",
             ),
             Self::Rdna3 => (
-                "fan_pwm_min (0x1438)",
-                "fan_max_rpm (0x143A)",
-                "fan_target_temp (0x143E)",
-                "fan_zero_rpm_enable (0x142C)",
+                "fan_pwm_min (0x86C)",
+                "fan_max_rpm (0x870)",
+                "fan_target_temp (0x878)",
+                "fan_zero_rpm_enable (0x87C)",
             ),
             Self::Unknown => ("Fan PWM Min", "Fan Max RPM", "Fan Target Temp", "Zero RPM"),
         }
