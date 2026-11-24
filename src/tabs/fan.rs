@@ -109,10 +109,12 @@ impl PowerPlayApp {
             if show_fancurve {
                 draw_card(ui, "Fan Curve", |ui| {
                     if is_rdna3 || is_rdna1 {
-                        ui.colored_label(
-                            egui::Color32::from_rgb(160, 175, 195),
-                            "RDNA 3 (SMU 13.0) computes dynamic fan PWM from Target Temp (101°C) & Acoustic Limit; 5-point curve slots are RDNA 2 only.",
-                        );
+                        let note = if is_rdna3 {
+                            "RDNA 3 (SMU 13.0) computes dynamic fan PWM from Target Temp & Acoustic Limit; 5-point curve slots are RDNA 2 only."
+                        } else {
+                            "SMU 11.0 (Vega 20 / RDNA 1) drives fan PWM from PWM Min, Target Temp, and Acoustic RPM; 5-point curve slots are RDNA 2 only."
+                        };
+                        ui.colored_label(egui::Color32::from_rgb(160, 175, 195), note);
                     } else {
                         kv_header_2(ui, "Temp (°C)", "PWM (%)", 62.0);
                         for i in 0..5 {
