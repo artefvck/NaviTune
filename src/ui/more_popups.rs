@@ -39,22 +39,6 @@ impl PowerPlayApp {
                         ui.ctx().copy_text(hex_raw.clone());
                         self.status_msg = format!("Copied Raw No-Space Hex ({} chars)", hex_raw.len());
                     }
-                    if ui.button("Export Base64 (.txt)").clicked() {
-                        if let Some(path) = rfd::FileDialog::new().set_file_name("PPTable_base64.txt").save_file() {
-                            match crate::io::write_atomic(&path, b64.as_bytes()) {
-                                Ok(_) => self.status_msg = format!("Exported Base64 to {}", path.display()),
-                                Err(e) => self.show_error("Base64 Export Error", &e.to_string()),
-                            }
-                        }
-                    }
-                    if ui.button("Export Hex Raw (.txt)").clicked() {
-                        if let Some(path) = rfd::FileDialog::new().set_file_name("PPTable_hex_raw.txt").save_file() {
-                            match crate::io::write_atomic(&path, hex_raw.as_bytes()) {
-                                Ok(_) => self.status_msg = format!("Exported Raw Hex to {}", path.display()),
-                                Err(e) => self.show_error("Raw Hex Export Error", &e.to_string()),
-                            }
-                        }
-                    }
                 });
                 ui.add_space(8.0);
                 ui.strong("Base64 (OpenCore <data>):");
