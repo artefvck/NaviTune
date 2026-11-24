@@ -67,11 +67,22 @@ impl PowerPlayApp {
             &self.raw_buffer,
             self.vbios_ppt_offset,
         );
-        let csum_preview = preview_patched_checksum(
-            self.vbios_buffer.as_deref(),
-            self.vbios_ppt_offset,
-            &self.raw_buffer,
-        );
+        let cache_key = (self.baseline_gen, self.vbios_ppt_offset, self.raw_buffer.clone());
+        let cache_id = egui::Id::new("save_diff_csum_cache");
+        let csum_preview = ctx.data_mut(|d| {
+            if let Some((prev_key, prev_val)) = d.get_temp::<((u64, Option<usize>, Vec<u8>), Option<(u8, u8)>)>(cache_id) {
+                if prev_key == cache_key {
+                    return prev_val;
+                }
+            }
+            let val = preview_patched_checksum(
+                self.vbios_buffer.as_deref(),
+                self.vbios_ppt_offset,
+                &self.raw_buffer,
+            );
+            d.insert_temp(cache_id, (cache_key, val));
+            val
+        });
 
         let mut open = self.show_save_diff_modal;
         let mut close_modal = false;
