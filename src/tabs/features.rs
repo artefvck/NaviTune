@@ -257,6 +257,24 @@ impl PowerPlayApp {
                             ));
                             ui.end_row();
 
+                            if let Some(ref banner) = vi.board_banner {
+                                ui.label("Board Banner:");
+                                ui.monospace(banner);
+                                ui.end_row();
+                            }
+
+                            if vi.build_date.is_some() || vi.pcir_image_count > 0 || vi.atom_rev.is_some() {
+                                let mut parts = Vec::new();
+                                if let Some(ref d) = vi.build_date { parts.push(format!("Date {}", d)); }
+                                if let Some((maj, min)) = vi.atom_rev { parts.push(format!("ATOM v{}.{}", maj, min)); }
+                                if vi.pcir_image_count > 0 {
+                                    parts.push(format!("{} PCIR ({})", vi.pcir_image_count, if vi.has_uefi_gop { "Legacy + UEFI GOP" } else { "Legacy BIOS" }));
+                                }
+                                ui.label("ROM Headers:");
+                                ui.monospace(parts.join(" | "));
+                                ui.end_row();
+                            }
+
                             ui.label("$PSP Security:");
                             if let Some(psp_off) = vi.psp_dir_offset {
                                 let signed_info = match (vi.psp_signed_size, vi.rsa_sig_offset, vi.rsa_sig_size) {
