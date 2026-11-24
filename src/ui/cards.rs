@@ -89,7 +89,7 @@ pub fn label_with_var(ui: &mut egui::Ui, label: &str, var_tag: &str) {
     ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("cur_field_info"), (label.to_string(), var_tag.to_string())));
     let resp = ui.label(egui::RichText::new(label).size(12.5));
     if !var_tag.is_empty() {
-        resp.on_hover_text(var_tag);
+        resp.on_hover_text(format!("{}\nStruct / Offset: {}", label, var_tag));
     }
 }
 
@@ -224,7 +224,12 @@ pub fn draw_tracked_check(
     let mut changed = false;
     ui.horizontal(|ui| {
         let resp = crate::ui_theme::green_checkbox(ui, flag, label);
-        if resp.changed() {
+        let tip = if *flag != base_val {
+            format!("{} ({})\nCurrent: {}  |  Factory: {}", label, tag, *flag, base_val)
+        } else {
+            format!("{} ({})\nFactory Default: {}", label, tag, base_val)
+        };
+        if resp.on_hover_text(tip).changed() {
             ctx.data_mut(|d| d.insert_temp(egui::Id::new("ppt_dirty"), true));
             changed = true;
         }
