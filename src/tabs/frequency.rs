@@ -55,12 +55,11 @@ impl PowerPlayApp {
                         }
                     } else {
                         let (gfx_ctag, soc_ctag, fclk_ctag) = arch.clock_limit_offset_labels();
-                    let _ = (&gfx_ctag, &soc_ctag, &fclk_ctag);
-                    kv_header_2(ui, "Min", "Max", 62.0);
-                        kv_row_2(ui, "GFX", match arch { crate::ppt_arch::PptArch::Vega20 => "freq_table_gfx (0x185)", crate::ppt_arch::PptArch::Rdna1 => "freq_table_gfx (0x11F)", _ => "freq_gfx (0x52E / 0x5EC)" }, &mut self.freq_gfx, 62.0);
-                        kv_row_2(ui, "Soc", match arch { crate::ppt_arch::PptArch::Vega20 => "freq_table_socclk (0x195)", crate::ppt_arch::PptArch::Rdna1 => "freq_table_socclk (0x12F)", _ => "freq_soc (0x56E / 0x60E)" }, &mut self.freq_soc, 62.0);
-                        kv_row_2(ui, "FCLK", match arch { crate::ppt_arch::PptArch::Vega20 => "freq_table_fclk (0x1C5)", crate::ppt_arch::PptArch::Rdna1 => "freq_table_fclk (0x15F)", _ => "freq_fclk (0x5D6 / 0x62C)" }, &mut self.freq_fclk, 62.0);
-                        if is_rdna2 || !is_rdna3 {
+                        kv_header_2(ui, "Min", "Max", 62.0);
+                        kv_row_2(ui, "GFX", gfx_ctag, &mut self.freq_gfx, 62.0);
+                        kv_row_2(ui, "Soc", soc_ctag, &mut self.freq_soc, 62.0);
+                        kv_row_2(ui, "FCLK", fclk_ctag, &mut self.freq_fclk, 62.0);
+                        if is_rdna2 || self.freq_vclk[1] > 0 || self.freq_dispclk[1] > 0 {
                             ui.add_space(4.0);
                             for (lbl, tag, pair) in [
                                 ("VCLK", "freq_vclk", &mut self.freq_vclk),
@@ -69,10 +68,12 @@ impl PowerPlayApp {
                                 ("DISPCLK", "freq_disp", &mut self.freq_dispclk),
                                 ("PIXCLK", "freq_pix", &mut self.freq_pixclk),
                                 ("PHYCLK", "freq_phy", &mut self.freq_phyclk),
-                                ("DTBCLK", "freq_dtb", &mut self.freq_dtbclk),
                             ] {
                                 kv_row_2(ui, lbl, tag, pair, 62.0);
                             }
+                        }
+                        if is_rdna2 {
+                            kv_row_2(ui, "DTBCLK", "freq_dtb", &mut self.freq_dtbclk, 62.0);
                             kv_row_1(ui, "FCLK Boost", "fclk_boost", &mut self.fclk_boost_freq, 62.0);
                         }
                     }
