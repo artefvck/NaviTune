@@ -61,22 +61,34 @@ impl PowerPlayApp {
                         );
                     });
                 } else {
+                    let compact_smu11 = (arch == crate::ppt_arch::PptArch::Rdna1 && self.raw_buffer.len() < 1924)
+                        || (arch == crate::ppt_arch::PptArch::Vega20 && self.raw_buffer.len() < 1924);
                     draw_card(ui, "Power Modes", |ui| {
-                        kv_header_2(ui, "Limit (%)", "Temp (°C)", 66.0);
-                        kv_row_2(ui, "Quiet", "pm_quiet_limit/temp (0x2DA)", &mut self.pm_quiet, 66.0);
-                        kv_row_2(ui, "Balanced", "pm_balanced_limit/temp (0x2DE)", &mut self.pm_balanced, 66.0);
-                        kv_row_2(ui, "Turbo", "pm_turbo_limit/temp (0x2E2)", &mut self.pm_turbo, 66.0);
-                        kv_row_2(ui, "Rage", "pm_rage_limit/temp (0x2E6)", &mut self.pm_rage, 66.0);
+                        if compact_smu11 {
+                            ui.colored_label(egui::Color32::from_rgb(160, 175, 195), "Compact VBIOS PPTable omits static Power Mode preset slots (available on 1924 B V4_5 / RDNA 2).");
+                            ui.add_space(4.0);
+                        }
+                        ui.add_enabled_ui(!compact_smu11, |ui| {
+                            kv_header_2(ui, "Limit (%)", "Temp (°C)", 66.0);
+                            kv_row_2(ui, "Quiet", "pm_quiet_limit/temp (0x2DA)", &mut self.pm_quiet, 66.0);
+                            kv_row_2(ui, "Balanced", "pm_balanced_limit/temp (0x2DE)", &mut self.pm_balanced, 66.0);
+                            kv_row_2(ui, "Turbo", "pm_turbo_limit/temp (0x2E2)", &mut self.pm_turbo, 66.0);
+                            kv_row_2(ui, "Rage", "pm_rage_limit/temp (0x2E6)", &mut self.pm_rage, 66.0);
+                        });
                     });
                 }
             }
             if show_powermodeacoustic {
+                let compact_smu11 = (arch == crate::ppt_arch::PptArch::Rdna1 && self.raw_buffer.len() < 1924)
+                    || (arch == crate::ppt_arch::PptArch::Vega20 && self.raw_buffer.len() < 1924);
                 draw_card(ui, "Power Mode Acoustic", |ui| {
-                    kv_header_2(ui, "Acoustic (RPM)", "Target (°C)", 66.0);
-                    kv_row_2(ui, "Quiet", "ac_quiet (0x2F2)", &mut self.ac_quiet, 66.0);
-                    kv_row_2(ui, "Balanced", "ac_balanced (0x2F6)", &mut self.ac_balanced, 66.0);
-                    kv_row_2(ui, "Turbo", "ac_turbo (0x2FA)", &mut self.ac_turbo, 66.0);
-                    kv_row_2(ui, "Rage", "ac_rage (0x2FE)", &mut self.ac_rage, 66.0);
+                    ui.add_enabled_ui(!compact_smu11, |ui| {
+                        kv_header_2(ui, "Acoustic (RPM)", "Target (°C)", 66.0);
+                        kv_row_2(ui, "Quiet", "ac_quiet (0x2F2)", &mut self.ac_quiet, 66.0);
+                        kv_row_2(ui, "Balanced", "ac_balanced (0x2F6)", &mut self.ac_balanced, 66.0);
+                        kv_row_2(ui, "Turbo", "ac_turbo (0x2FA)", &mut self.ac_turbo, 66.0);
+                        kv_row_2(ui, "Rage", "ac_rage (0x2FE)", &mut self.ac_rage, 66.0);
+                    });
                 });
             }
         });
