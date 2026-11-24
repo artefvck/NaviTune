@@ -9,6 +9,16 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<NativeStructEntr
     let hdr_sz = if b.len() >= 2 { u16::from_le_bytes([b[0], b[1]]) as usize } else { 0 };
     let (frev, crev, trev) = (b.get(2).copied().unwrap_or(0), b.get(3).copied().unwrap_or(0), b.get(4).copied().unwrap_or(0));
     if let Some(t3) = AtomSmcDpmInfoV4_12::from_bytes(b) {
+        let (vg_lo, vg_hi) = if t3.min_voltage_gfx > t3.max_voltage_gfx {
+            ({t3.max_voltage_gfx} / 4, {t3.min_voltage_gfx} / 4)
+        } else {
+            ({t3.min_voltage_gfx} / 4, {t3.max_voltage_gfx} / 4)
+        };
+        let (gfx_off, gfx_lo) = if t3.header.format_revision >= 0x16 && t3.freq_gfx_min < 500 && b.len() > 0x695 {
+            (0x694usize, u16::from_le_bytes([b[0x694], b[0x695]]))
+        } else {
+            (off3("freq_gfx"), {t3.freq_gfx_min})
+        };
         return Some(("RDNA 3 (V4_12)", vec![
             ("Header", "AtomCommonTableHeader", 0x000, 5, format!("size={}, rev=0x{:02X}.{:02X}.{:02X}", hdr_sz, frev, crev, trev)),
             ("OD8", "od_feature_flags[0..16]", off3("od_features"), 16, format!("{:?}", &t3.od_feature_flags[..16])),
@@ -21,9 +31,9 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<NativeStructEntr
             ("SMU", "features_to_run (u64)", off3("smu_features"), 8, format!("0x{:016X}", {t3.features_to_run})),
             ("Power", "socket_power_limit_ac", off3("pwr_limit_w"), 2, format!("{} W", {t3.socket_power_limit_ac})),
             ("Thermal", "temp_limit[0..5]", off3("temp_limit"), 10, format!("[{}, {}, {}, {}, {}] °C", {t3.temp_limit[0]}, {t3.temp_limit[1]}, {t3.temp_limit[2]}, {t3.temp_limit[3]}, {t3.temp_limit[4]})),
-            ("Voltage", "min/max_voltage_gfx", off3("volt_gfx"), 4, format!("{}..{} mV", {t3.min_voltage_gfx} / 4, {t3.max_voltage_gfx} / 4)),
+            ("Voltage", "min/max_voltage_gfx", off3("volt_gfx"), 4, format!("{}..{} mV", vg_lo, vg_hi)),
             ("Voltage", "min/max_voltage_soc", off3("volt_soc"), 4, format!("{}..{} mV", {t3.min_voltage_soc} / 4, {t3.max_voltage_soc} / 4)),
-            ("Clocks", "freq_gfx_min / max", off3("freq_gfx"), 4, format!("{}..{} MHz", {t3.freq_gfx_min}, {t3.freq_gfx_max})),
+            ("Clocks", "freq_gfx_min / max", gfx_off, 4, format!("{}..{} MHz", gfx_lo, {t3.freq_gfx_max})),
             ("Clocks", "freq_soc_max", off3("freq_soc"), 2, format!("{} MHz", {t3.freq_soc_max})),
             ("Clocks", "freq_fclk_min / max", off3("freq_fclk"), 4, format!("{}..{} MHz", {t3.freq_fclk_min}, {t3.freq_fclk_max})),
             ("Memory", "freq_uclk[0..3]", off3("mem_dpm_freq"), 8, format!("{:?} MHz", {t3.freq_uclk})),
