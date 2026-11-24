@@ -56,7 +56,7 @@ impl PowerPlayApp {
                         ui.monospace(format!("0x{:03X}", base + idx * 2)); ui.end_row();
                     }
                 });
-            } else { ui.label("Load a valid RDNA 2 (V4_9) or RDNA 3 (V4_12) PPTable first."); }
+            } else { ui.colored_label(egui::Color32::from_rgb(160, 175, 195), "Secondary PPT1–PPT3 limits are not present in this compact/GCN PPTable revision."); }
         });
     }
 }
