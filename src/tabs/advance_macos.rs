@@ -6,12 +6,12 @@ use eframe::egui;
 impl PowerPlayApp {
     pub fn draw_advance_macos(&mut self, ui: &mut egui::Ui) {
         ui.horizontal_wrapped(|ui| {
-            let vcn_bits = [(21usize, "21: VCN_PG"), (22, "22: MM_DPM_PG"), (29, "29: DPM_VCLK"), (30, "30: DPM_DCLK")];
+            let vcn_bits = [(21usize, "21: BACO"), (22, "22: VCN_PG / MM_DPM_PG"), (29, "29: DPM_VCLK"), (30, "30: DPM_DCLK")];
             let mut all_vcn = vcn_bits.iter().all(|(b, _)| self.smu_features[*b]);
             let panel_id = egui::Id::new("macos_vcn_panel_open");
             let mut open = ui.ctx().data(|d| d.get_temp::<bool>(panel_id).unwrap_or(false));
 
-            if ui.button(if open { "Hide VCN (macOS)" } else { "Enable VCN (macOS)" }).clicked() {
+            if ui.button(if open { "Hide VCN Bits" } else { "Configure VCN Bits" }).clicked() {
                 open = !open;
                 ui.ctx().data_mut(|d| d.insert_temp(panel_id, open));
             }
