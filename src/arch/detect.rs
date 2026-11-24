@@ -591,6 +591,83 @@ impl PptArch {
         matches!(self, Self::Rdna1 | Self::Rdna2 | Self::Rdna3)
     }
 
+    pub fn uses_single_rail_mem_voltage(self, buf: &[u8]) -> bool {
+        !self.has_per_dpm_mem_voltage() || (self == Self::Rdna1 && buf.len() >= 1924)
+    }
+
+    pub fn memory_voltage_offset_label_for_buf(self, buf: &[u8]) -> &'static str {
+        if self == Self::Rdna1 && buf.len() >= 1924 {
+            "vddci_max / mvdd_max (0x0DF / 0x0E1)"
+        } else {
+            self.memory_voltage_offset_label()
+        }
+    }
+
+    pub fn has_ulv_vmax(self) -> bool {
+        matches!(self, Self::Rdna2)
+    }
+
+    pub fn has_od_ctrl_toggles(self) -> bool {
+        matches!(self, Self::Rdna1 | Self::Rdna2)
+    }
+
+    pub fn od_ctrl_offset_labels(self) -> (&'static str, &'static str, &'static str) {
+        match self {
+            Self::Rdna1 => ("od_mem_timing_ctrl (0x11A)", "od_pwr_mode_ctrl (0x11E)", "od_zero_rpm_ctrl (0x122)"),
+            Self::Rdna2 => ("od_mem_timing_ctrl (0x116)", "od_pwr_mode_ctrl (0x11A)", "od_zero_rpm_ctrl (0x126)"),
+            _ => ("od_mem_timing_ctrl", "od_pwr_mode_ctrl", "od_zero_rpm_ctrl"),
+        }
+    }
+
+    pub fn has_dynamic_power_modes_only(self) -> bool {
+        matches!(self, Self::Rdna3)
+    }
+
+    pub fn has_compact_power_modes(self, buf: &[u8]) -> bool {
+        matches!(self, Self::Rdna1 | Self::Vega20) && buf.len() < 1924
+    }
+
+    pub fn has_static_vid_coeffs(self) -> bool {
+        matches!(self, Self::Rdna2)
+    }
+
+    pub fn has_fan_mode_hyst(self) -> bool {
+        matches!(self, Self::Rdna2)
+    }
+
+    pub fn has_od_fan_temp_speed(self) -> bool {
+        matches!(self, Self::Rdna2)
+    }
+
+    pub fn has_5point_fan_curve_slots(self) -> bool {
+        matches!(self, Self::Rdna2)
+    }
+
+    pub fn fan_curve_note(self) -> &'static str {
+        match self {
+            Self::Rdna3 => "RDNA 3 (SMU 13.0) computes dynamic fan PWM from Target Temp & Acoustic Limit; 5-point curve slots are RDNA 2 only.",
+            _ => "SMU 11.0 (Vega 20 / RDNA 1) drives fan PWM from PWM Min, Target Temp, and Acoustic RPM; 5-point curve slots are RDNA 2 only.",
+        }
+    }
+
+    pub fn zero_rpm_enable_offset_label(self) -> &'static str {
+        match self {
+            Self::Rdna2 => "fan_zero_rpm_enable (0x726)",
+            Self::Rdna3 => "fan_zero_rpm_enable (0x87C)",
+            Self::Rdna1 => "fan_zero_rpm_enable (0x485 / 0x697)",
+            Self::Vega20 => "fan_zero_rpm_enable (0x681)",
+            _ => "fan_zero_rpm_enable",
+        }
+    }
+
+    pub fn has_uclk_dividers(self) -> bool {
+        matches!(self, Self::Vega20 | Self::Rdna2)
+    }
+
+    pub fn has_extended_media_clocks(self) -> bool {
+        matches!(self, Self::Rdna2)
+    }
+
     pub fn supports_card_in_buf(self, card: PptCard, buf: &[u8]) -> bool {
         match card {
             PptCard::FanLimits => match self {
@@ -598,6 +675,9 @@ impl PptArch {
                 Self::Vega20 => buf.len() >= 1924,
                 _ => false,
             },
+            PptCard::UlvVoltage => {
+                self.supports_card(card) && !(self == Self::Vega20 && buf.len() < 1900)
+            }
             _ => self.supports_card(card),
         }
     }

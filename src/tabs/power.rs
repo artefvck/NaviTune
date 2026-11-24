@@ -67,7 +67,7 @@ impl PowerPlayApp {
                 draw_card(ui, arch.card_title(crate::ppt_arch::PptCard::UlvVoltage), |ui| {
                     kv_header_2(ui, "Vmin", "Vmax", 62.0);
                     let (ug_tag, us_tag) = arch.ulv_offset_labels();
-                    if !arch.is_rdna2() {
+                    if !arch.has_ulv_vmax() {
                         let w = dynamic_box_w(ui, 62.0, 2);
                         for (lbl, tag, pair) in [("GFX", ug_tag, &mut self.ulv_gfx), ("Soc", us_tag, &mut self.ulv_soc)] {
                             ui.horizontal(|ui| {

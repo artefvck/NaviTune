@@ -21,14 +21,8 @@ pub mod safe_tune;
 
 impl crate::PowerPlayApp {
     pub fn is_card_usable(&self, card: crate::ppt_arch::PptCard) -> bool {
-        if matches!(card, crate::ppt_arch::PptCard::UlvVoltage)
-            && matches!(crate::ppt_arch::PptArch::detect(&self.raw_buffer), crate::ppt_arch::PptArch::Vega20)
-            && self.raw_buffer.len() < 1900
-        {
-            return false;
-        }
         let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
-        if !arch.supports_card(card) {
+        if !arch.supports_card_in_buf(card, &self.raw_buffer) {
             return false;
         }
         match card {

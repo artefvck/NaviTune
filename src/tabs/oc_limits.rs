@@ -6,12 +6,9 @@ impl PowerPlayApp {
         use crate::card_layout::*;
 
         let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
-        let is_rdna3 = arch.is_rdna3();
-        let _is_rdna2 = arch.is_rdna2();
-        let _is_rdna1 = arch.is_rdna1() || arch.is_vega() || arch.is_gcn_subtable();
 
         let mut issues: Vec<&str> = Vec::new();
-        if !is_rdna3 {
+        if arch.has_od8_and_smu_masks() && !arch.has_dynamic_power_modes_only() {
             if self.oc_gfx_clock[0] > self.oc_gfx_clock[1] { issues.push("GFX Clock Min > Max"); }
             if self.oc_mem_clock[0] > self.oc_mem_clock[1] { issues.push("Memory Clock Min > Max"); }
             if self.oc_power_limit[0] > self.oc_power_limit[1] || self.oc_power_limit[1] > 50 { issues.push("Power Limit (%) inverted or > +50%"); }
@@ -47,13 +44,9 @@ impl PowerPlayApp {
                         kv_row_2(ui, "Fan Max RPM", fan_tag, &mut self.oc_fan_rpm, 62.0);
                         kv_row_2(ui, "Fan Acoustic RPM", ac_tag, &mut self.oc_fan_acoustic_rpm, 62.0);
                     }
-                    if arch.is_rdna1() || arch.is_rdna2() {
+                    if arch.has_od_ctrl_toggles() {
                         ui.add_space(4.0);
-                        let (mt_tag, pm_tag, zr_tag) = if arch.is_rdna1() {
-                            ("od_mem_timing_ctrl (0x11A)", "od_pwr_mode_ctrl (0x11E)", "od_zero_rpm_ctrl (0x122)")
-                        } else {
-                            ("od_mem_timing_ctrl (0x116)", "od_pwr_mode_ctrl (0x11A)", "od_zero_rpm_ctrl (0x126)")
-                        };
+                        let (mt_tag, pm_tag, zr_tag) = arch.od_ctrl_offset_labels();
                         kv_row_1(ui, "Mem Timing Ctrl", mt_tag, &mut self.oc_mem_timing_ctrl, 62.0);
                         kv_row_1(ui, "Power Mode Ctrl", pm_tag, &mut self.oc_power_mode_ctrl, 62.0);
                         kv_row_1(ui, "Zero RPM Ctrl", zr_tag, &mut self.oc_zero_rpm_ctrl, 62.0);
@@ -62,7 +55,7 @@ impl PowerPlayApp {
             });
         }, |ui| {
             if show_powermodes {
-                if is_rdna3 {
+                if arch.has_dynamic_power_modes_only() {
                     draw_card(ui, "Power Modes", |ui| {
                         ui.colored_label(
                             egui::Color32::from_rgb(160, 175, 195),
@@ -70,8 +63,7 @@ impl PowerPlayApp {
                         );
                     });
                 } else {
-                    let compact_smu11 = (arch == crate::ppt_arch::PptArch::Rdna1 && self.raw_buffer.len() < 1924)
-                        || (arch == crate::ppt_arch::PptArch::Vega20 && self.raw_buffer.len() < 1924);
+                    let compact_smu11 = arch.has_compact_power_modes(&self.raw_buffer);
                     draw_card(ui, "Power Modes", |ui| {
                         if compact_smu11 {
                             ui.colored_label(egui::Color32::from_rgb(160, 175, 195), "Compact VBIOS PPTable omits static Power Mode preset slots (available on 1924 B V4_5 / RDNA 2).");
@@ -88,8 +80,7 @@ impl PowerPlayApp {
                 }
             }
             if show_powermodeacoustic {
-                let compact_smu11 = (arch == crate::ppt_arch::PptArch::Rdna1 && self.raw_buffer.len() < 1924)
-                    || (arch == crate::ppt_arch::PptArch::Vega20 && self.raw_buffer.len() < 1924);
+                let compact_smu11 = arch.has_compact_power_modes(&self.raw_buffer);
                 draw_card(ui, "Power Mode Acoustic", |ui| {
                     ui.add_enabled_ui(!compact_smu11, |ui| {
                         kv_header_2(ui, "Acoustic (RPM)", "Target (°C)", 66.0);

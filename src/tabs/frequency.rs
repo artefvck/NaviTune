@@ -6,9 +6,6 @@ impl PowerPlayApp {
         use crate::card_layout::*;
 
         let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
-        let is_rdna3 = arch.is_rdna3();
-        let is_rdna2 = arch.is_rdna2();
-        let is_rdna1 = arch.is_rdna1() || arch.is_vega() || arch.is_gcn_subtable();
         if let Some(hint) = arch.gcn_subtable_hint("freq") {
             ui.colored_label(egui::Color32::from_rgb(235, 190, 95), hint);
             ui.add_space(6.0);
@@ -59,7 +56,7 @@ impl PowerPlayApp {
                         kv_row_2(ui, "GFX", gfx_ctag, &mut self.freq_gfx, 62.0);
                         kv_row_2(ui, "Soc", soc_ctag, &mut self.freq_soc, 62.0);
                         kv_row_2(ui, "FCLK", fclk_ctag, &mut self.freq_fclk, 62.0);
-                        if is_rdna2 || self.freq_vclk[1] > 0 || self.freq_dispclk[1] > 0 {
+                        if arch.has_extended_media_clocks() || self.freq_vclk[1] > 0 || self.freq_dispclk[1] > 0 {
                             ui.add_space(4.0);
                             for (lbl, tag, pair) in [
                                 ("VCLK", "freq_vclk", &mut self.freq_vclk),
@@ -72,7 +69,7 @@ impl PowerPlayApp {
                                 kv_row_2(ui, lbl, tag, pair, 62.0);
                             }
                         }
-                        if is_rdna2 {
+                        if arch.has_extended_media_clocks() {
                             kv_row_2(ui, "DTBCLK", "freq_dtb", &mut self.freq_dtbclk, 62.0);
                             kv_row_1(ui, "FCLK Boost", "fclk_boost", &mut self.fclk_boost_freq, 62.0);
                         }
@@ -83,7 +80,7 @@ impl PowerPlayApp {
             if show_memorydpm {
                 draw_card(ui, arch.card_title(crate::ppt_arch::PptCard::MemoryDpm), |ui| {
                     let uclk_lbl = arch.memory_uclk_offset_label(self.raw_buffer.len());
-                    if is_rdna3 || is_rdna1 {
+                    if !arch.has_uclk_dividers() {
                         for (i, freq) in self.mem_dpm_freq.iter_mut().enumerate().take(4) {
                             kv_row_1(ui, &format!("DPM {} (MHz)", i), &format!("DPM{} · {}", i, uclk_lbl), &mut freq[0], 62.0);
                         }

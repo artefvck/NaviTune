@@ -6,9 +6,6 @@ impl PowerPlayApp {
         use crate::card_layout::*;
 
         let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
-        let is_rdna3 = arch.is_rdna3();
-        let is_rdna2 = arch.is_rdna2();
-        let is_rdna1 = arch.is_rdna1() || arch.is_vega() || arch.is_gcn_subtable();
         if arch.is_gcn_subtable() && (self.fan_pwm_min < 0 || self.fan_pwm_min > 100) {
             ui.colored_label(egui::Color32::from_rgb(245, 185, 65), "Fan Check: Fan PWM Min out of 0..100%");
             ui.add_space(4.0);
@@ -30,7 +27,7 @@ impl PowerPlayApp {
         if self.fan_start_temp > 0 && self.fan_target_temp > 0 && self.fan_start_temp >= self.fan_target_temp {
             issues.push("Start Temp >= Target Temp");
         }
-        if is_rdna2 {
+        if arch.has_5point_fan_curve_slots() {
             for i in 1..5 {
                 if self.fan_curve_temp[i] < self.fan_curve_temp[i - 1]
                     || self.fan_curve_pwm[i] < self.fan_curve_pwm[i - 1]
@@ -61,7 +58,7 @@ impl PowerPlayApp {
                 kv_row_1(ui, "Max RPM", max_t, &mut self.fan_max_rpm, 62.0);
                 kv_row_1(ui, "Target Temp (°C)", tgt_t, &mut self.fan_target_temp, 62.0);
                 kv_row_1(ui, "Target GFX Clock", gfx_t, &mut self.fan_target_gfx_clock, 62.0);
-                if is_rdna2 {
+                if arch.has_5point_fan_curve_slots() {
                     kv_row_1(ui, "Fan Mode", "fan_mode (0x71E)", &mut self.fan_mode, 62.0);
                     kv_row_1(ui, "Hyst / Ctrl", "fan_hyst_ctrl (0x71F)", &mut self.fan_hyst_ctrl, 62.0);
                 }
@@ -71,7 +68,7 @@ impl PowerPlayApp {
                     kv_header_2(ui, "Min", "Max", 62.0);
                     kv_row_2(ui, "Fan RPM", "od_fan_min/max (0x106 / 0x113)", &mut self.oc_fan_rpm, 62.0);
                     kv_row_2(ui, "Acoustic RPM", "od_acoustic_min/max (0x10A / 0x117)", &mut self.oc_fan_acoustic_rpm, 62.0);
-                    if is_rdna2 {
+                    if arch.has_5point_fan_curve_slots() {
                         kv_row_2(ui, "OD Temp (°C)", "od_fan_curve_min/max", &mut self.od_fan_temp, 62.0);
                         kv_row_2(ui, "OD Speed (%)", "od_fan_curve_min/max", &mut self.od_fan_speed, 62.0);
                     }
@@ -84,7 +81,7 @@ impl PowerPlayApp {
                         let resp = crate::ui_theme::green_checkbox(ui, &mut self.fan_zero_rpm_enable, "Enable Zero RPM");
                         if resp.hovered() || resp.clicked() {
                             let state = if self.fan_zero_rpm_enable { "Enabled" } else { "Disabled" };
-                            let info = format!("Zero RPM › Enable Zero RPM (0x726 / 0x87C) · {}", state);
+                            let info = format!("Zero RPM › Enable Zero RPM ({}) · {}", arch.zero_rpm_enable_offset_label(), state);
                             ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("hovered_field_banner"), info.clone()));
                             resp.on_hover_text(info);
                         }
@@ -108,13 +105,8 @@ impl PowerPlayApp {
             }
             if show_fancurve {
                 draw_card(ui, "Fan Curve", |ui| {
-                    if is_rdna3 || is_rdna1 {
-                        let note = if is_rdna3 {
-                            "RDNA 3 (SMU 13.0) computes dynamic fan PWM from Target Temp & Acoustic Limit; 5-point curve slots are RDNA 2 only."
-                        } else {
-                            "SMU 11.0 (Vega 20 / RDNA 1) drives fan PWM from PWM Min, Target Temp, and Acoustic RPM; 5-point curve slots are RDNA 2 only."
-                        };
-                        ui.colored_label(egui::Color32::from_rgb(160, 175, 195), note);
+                    if !arch.has_5point_fan_curve_slots() {
+                        ui.colored_label(egui::Color32::from_rgb(160, 175, 195), arch.fan_curve_note());
                     } else {
                         kv_header_2(ui, "Temp (°C)", "PWM (%)", 62.0);
                         for i in 0..5 {

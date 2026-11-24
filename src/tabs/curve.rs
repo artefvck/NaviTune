@@ -1,5 +1,4 @@
 use eframe::egui;
-use crate::pptable_rdna2::AtomSmcDpmInfoV4_9;
 use crate::{PowerPlayApp, dec_box, float_box};
 
 impl PowerPlayApp {
@@ -7,7 +6,6 @@ impl PowerPlayApp {
         use crate::card_layout::*;
 
         let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
-        let is_rdna3 = arch.is_rdna3();
         if arch.is_gcn_subtable() {
             draw_card(ui, &format!("{} — DPM & Thermal Architecture", arch.label()), |ui| {
                 ui.colored_label(
@@ -17,12 +15,11 @@ impl PowerPlayApp {
             });
             return;
         }
-        let is_rdna1 = arch.is_rdna1() || arch.is_vega();
-        let is_rdna2 = !is_rdna3 && AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer).is_some();
+        let is_rdna2 = arch.supports_card(crate::ppt_arch::PptCard::ThermalVmin);
 
         two_col_cards_adaptive(ui, "crv_cols", true, true, |ui| {
             draw_card(ui, "Voltage Curve (VID)", |ui| {
-                if is_rdna3 || is_rdna1 {
+                if !arch.has_static_vid_coeffs() {
                     ui.colored_label(
                         egui::Color32::from_rgb(235, 190, 95),
                         "This architecture uses AVFS per-die fused V/F curves instead of static quadratic (a, b, c) coefficients.",
@@ -51,7 +48,7 @@ impl PowerPlayApp {
                 }
             });
             draw_card(ui, "Voltage Offset", |ui| {
-                if is_rdna3 || is_rdna1 {
+                if !arch.has_static_vid_coeffs() {
                     ui.colored_label(
                         egui::Color32::from_rgb(160, 175, 195),
                         "Use Power -> GFX / Soc Vmin & Vmax (0x3B4..0x3BC) to adjust RDNA 3 voltage bounds.",
