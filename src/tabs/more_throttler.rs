@@ -14,19 +14,8 @@ impl PowerPlayApp {
             if self.raw_buffer.is_empty() { ui.label("Load a PPTable first."); return; }
             let mut changed = false;
             let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
-            let r1_1674 = crate::pptable_rdna1::Rdna1ParsedState::parse(&self.raw_buffer);
-            let max_temps = if r1_1674.is_some() { 9 } else { arch.max_temp_entries() }.min(TEMP_LABELS.len());
-            let base_off: Option<usize> = if let Some(ref r1) = r1_1674 {
-                Some(r1.outer_sz + 0x034)
-            } else {
-                match arch {
-                    crate::ppt_arch::PptArch::Rdna1 => Some(0x66B),
-                    crate::ppt_arch::PptArch::Vega20 if self.raw_buffer.len() >= 1924 => Some(0x655),
-                    crate::ppt_arch::PptArch::Rdna2 => Some(0x356),
-                    crate::ppt_arch::PptArch::Rdna3 => Some(0x372),
-                    _ => None,
-                }
-            };
+            let max_temps = arch.effective_temp_entries(&self.raw_buffer).min(TEMP_LABELS.len());
+            let base_off = arch.temp_limit_base_offset(&self.raw_buffer);
             for (idx, lbl) in TEMP_LABELS.iter().take(max_temps).enumerate() {
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 8.0;

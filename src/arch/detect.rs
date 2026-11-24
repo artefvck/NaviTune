@@ -417,6 +417,35 @@ impl PptArch {
         }
     }
 
+    pub fn effective_temp_entries(self, buf: &[u8]) -> usize {
+        if crate::pptable_rdna1::Rdna1ParsedState::parse(buf).is_some() {
+            9
+        } else {
+            self.max_temp_entries()
+        }
+    }
+
+    pub fn temp_limit_base_offset(self, buf: &[u8]) -> Option<usize> {
+        if let Some(r1) = crate::pptable_rdna1::Rdna1ParsedState::parse(buf) {
+            return Some(r1.outer_sz + 0x034);
+        }
+        match self {
+            Self::Rdna1 => Some(0x66B),
+            Self::Vega20 if buf.len() >= 1924 => Some(0x655),
+            Self::Rdna2 => Some(0x356),
+            Self::Rdna3 => Some(0x372),
+            _ => None,
+        }
+    }
+
+    pub fn pcie_and_lclk_offset_labels(self) -> (&'static str, &'static str, &'static str) {
+        match self {
+            Self::Rdna2 => ("pcie_gen_speed (0x6F6)", "pcie_lane_count (0x6F8)", "lclk_freq (0x6FA)"),
+            Self::Rdna3 => ("pcie_gen_speed (0x810)", "pcie_lane_count (0x813)", "lclk_freq (0x816)"),
+            _ => ("pcie_gen_speed", "pcie_lane_count", "lclk_freq"),
+        }
+    }
+
     pub fn default_table_size(self) -> usize {
         match self {
             Self::Polaris => 384,

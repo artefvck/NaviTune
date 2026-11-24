@@ -97,10 +97,11 @@ impl PowerPlayApp {
             }
             if show_pcieandlinkclocks {
                 draw_card(ui, "PCIe & LCLK", |ui| {
+                    let (gen_tag, lane_tag, lclk_tag) = arch.pcie_and_lclk_offset_labels();
                     kv_header_2(ui, "Min", "Max", 62.0);
-                    kv_row_2(ui, "PCIe Gen", "pcie_gen_speed (0x6F6 / 0x810)", &mut self.pcie_gen_speed, 62.0);
-                    kv_row_2(ui, "PCIe Lanes", "pcie_lane_count (0x6F8 / 0x813)", &mut self.pcie_lane_count, 62.0);
-                    kv_row_2(ui, "LCLK (MHz)", "lclk_freq (0x6FA / 0x816)", &mut self.lclk_mhz, 62.0);
+                    kv_row_2(ui, "PCIe Gen", gen_tag, &mut self.pcie_gen_speed, 62.0);
+                    kv_row_2(ui, "PCIe Lanes", lane_tag, &mut self.pcie_lane_count, 62.0);
+                    kv_row_2(ui, "LCLK (MHz)", lclk_tag, &mut self.lclk_mhz, 62.0);
                 });
             }
         });

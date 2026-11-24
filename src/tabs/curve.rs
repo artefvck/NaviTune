@@ -81,18 +81,8 @@ impl PowerPlayApp {
             });
         }, |ui| {
             draw_card(ui, "Thermal Limits", |ui| {
-                let r1_1674 = crate::pptable_rdna1::Rdna1ParsedState::parse(&self.raw_buffer);
-                let max_temps = if r1_1674.is_some() { 9 } else { arch.max_temp_entries() }.min(9);
-                let tl_base: usize = if let Some(ref r1) = r1_1674 {
-                    r1.outer_sz + 0x034
-                } else {
-                    match arch {
-                        crate::ppt_arch::PptArch::Rdna1 => 0x66B,
-                        crate::ppt_arch::PptArch::Vega20 => 0x655,
-                        crate::ppt_arch::PptArch::Rdna2 => 0x356,
-                        _ => 0x372,
-                    }
-                };
+                let max_temps = arch.effective_temp_entries(&self.raw_buffer).min(9);
+                let tl_base = arch.temp_limit_base_offset(&self.raw_buffer).unwrap_or(0x372);
                 let names = ["Edge", "Hotspot", "Memory", "VR GFX", "VR Mem0", "VR Mem1", "VR Soc", "Liquid0", "Liquid1"];
                 for (i, lbl) in names.iter().take(max_temps).enumerate() {
                     let tag = format!("temp_limit[{}] (0x{:03X})", i, tl_base + i * 2);
