@@ -22,6 +22,7 @@ impl PowerPlayApp {
                 self.mem_dpm_freq[i] = [r1p.uclk_dpm[i] as i32, 1];
                 self.mem_dpm_volt[i] = [r1p.mem_vddci[i] as i32 / 4, r1p.mem_mvdd[i] as i32 / 4];
             }
+            for i in 0..7 { self.temp_limits[i] = r1p.temp_limit[i] as i32; }
             self.fan_stop_temp = r1p.fan_stop_temp as i32;
             self.fan_start_temp = r1p.fan_start_temp as i32;
             self.fan_pwm_min = r1p.fan_pwm_min as i32;
@@ -225,6 +226,7 @@ impl PowerPlayApp {
             }
             r1p.fclk_min = self.freq_fclk[0].max(0) as u16;
             r1p.fclk_max = self.freq_fclk[1].max(0) as u16;
+            for i in 0..7 { r1p.temp_limit[i] = self.temp_limits[i].max(0) as u16; }
             r1p.fan_stop_temp = self.fan_stop_temp.max(0) as u16;
             r1p.fan_start_temp = self.fan_start_temp.max(0) as u16;
             r1p.fan_pwm_min = self.fan_pwm_min.max(0) as u16;
