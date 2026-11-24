@@ -56,6 +56,19 @@ pub fn preview_patched_checksum(
     Some((old_csum, new_csum))
 }
 
+pub fn resolve_diff_field_name(buf: &[u8], ppt_offset: usize) -> &'static str {
+    if let Some((_, entries)) = crate::tabs::native_offset::collect_native_struct_entries(buf) {
+        if let Some((_, field, _, _, _)) = entries
+            .iter()
+            .filter(|(sec, _, off, len, _)| *sec != "SubTable" && ppt_offset >= *off && ppt_offset < off.saturating_add((*len).max(1)))
+            .min_by_key(|(_, _, _, len, _)| *len)
+        {
+            return field;
+        }
+    }
+    "raw_byte"
+}
+
 impl PowerPlayApp {
     pub(crate) fn draw_save_diff_modal(&mut self, ctx: &egui::Context) {
         if !self.show_save_diff_modal {
@@ -116,12 +129,13 @@ impl PowerPlayApp {
                         .auto_shrink([false, false])
                         .show(ui, |ui| {
                             egui::Grid::new("pre_save_diff_grid")
-                                .num_columns(5)
+                                .num_columns(6)
                                 .striped(true)
-                                .spacing([14.0, 4.0])
+                                .spacing([12.0, 4.0])
                                 .show(ui, |ui| {
                                     ui.strong("PPTable Off");
                                     ui.strong("VBIOS Off");
+                                    ui.strong("Struct Field");
                                     ui.strong("Byte (Old -> New)");
                                     ui.strong("u16 LE Old");
                                     ui.strong("u16 LE New");
@@ -133,6 +147,7 @@ impl PowerPlayApp {
                                                 .map(|o| format!("0x{:06X}", o))
                                                 .unwrap_or_else(|| "—".to_string()),
                                         );
+                                        ui.monospace(resolve_diff_field_name(&self.raw_buffer, d.ppt_offset));
                                         ui.monospace(format!("0x{:02X} -> 0x{:02X}", d.old_byte, d.new_byte));
                                         ui.monospace(format!("{}", d.old_u16));
                                         ui.colored_label(
@@ -223,7 +238,18 @@ pub(crate) fn collect_bounded_byte_diffs(
 
 #[cfg(test)]
 mod save_diff_modal_bounds_tests {
-    use super::collect_bounded_byte_diffs;
+    use super::{collect_bounded_byte_diffs, resolve_diff_field_name};
+
+    #[test]
+    fn resolve_diff_field_name_maps_rdna1_1674b_offsets() {
+        let mut b = vec![0u8; 1674];
+        b[0..2].copy_from_slice(&1674u16.to_le_bytes());
+        b[2] = 0x0C;
+        b[5..7].copy_from_slice(&0x01E2u16.to_le_bytes());
+        assert_eq!(resolve_diff_field_name(&b, 0x01EE), "power_limit_w / tdc_gfx / tdc_soc");
+        assert_eq!(resolve_diff_field_name(&b, 0x0216), "temp_limit[0..9]");
+        assert_eq!(resolve_diff_field_name(&b, 0x047A), "fan_pwm_min / throttle / max / tgt");
+    }
 
     #[test]
     fn bounded_diff_handles_mismatched_and_large_buffers_safely() {

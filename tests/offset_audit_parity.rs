@@ -48,5 +48,15 @@ fn verify_all_target_roms_cli_roundtrip() {
             exported.as_slice(),
             "untouched load->save round-trip modified bytes on {rom_path:?}"
         );
+
+        let audit = std::process::Command::new(bin)
+            .args(["--audit", rom_path.to_str().unwrap()])
+            .output()
+            .expect("run --audit");
+        assert!(
+            audit.status.success(),
+            "--audit failed on {rom_path:?}: {}",
+            String::from_utf8_lossy(&audit.stderr)
+        );
     }
 }
