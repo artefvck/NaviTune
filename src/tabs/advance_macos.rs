@@ -5,40 +5,41 @@ use eframe::egui;
 
 impl PowerPlayApp {
     pub fn draw_advance_macos(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal_wrapped(|ui| {
-            let vcn_bits = [(21usize, "21: BACO"), (22, "22: VCN_PG / MM_DPM_PG"), (29, "29: DPM_VCLK"), (30, "30: DPM_DCLK")];
-            let mut all_vcn = vcn_bits.iter().all(|(b, _)| self.smu_features[*b]);
-            let panel_id = egui::Id::new("macos_vcn_panel_open");
-            let mut open = ui.ctx().data(|d| d.get_temp::<bool>(panel_id).unwrap_or(false));
-
-            if ui.button(if open { "Hide VCN Bits" } else { "Configure VCN Bits" }).clicked() {
-                open = !open;
-                ui.ctx().data_mut(|d| d.insert_temp(panel_id, open));
-            }
-            if crate::ui_theme::green_checkbox(ui, &mut all_vcn, "Set All VCN SMU Mask (21, 22, 29, 30)").changed() {
-                for (b, _) in vcn_bits {
-                    self.smu_features[b] = all_vcn;
+        let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
+        let is_rdna2 = arch == crate::ppt_arch::PptArch::Rdna2;
+        if is_rdna2 {
+            ui.horizontal_wrapped(|ui| {
+                let vcn_bits = [(21usize, "21: MM_DPM_PG"), (22, "22: VCN_PG"), (29, "29: DPM_VCLK"), (30, "30: DPM_DCLK")];
+                let mut all_vcn = vcn_bits.iter().all(|(b, _)| self.smu_features[*b]);
+                let panel_id = egui::Id::new("macos_vcn_panel_open");
+                let mut open = ui.ctx().data(|d| d.get_temp::<bool>(panel_id).unwrap_or(false));
+                if ui.button(if open { "Hide VCN Bits" } else { "Configure VCN Bits" }).clicked() {
+                    open = !open;
+                    ui.ctx().data_mut(|d| d.insert_temp(panel_id, open));
                 }
-                self.sync_fields_to_buffer();
-            }
-            if open {
-                ui.separator();
-                for (bit, lbl) in vcn_bits {
-                    if crate::ui_theme::green_checkbox(ui, &mut self.smu_features[bit], lbl).changed() {
-                        self.sync_fields_to_buffer();
+                if crate::ui_theme::green_checkbox(ui, &mut all_vcn, "Set All VCN SMU Mask (21, 22, 29, 30)").changed() {
+                    for (b, _) in vcn_bits { self.smu_features[b] = all_vcn; }
+                    self.sync_fields_to_buffer();
+                }
+                if open {
+                    ui.separator();
+                    for (bit, lbl) in vcn_bits {
+                        if crate::ui_theme::green_checkbox(ui, &mut self.smu_features[bit], lbl).changed() {
+                            self.sync_fields_to_buffer();
+                        }
                     }
                 }
-            }
-        });
-        ui.add_space(4.0);
-        let (vcn_pg, gfxoff, baco) = (self.smu_features[22], self.smu_features[20], self.smu_features[21]);
+            });
+            ui.add_space(4.0);
+        }
+        let vcn_pg = self.smu_features[22];
         let (fan_stop, fan_start, fan_pwm) = (self.fan_stop_temp, self.fan_start_temp, self.fan_pwm_min);
         let (vg0, vg1) = (self.volt_gfx[0], self.volt_gfx[1]);
-
         let sel_lbl = self.gpus.get(self.selected_gpu).cloned().unwrap_or_default();
-                    draw_card(ui, "macOS Status", |ui| {
-                egui::Grid::new("advance_macos_grid").num_columns(3).min_col_width(((ui.available_width() - 32.0) / 3.0).max(110.0)).striped(true).spacing([10.0, 6.0]).show(ui, |ui| {
-                    ui.strong("Check"); ui.strong("State"); ui.strong("macOS Status"); ui.end_row();
+        draw_card(ui, "macOS Status", |ui| {
+            egui::Grid::new("advance_macos_grid").num_columns(3).min_col_width(((ui.available_width() - 32.0) / 3.0).max(110.0)).striped(true).spacing([10.0, 6.0]).show(ui, |ui| {
+                ui.strong("Check"); ui.strong("State"); ui.strong("macOS Status"); ui.end_row();
+                if is_rdna2 {
                     ui.label("VCN_PG (Bit 22)");
                     ui.monospace(if vcn_pg { "Enabled (1)" } else { "Disabled (0)" });
                     ui.colored_label(
@@ -46,30 +47,27 @@ impl PowerPlayApp {
                         if !vcn_pg { "OPTIMAL" } else { "WARN" },
                     );
                     ui.end_row();
-                    ui.label("GFXOFF / BACO");
-                    ui.monospace(format!("{} / {}", gfxoff as u8, baco as u8));
-                    ui.colored_label(egui::Color32::from_rgb(80, 210, 120), if gfxoff && baco { "OK" } else { "WARN" });
-                    ui.end_row();
-                    ui.label("Fan Hysteresis");
-                    ui.monospace(format!("{}°C / {}°C ({}%)", fan_stop, fan_start, fan_pwm));
-                    ui.colored_label(egui::Color32::from_rgb(80, 210, 120), if fan_stop < fan_start { "OK" } else { "FIX" });
-                    ui.end_row();
-                    ui.label("GFX Voltage");
-                    ui.monospace(format!("{}..{} mV", vg0, vg1));
-                    let v_ok = vg0 > 0 && vg0 <= vg1 && vg1 <= 1250;
-                    ui.colored_label(
-                        if v_ok { egui::Color32::from_rgb(80, 210, 120) } else { egui::Color32::from_rgb(245, 185, 65) },
-                        if v_ok { "OK" } else { "CHECK" },
-                    );
-                    ui.end_row();
-                    let acpi_path = detect_live_acpi_gpu_path(&sel_lbl);
-                    ui.label("Live ACPI Path");
-                    ui.monospace(&acpi_path);
-                    ui.colored_label(egui::Color32::from_rgb(80, 210, 120), "DETECTED");
-                    ui.end_row();
-                });
+                }
+                ui.label("Fan Hysteresis");
+                ui.monospace(format!("{}°C / {}°C ({}%)", fan_stop, fan_start, fan_pwm));
+                ui.colored_label(egui::Color32::from_rgb(80, 210, 120), if fan_stop < fan_start { "OK" } else { "FIX" });
+                ui.end_row();
+                ui.label("GFX Voltage");
+                ui.monospace(format!("{}..{} mV", vg0, vg1));
+                let v_ok = vg0 > 0 && vg0 <= vg1 && vg1 <= 1250;
+                ui.colored_label(
+                    if v_ok { egui::Color32::from_rgb(80, 210, 120) } else { egui::Color32::from_rgb(245, 185, 65) },
+                    if v_ok { "OK" } else { "CHECK" },
+                );
+                ui.end_row();
+                let acpi_path = detect_live_acpi_gpu_path(&sel_lbl);
+                ui.label("Live ACPI Path");
+                ui.monospace(&acpi_path);
+                ui.colored_label(egui::Color32::from_rgb(80, 210, 120), "DETECTED");
+                ui.end_row();
             });
-        
+        });
+
             draw_card(ui, "OpenCore Export", |ui| {
                 ui.label("Export or copy synced PP,PhmSoftPowerPlayTable for OpenCore DeviceProperties:");
                 ui.add_space(8.0);
