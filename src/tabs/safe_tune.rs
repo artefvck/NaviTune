@@ -30,8 +30,12 @@ impl PowerPlayApp {
                 NaviRDNA3Chip::Navi33Hotbeige => (chip3.display_name(), true, 1200, 1325, 140, 200, 240, 60, 1150, 105, 1400, 1800, 8),
                 NaviRDNA3Chip::UnknownRdna3 => (chip3.display_name(), true, 1200, 1325, 140, 365, 460, 90, 1300, 105, 1400, 1800, 16),
             }
-        } else if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(&self.raw_buffer) {
-            let chip1 = t1.detect_chip(did);
+        } else if crate::ppt_arch::PptArch::detect(&self.raw_buffer) == crate::ppt_arch::PptArch::Rdna1 {
+            let chip1 = if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(&self.raw_buffer) {
+                t1.detect_chip(did)
+            } else {
+                crate::pptable_rdna1::NaviRDNA1Chip::from_did_and_clock(did, self.oc_gfx_clock[1] as u32)
+            };
             match chip1 {
                 crate::pptable_rdna1::NaviRDNA1Chip::Navi10 => (chip1.display_name(), false, 1200, 1200, 150, 225, 210, 32, 950, 95, 1500, 1150, 16),
                 crate::pptable_rdna1::NaviRDNA1Chip::Navi12 => (chip1.display_name(), false, 1150, 1150, 85, 150, 140, 28, 900, 95, 1400, 1100, 16),
