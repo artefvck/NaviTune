@@ -124,8 +124,12 @@ impl PowerPlayApp {
         } else if matches!(crate::ppt_arch::PptArch::detect(&self.raw_buffer), crate::ppt_arch::PptArch::Vega10 | crate::ppt_arch::PptArch::Vega20) {
             let frev_v = self.raw_buffer.get(2).copied().unwrap_or(0);
             crate::pptable_vega::VegaChip::from_did_and_rev(did, frev_v).display_name()
-        } else if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(&self.raw_buffer) {
-            t1.detect_chip(did).display_name()
+        } else if crate::ppt_arch::PptArch::detect(&self.raw_buffer) == crate::ppt_arch::PptArch::Rdna1 {
+            if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(&self.raw_buffer) {
+                t1.detect_chip(did).display_name()
+            } else {
+                crate::pptable_rdna1::NaviRDNA1Chip::from_did_and_clock(did, self.oc_gfx_clock[1].max(0) as u32).display_name()
+            }
         } else {
             crate::pptable_rdna2::AtomSmcDpmInfoV4_9::from_bytes(&self.raw_buffer).map(|t| t.detect_chip(&self.raw_buffer).display_name()).unwrap_or(if crate::ppt_arch::PptArch::detect(&self.raw_buffer) == crate::ppt_arch::PptArch::Polaris { "Polaris (SMU 8.0, rev 0x07)" } else { "Unknown" })
         };
