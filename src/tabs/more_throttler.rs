@@ -26,6 +26,9 @@ impl PowerPlayApp {
                     ui.label(*lbl);
                 });
             }
+            if self.temp_limits.iter().take(max_temps).any(|&t| t == 0) {
+                ui.small("0 °C = thermal sensor channel disabled in VBIOS");
+            }
             if changed { self.sync_fields_to_buffer(); }
         });
     }
