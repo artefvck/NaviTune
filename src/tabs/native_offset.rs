@@ -33,15 +33,21 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<NativeStructEntr
     }
     if let Some(r1) = crate::pptable_rdna1::Rdna1ParsedState::parse(b) {
         let inn = r1.outer_sz;
-        return Some(("RDNA 1 (Navi 10 / Navi 14)", vec![
+        return Some(("RDNA 1 (1674 B · Navi 10 / 14)", vec![
             ("Header", "AtomCommonTableHeader", 0x000, 5, format!("size={}, rev=0x{:02X}.{:02X}.{:02X}", hdr_sz, frev, crev, trev)),
+            ("OD8", "od_feature_flags[0..16]", 0x0C2, 16, format!("{:?}", r1.od_feature_flags)),
+            ("OD8", "od_settings_max[0..5]", 0x0E2, 48, format!("GFX={}, Mem={}, Pwr=+{}%, Fan={}, Ac={}", r1.od_settings_max[0], r1.od_settings_max[1], r1.od_settings_max[2], r1.od_settings_max[3], r1.od_settings_max[4])),
+            ("OD8", "od_mem_timing / pwr_mode / zero_rpm", 0x11A, 12, format!("MemTiming={}, PwrMode={}, ZeroRPM={}", r1.od_mem_timing_ctrl, r1.od_pwr_mode_ctrl, r1.od_zero_rpm_ctrl)),
             ("SubTable", "PP_PhmSoftPowerPlayTable", inn, (b.len() - inn).min(16), format!("SMC DPM inner table @ 0x{:03X}", inn)),
             ("SMU", "features_to_run (u64)", inn + 0x004, 8, format!("0x{:016X}", r1.smu_features)),
             ("Power", "power_limit_w / tdc_gfx / tdc_soc", inn + 0x00C, 38, format!("{} W | TDC GFX={} A, Soc={} A", r1.power_limit_w, r1.tdc_gfx, r1.tdc_soc)),
-            ("Voltage", "min/max_voltage_gfx", inn + 0x068, 6, format!("{} .. {} mV", r1.min_volt_gfx, r1.max_volt_gfx)),
+            ("Thermal", "temp_limit[0..9]", inn + 0x034, 18, format!("{:?} °C", r1.temp_limit)),
+            ("Voltage", "ulv_vmin_gfx / soc", inn + 0x064, 4, format!("GFX={} mV, Soc={} mV", r1.ulv_vmin_gfx / 4, r1.ulv_vmin_soc / 4)),
+            ("Voltage", "min/max_voltage_gfx", inn + 0x068, 6, format!("{} .. {} mV", r1.min_volt_gfx / 4, r1.max_volt_gfx / 4)),
             ("Clocks", "gfx_min / gfx_max", inn + 0x14C, 4, format!("{} .. {} MHz", r1.gfx_min, r1.gfx_max)),
             ("Memory", "uclk_dpm[0..3]", inn + 0x19C, 8, format!("{:?} MHz", r1.uclk_dpm)),
-            ("Fan", "fan_pwm_min / max_rpm / target_temp", inn + 0x294, 12, format!("PWM {}%, Max {} RPM, Target {} C", r1.fan_pwm_min, r1.fan_max_rpm, r1.fan_target_temp)),
+            ("Fan", "fan_stop_temp / fan_start_temp", inn + 0x27C, 4, format!("Stop={} °C, Start={} °C", r1.fan_stop_temp, r1.fan_start_temp)),
+            ("Fan", "fan_pwm_min / throttle / max / tgt", inn + 0x294, 16, format!("PWM {}%, Throttle {} RPM, Max {} RPM, Target {} °C, ZeroRPM={}", r1.fan_pwm_min, r1.fan_throttling_rpm, r1.fan_max_rpm, r1.fan_target_temp, r1.fan_zero_rpm)),
         ]));
     }
     if let Some(t1) = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(b) {
@@ -264,5 +270,31 @@ impl PowerPlayApp {
                         }
                     });
             });
+    }
+}
+
+#[cfg(test)]
+mod native_offset_rdna1_1674_tests {
+    use super::collect_native_struct_entries;
+
+    #[test]
+    fn native_offset_decodes_rdna1_1674b_thermal_fan_and_od_ctrls() {
+        let mut b = vec![0u8; 1674];
+        b[0..2].copy_from_slice(&1674u16.to_le_bytes());
+        b[2] = 0x0C;
+        b[5..7].copy_from_slice(&0x01E2u16.to_le_bytes());
+        b[0x11A..0x11E].copy_from_slice(&1u32.to_le_bytes());
+        b[0x11E..0x122].copy_from_slice(&1u32.to_le_bytes());
+        b[0x122..0x126].copy_from_slice(&1u32.to_le_bytes());
+        let inn = 0x01E2usize;
+        b[inn + 0x034..inn + 0x036].copy_from_slice(&100u16.to_le_bytes());
+        b[inn + 0x298..inn + 0x29A].copy_from_slice(&2600u16.to_le_bytes());
+        b[inn + 0x29A..inn + 0x29C].copy_from_slice(&3100u16.to_le_bytes());
+
+        let (arch, rows) = collect_native_struct_entries(&b).expect("1674B RDNA1 entries");
+        assert!(arch.contains("1674 B"));
+        assert!(rows.iter().any(|(_, f, off, _, _)| *f == "temp_limit[0..9]" && *off == inn + 0x034));
+        assert!(rows.iter().any(|(_, f, off, _, v)| *f == "fan_pwm_min / throttle / max / tgt" && *off == inn + 0x294 && v.contains("Throttle 2600 RPM") && v.contains("Max 3100 RPM")));
+        assert!(rows.iter().any(|(_, f, off, _, _)| *f == "od_mem_timing / pwr_mode / zero_rpm" && *off == 0x11A));
     }
 }
