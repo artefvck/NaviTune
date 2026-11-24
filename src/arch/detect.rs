@@ -265,6 +265,37 @@ impl PptArch {
         matches!(self, Self::Vega20 | Self::Rdna1 | Self::Rdna2 | Self::Rdna3)
     }
 
+    pub fn safe_thermal_ceilings(self) -> (i32, i32, i32) {
+        match self {
+            Self::Rdna3 => (110, 110, 108),
+            Self::Rdna1 => (110, 110, 105),
+            _ => (100, 110, 105),
+        }
+    }
+
+    pub fn od_power_min_bounds(self) -> (i32, i32) {
+        if self.is_rdna1() { (-50, -50) } else { (-10, -6) }
+    }
+
+    pub fn smu_protection_bits(self) -> &'static [usize] {
+        match self {
+            Self::Rdna3 => &[17, 20],
+            Self::Rdna1 => &[31, 32, 33],
+            Self::Vega20 | Self::Rdna2 => &[32, 33, 34],
+            _ => &[],
+        }
+    }
+
+    pub fn decode_pcie_link(self, raw_gen: i32, raw_lanes: i32) -> (i32, i32) {
+        if self.is_rdna3() {
+            let g = raw_gen + 1;
+            let l = match raw_lanes { 4 => 8, 6 | 7 => 16, v => v };
+            (g, l)
+        } else {
+            (raw_gen, raw_lanes)
+        }
+    }
+
     pub fn safe_tune_bounds(self) -> (i32, i32, i32, i32, i32) {
         match self {
             Self::Polaris => (1550, 2350, 1200, 3500, 75),

@@ -156,7 +156,7 @@ impl PowerPlayApp {
                         self.fan_start_temp = (self.fan_target_temp - 5).max(self.fan_stop_temp + 2);
                     }
                 }
-                let (safe_edge, safe_hot, safe_mem) = if arch.is_rdna3() { (110, 110, 108) } else if arch.is_rdna1() { (110, 110, 105) } else { (100, 110, 105) };
+                let (safe_edge, safe_hot, safe_mem) = arch.safe_thermal_ceilings();
                 if self.temp_limits[0] > safe_edge {
                     self.temp_limits[0] = safe_edge;
                 }
@@ -169,17 +169,10 @@ impl PowerPlayApp {
                 if self.oc_power_limit[1] > 20 {
                     self.oc_power_limit[1] = 20;
                 }
-                if arch.is_rdna3() {
-                    self.smu_features[17] = true;
-                    self.smu_features[20] = true;
-                } else if arch.is_rdna1() {
-                    self.smu_features[31] = true;
-                    self.smu_features[32] = true;
-                    self.smu_features[33] = true;
-                } else if !arch.is_gcn_subtable() && arch != PptArch::Unknown {
-                    self.smu_features[32] = true;
-                    self.smu_features[33] = true;
-                    self.smu_features[34] = true;
+                for &bit in arch.smu_protection_bits() {
+                    if bit < self.smu_features.len() {
+                        self.smu_features[bit] = true;
+                    }
                 }
                 self.status_msg = format!("Auto-fixed out-of-range tunables ({:?})", arch);
             }

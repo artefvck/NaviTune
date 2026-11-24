@@ -110,16 +110,16 @@ impl PowerPlayApp {
         let has_zrpm = self.fan_stop_temp > 0 || self.fan_start_temp > 0;
         let rpm_inv = self.fan_max_rpm > 0 && (self.fan_throttling_rpm > self.fan_max_rpm || self.fan_acoustic_limit > self.fan_max_rpm);
         let rpm_warn = self.fan_throttling_rpm > 0 && self.fan_acoustic_limit > self.fan_throttling_rpm;
-        let (safe_edge, safe_hot, safe_mem) = if is_rdna3 { (110, 110, 108) } else if crate::ppt_arch::PptArch::detect(&self.raw_buffer).is_rdna1() { (110, 110, 105) } else { (100, 110, 105) };
+        let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
+        let (safe_edge, safe_hot, safe_mem) = arch.safe_thermal_ceilings();
         let temp_risk = edge_lim > safe_edge + 5 || hotspot_lim > safe_hot + 5 || mem_lim > safe_mem + 5;
         let temp_warn = edge_lim > safe_edge || hotspot_lim > safe_hot || mem_lim > safe_mem;
         let fan_sev = if rpm_inv || (has_zrpm && (self.fan_stop_temp >= self.fan_start_temp || (self.fan_target_temp >= 45 && self.fan_start_temp >= self.fan_target_temp))) || temp_risk { 2 } else if rpm_warn || self.fan_target_temp > max_fan_tgt || self.fan_pwm_min < 10 || temp_warn { 1 } else { 0 };
         checks.push(("Thermal", "Fan & TempLimits (Edge/Hot/Mem)", format!("Tgt {}° ({}/{} RPM) | {}/{}/{}°C", self.fan_target_temp, self.fan_throttling_rpm, self.fan_max_rpm, edge_lim, hotspot_lim, mem_lim), format!("Tgt <= {}°, Throttle <= Max RPM | <= {}/{}/{}°C", max_fan_tgt, safe_edge, safe_hot, safe_mem), fan_sev, "Validates Zero-RPM hysteresis, Throttling/Max fan RPM ordering, and TempLimit[0..2] (Edge/Hotspot/Mem)."));
 
-        let is_rdna1 = crate::ppt_arch::PptArch::detect(&self.raw_buffer).is_rdna1();
-        let min_od_pwr = if is_rdna1 { -50 } else { -10 };
+        let (min_od_pwr, factory_min_od_pwr) = arch.od_power_min_bounds();
         let od_pwr_sev = if self.oc_power_limit[0] > self.oc_power_limit[1] || self.oc_power_limit[1] > 30 { 2 } else if self.oc_power_limit[0] < min_od_pwr || self.oc_power_limit[1] > 20 { 1 } else { 0 };
-        checks.push(("OverDrive", "OD Power Slider (%)", format!("{}% .. +{}%", self.oc_power_limit[0], self.oc_power_limit[1]), format!("{}% .. +20% (Factory Range)", if is_rdna1 { -50 } else { -6 }), od_pwr_sev, "Standard AMD OverDrive power slider allows up to +15%..+20% around socket PPT."));
+        checks.push(("OverDrive", "OD Power Slider (%)", format!("{}% .. +{}%", self.oc_power_limit[0], self.oc_power_limit[1]), format!("{}% .. +20% (Factory Range)", factory_min_od_pwr), od_pwr_sev, "Standard AMD OverDrive power slider allows up to +15%..+20% around socket PPT."));
 
         let fclk_sev = if self.freq_fclk[0] > self.freq_fclk[1] || self.freq_soc[0] > self.freq_soc[1] { 2 } else if self.freq_fclk[1] < min_fclk || self.freq_soc[1] < min_soc { 1 } else { 0 };
         if !is_gcn {
@@ -127,26 +127,13 @@ impl PowerPlayApp {
         checks.push(("Fabric", "FCLK & SoC Max Coupling", format!("FCLK {} MHz | SoC {} MHz", self.freq_fclk[1], self.freq_soc[1]), format!("FCLK >= {} MHz | SoC >= {} MHz", min_fclk, min_soc), fclk_sev, "Factory RDNA 2 runs ~1800 MHz FCLK; factory RDNA 3 runs ~1500 MHz FCLK / 2400+ MHz SoC."));
         }
 
-        let (disp_gen, disp_lanes, pcie_sev) = if is_rdna3 {
-            let g = self.pcie_gen_speed[1] + 1;
-            let l = match self.pcie_lane_count[1] { 4 => 8, 6 | 7 => 16, v => v };
-            let sev = if g > 4 || l > expected_lanes { 2 } else if g < 4 || l < expected_lanes { 1 } else { 0 };
-            (g, l, sev)
-        } else {
-            let sev = if self.pcie_gen_speed[1] > 4 || self.pcie_lane_count[1] > expected_lanes { 2 } else if self.pcie_gen_speed[1] < 4 || self.pcie_lane_count[1] < expected_lanes { 1 } else { 0 };
-            (self.pcie_gen_speed[1], self.pcie_lane_count[1], sev)
-        };
+        let (disp_gen, disp_lanes) = arch.decode_pcie_link(self.pcie_gen_speed[1], self.pcie_lane_count[1]);
+        let pcie_sev = if disp_gen > 4 || disp_lanes > expected_lanes { 2 } else if disp_gen < 4 || disp_lanes < expected_lanes { 1 } else { 0 };
         if !is_gcn && (self.pcie_gen_speed[1] > 0 || self.pcie_lane_count[1] > 0) {
         checks.push(("PCIe Bus", "Link Gen & Lane Width", format!("Gen {} x{} lanes", disp_gen, disp_lanes), format!("Gen 4 x{} lanes (Silicon Native)", expected_lanes), pcie_sev, "Navi 21/22/31/32 use PCIe 4.0 x16; Navi 23/33 use x8; Navi 24 uses x4."));
         }
 
-        let prot_ok = if is_rdna3 {
-            self.smu_features.get(17).copied().unwrap_or(true) && self.smu_features.get(20).copied().unwrap_or(true)
-        } else if is_rdna1 {
-            self.smu_features.get(31).copied().unwrap_or(true) && self.smu_features.get(32).copied().unwrap_or(true) && self.smu_features.get(33).copied().unwrap_or(true)
-        } else {
-            self.smu_features.get(32).copied().unwrap_or(true) && self.smu_features.get(33).copied().unwrap_or(true) && self.smu_features.get(34).copied().unwrap_or(true)
-        };
+        let prot_ok = arch.smu_protection_bits().iter().all(|&b| self.smu_features.get(b).copied().unwrap_or(true));
         if !is_gcn {
         checks.push(("SMU Safety", "PPT / TDC / Thermal Guards", if prot_ok { "Enabled (Hardware Guards ON)".to_string() } else { "DISABLED (Protection Bit Off!)".to_string() }, "PPT + TDC + Thermal ON".to_string(), if prot_ok { 0 } else { 2 }, "Never disable SMU PPT, TDC, or Thermal throttle bits on daily hardware."));
         }
