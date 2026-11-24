@@ -172,6 +172,10 @@ impl PowerPlayApp {
                 if arch.is_rdna3() {
                     self.smu_features[17] = true;
                     self.smu_features[20] = true;
+                } else if arch.is_rdna1() {
+                    self.smu_features[31] = true;
+                    self.smu_features[32] = true;
+                    self.smu_features[33] = true;
                 } else if !arch.is_gcn_subtable() && arch != PptArch::Unknown {
                     self.smu_features[32] = true;
                     self.smu_features[33] = true;
