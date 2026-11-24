@@ -88,6 +88,9 @@ impl PowerPlayApp {
                     let tag = format!("temp_limit[{}] (0x{:03X})", i, tl_base + i * 2);
                     kv_row_1(ui, lbl, &tag, &mut self.temp_limits[i], 76.0);
                 }
+                if self.temp_limits.iter().take(max_temps).any(|&t| t == 0) {
+                    ui.small("0 °C = thermal sensor channel disabled in VBIOS");
+                }
             });
             if is_rdna2 {
                 draw_card(ui, "DcBtc & DcTol (mV)", |ui| {
