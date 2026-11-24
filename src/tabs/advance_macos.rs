@@ -104,26 +104,6 @@ impl PowerPlayApp {
                         self.sync_fields_to_buffer();
                         self.show_opencore_copy_modal = true;
                     }
-                    if ui.button("Export Base64 (.txt)").clicked() {
-                        self.sync_fields_to_buffer();
-                        if let Some(path) = rfd::FileDialog::new().set_file_name("PPTable_base64.txt").save_file() {
-                            let b64 = crate::export_formats::encode_base64(&self.raw_buffer);
-                            match crate::io::write_atomic(&path, b64.as_bytes()) {
-                                Ok(_) => self.status_msg = format!("Exported Base64 ({} chars) to {}", b64.len(), path.file_name().unwrap_or_default().to_string_lossy()),
-                                Err(e) => self.show_error("Base64 Export Error", &e.to_string()),
-                            }
-                        }
-                    }
-                    if ui.button("Export Hex Raw (.txt)").clicked() {
-                        self.sync_fields_to_buffer();
-                        if let Some(path) = rfd::FileDialog::new().set_file_name("PPTable_hex_raw.txt").save_file() {
-                            let hex_raw = crate::more_popups::format_raw_hex_nospace(&self.raw_buffer);
-                            match crate::io::write_atomic(&path, hex_raw.as_bytes()) {
-                                Ok(_) => self.status_msg = format!("Exported Raw Hex ({} chars) to {}", hex_raw.len(), path.file_name().unwrap_or_default().to_string_lossy()),
-                                Err(e) => self.show_error("Raw Hex Export Error", &e.to_string()),
-                            }
-                        }
-                    }
                     let oc_key_id = egui::Id::new("macos_oc_plist_use_underscore");
                     let mut use_underscore = ui.ctx().data(|d| d.get_temp::<bool>(oc_key_id).unwrap_or(false));
                     let key_lbl = if use_underscore { "PP_PhmSoftPowerPlayTable" } else { "PP,PhmSoftPowerPlayTable" };
