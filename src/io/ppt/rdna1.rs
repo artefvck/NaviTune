@@ -47,7 +47,9 @@ impl PowerPlayApp {
 
             self.oc_gfx_clock = [r1p.od_settings_min[0] as i32, r1p.od_settings_max[0] as i32];
             self.oc_mem_clock = [r1p.od_settings_min[1] as i32, r1p.od_settings_max[1] as i32];
-            self.oc_power_limit = [r1p.od_settings_min[2] as i32, r1p.od_settings_max[2] as i32];
+            let pwr_min_raw = r1p.od_settings_min[2] as i32;
+            let pwr_max_raw = r1p.od_settings_max[2] as i32;
+            self.oc_power_limit = [if pwr_min_raw > pwr_max_raw { -pwr_min_raw } else { pwr_min_raw }, pwr_max_raw];
             self.oc_fan_rpm = [r1p.od_settings_min[3] as i32, r1p.od_settings_max[3] as i32];
             self.oc_fan_acoustic_rpm = [r1p.od_settings_min[4] as i32, r1p.od_settings_max[4] as i32];
             self.fan_acoustic_limit = r1p.fan_acoustic_rpm as i32;
@@ -231,7 +233,7 @@ impl PowerPlayApp {
             r1p.od_settings_min = [
                 self.oc_gfx_clock[0].max(0) as u32,
                 self.oc_mem_clock[0].max(0) as u32,
-                self.oc_power_limit[0] as u32,
+                if self.oc_power_limit[0] < 0 { self.oc_power_limit[0].unsigned_abs() } else { self.oc_power_limit[0] as u32 },
                 self.oc_fan_rpm[0].max(0) as u32,
                 self.oc_fan_acoustic_rpm[0].max(0) as u32,
             ];
