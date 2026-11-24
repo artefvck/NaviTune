@@ -231,7 +231,7 @@ impl Rdna1ParsedState {
             fclk_max: u16_at(inn, 0x1B6),
             mem_vddci: [u16_at(inn, 0x240), u16_at(inn, 0x242), u16_at(inn, 0x244), u16_at(inn, 0x246)],
             mem_mvdd: [u16_at(inn, 0x248), u16_at(inn, 0x24A), u16_at(inn, 0x24C), u16_at(inn, 0x24E)],
-            temp_limit: [u16_at(inn, 0x260), u16_at(inn, 0x262), u16_at(inn, 0x264), u16_at(inn, 0x266), u16_at(inn, 0x268), u16_at(inn, 0x26A), u16_at(inn, 0x26C)],
+            temp_limit: [0; 7],
             fan_stop_temp: u16_at(inn, 0x27C),
             fan_start_temp: u16_at(inn, 0x27E),
             fan_pwm_min: u16_at(inn, 0x294),
@@ -294,7 +294,6 @@ impl Rdna1ParsedState {
         }
         put_u16(inn, 0x1B4, self.fclk_min);
         put_u16(inn, 0x1B6, self.fclk_max);
-        for i in 0..7 { put_u16(inn, 0x260 + i * 2, self.temp_limit[i]); }
         put_u16(inn, 0x27C, self.fan_stop_temp);
         put_u16(inn, 0x27E, self.fan_start_temp);
         put_u16(inn, 0x294, self.fan_pwm_min);
