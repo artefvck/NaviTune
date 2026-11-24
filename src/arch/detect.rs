@@ -14,6 +14,7 @@ pub enum PptCard {
     VfCurve,
     VidCurveAndOffset,
     FanSettingsAndLimits,
+    FanLimits,
     ZeroRpm,
     FanCurve,
     ThermalLimits,
@@ -586,9 +587,25 @@ impl PptArch {
         !(tab_idx == 4 && self.is_gcn_subtable())
     }
 
+    pub fn has_per_dpm_mem_voltage(self) -> bool {
+        matches!(self, Self::Rdna1 | Self::Rdna2 | Self::Rdna3)
+    }
+
+    pub fn supports_card_in_buf(self, card: PptCard, buf: &[u8]) -> bool {
+        match card {
+            PptCard::FanLimits => match self {
+                Self::Rdna1 | Self::Rdna2 | Self::Rdna3 => true,
+                Self::Vega20 => buf.len() >= 1924,
+                _ => false,
+            },
+            _ => self.supports_card(card),
+        }
+    }
+
     pub fn supports_card(self, card: PptCard) -> bool {
         match card {
             PptCard::CoreVoltage | PptCard::MemoryVoltage | PptCard::ClockLimits | PptCard::MemoryDpm | PptCard::OverDrive | PptCard::FanSettingsAndLimits => true,
+            PptCard::FanLimits => matches!(self, Self::Vega20 | Self::Rdna1 | Self::Rdna2 | Self::Rdna3),
             PptCard::ZeroRpm => !matches!(self, Self::Polaris),
             PptCard::PowerAndCurrent => !matches!(self, Self::Vega10),
             PptCard::UlvVoltage => !self.is_gcn_subtable(),
@@ -619,6 +636,7 @@ impl PptArch {
             PptCard::VfCurve => "V/F Curve",
             PptCard::VidCurveAndOffset => "Voltage Curve (VID) & Offset",
             PptCard::FanSettingsAndLimits => if self.is_gcn_subtable() { "ATOM Fan Settings & Limits" } else { "Fan Settings & Limits" },
+            PptCard::FanLimits => "Fan Limits",
             PptCard::ZeroRpm => "Zero RPM",
             PptCard::FanCurve => "Fan Curve",
             PptCard::ThermalLimits => "Thermal Limits",
