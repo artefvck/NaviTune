@@ -700,6 +700,134 @@ impl PptArch {
         }
     }
 
+    pub const ALL_CARDS: [PptCard; 18] = [
+        PptCard::OverDrive,
+        PptCard::PowerModes,
+        PptCard::PowerModeAcoustic,
+        PptCard::PowerAndCurrent,
+        PptCard::CoreVoltage,
+        PptCard::UlvVoltage,
+        PptCard::MemoryVoltage,
+        PptCard::ThermalVmin,
+        PptCard::ClockLimits,
+        PptCard::MemoryDpm,
+        PptCard::PcieAndLinkClocks,
+        PptCard::VidCurveAndOffset,
+        PptCard::ThermalLimits,
+        PptCard::VfCurve,
+        PptCard::FanSettingsAndLimits,
+        PptCard::FanLimits,
+        PptCard::ZeroRpm,
+        PptCard::FanCurve,
+    ];
+
+    pub fn card_inspect_fields(self, card: PptCard, buf: &[u8]) -> &'static str {
+        match card {
+            PptCard::OverDrive => {
+                if !self.has_od8_and_smu_masks() {
+                    "GFX Clock Max (MHz), Memory Clock Max (MHz), Power Limit (+%)"
+                } else if self.supports_card_in_buf(PptCard::FanLimits, buf) {
+                    "GFX Clock (Min/Max MHz), Memory Clock (Min/Max MHz), Power Limit (%), Fan Max RPM, Fan Acoustic RPM"
+                } else {
+                    "GFX Clock (Min/Max MHz), Memory Clock (Min/Max MHz), Power Limit (%)"
+                }
+            }
+            PptCard::PowerModes => {
+                if self.has_dynamic_power_modes_only() {
+                    "Dynamic SMU 13.0 Firmware Presets (Quiet / Balanced / Rage)"
+                } else {
+                    "Quiet, Balanced, Turbo, Rage (Limit % / Temp °C)"
+                }
+            }
+            PptCard::PowerModeAcoustic => "Quiet, Balanced, Turbo, Rage (Acoustic RPM / Target °C)",
+            PptCard::PowerAndCurrent => {
+                if self.is_gcn_subtable() {
+                    "Power Limit (W), TDC GFX (A)"
+                } else {
+                    "Power Limit (W), TDC GFX (A), TDC Soc (A)"
+                }
+            }
+            PptCard::CoreVoltage => {
+                if self.has_hard_limit_subtable() {
+                    "VDDC Max (HardLimit mV)"
+                } else {
+                    "GFX (Vmin / Vmax mV), Soc (Vmin / Vmax mV)"
+                }
+            }
+            PptCard::UlvVoltage => {
+                if self.has_ulv_vmax() {
+                    "GFX (Vmin / Vmax mV), Soc (Vmin / Vmax mV)"
+                } else {
+                    "GFX (Vmin mV), Soc (Vmin mV)"
+                }
+            }
+            PptCard::MemoryVoltage => {
+                if self.uses_single_rail_mem_voltage(buf) {
+                    if self.is_vega() { "HBM2 Rail (All DPM: VDDCI / MVDD mV)" } else { "Max (VDDCI / MVDD mV)" }
+                } else {
+                    "DPM 0..3 (VDDCI / MVDD mV)"
+                }
+            }
+            PptCard::ThermalVmin => "GFX / Soc TVmin (°C), Hyst (°C), Low / High (mV)",
+            PptCard::ClockLimits => {
+                if self.has_hard_limit_subtable() {
+                    if self == Self::Vega10 { "GFXCLK Max (MHz), SOCCLK Max (MHz)" } else { "GFXCLK Max (MHz)" }
+                } else if self.has_extended_media_clocks() {
+                    "GFX, Soc, FCLK, VCLK, DCLK, DCEFCLK, DISPCLK, PIXCLK, PHYCLK, DTBCLK, FCLK Boost"
+                } else {
+                    "GFX (Min/Max MHz), Soc (Min/Max MHz), FCLK (Min/Max MHz)"
+                }
+            }
+            PptCard::MemoryDpm => {
+                if self.has_uclk_dividers() {
+                    "DPM 0..3 (UCLK MHz, Clock Div)"
+                } else {
+                    "DPM 0..3 (UCLK MHz)"
+                }
+            }
+            PptCard::PcieAndLinkClocks => "PCIe Gen (Min/Max), PCIe Lanes (Min/Max), LCLK (Min/Max MHz)",
+            PptCard::VidCurveAndOffset => {
+                if self.has_static_vid_coeffs() {
+                    "Static VID Coeff (a, b, c), Voltage Offset (a, b, c), DcBtc, DcTol"
+                } else {
+                    "AVFS Per-Die Fused V/F Curve"
+                }
+            }
+            PptCard::ThermalLimits => {
+                if self.effective_temp_entries(buf) >= 9 {
+                    "Edge, Hotspot, Memory, VR GFX, VR Mem0, VR Mem1, VR Soc, Liquid0, Liquid1 (°C)"
+                } else {
+                    "Edge, Hotspot, Memory, VR GFX, VR Mem0, VR Mem1, VR Soc (°C)"
+                }
+            }
+            PptCard::VfCurve => "Interactive 2D V/F Curve (Fmin/Vmin .. Fmax/Vmax)",
+            PptCard::FanSettingsAndLimits => {
+                if self.has_fan_mode_hyst() {
+                    "PWM Min (%), Acoustic Limit, Throttling RPM, Max RPM, Target Temp, Target GFX, Fan Mode, Hyst"
+                } else if self.supports_card_in_buf(PptCard::FanLimits, buf) {
+                    "PWM Min (%), Acoustic Limit (RPM), Throttling RPM, Max RPM, Target Temp (°C), Target GFX Clock"
+                } else {
+                    "PWM Min (%), Max RPM, Target Temp (°C), Target GFX Clock"
+                }
+            }
+            PptCard::FanLimits => {
+                if self.has_od_fan_temp_speed() {
+                    "Fan RPM (Min/Max), Acoustic RPM (Min/Max), OD Temp (°C), OD Speed (%)"
+                } else {
+                    "Fan RPM (Min/Max), Acoustic RPM (Min/Max)"
+                }
+            }
+            PptCard::ZeroRpm => "Enable Zero RPM, Stop Temp (°C), Start Temp (°C)",
+            PptCard::FanCurve => {
+                if self.has_5point_fan_curve_slots() {
+                    "5-Point Fan Curve (Point 1..5 Temp °C / PWM %) + Interactive 2D Plot"
+                } else {
+                    "Dynamic SMU PWM Target + Interactive 2D Fan Curve Plot"
+                }
+            }
+        }
+    }
+
     pub fn card_title(self, card: PptCard) -> &'static str {
         match card {
             PptCard::PowerAndCurrent => "Power & Current",
