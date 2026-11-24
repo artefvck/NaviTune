@@ -15,5 +15,5 @@
 - **Advance (macOS / Linux / Windows)**: Export `PP,PhmSoftPowerPlayTable` base64/hex properties for OpenCore `DeviceProperties`, `sysfs` `pp_table` overrides on Linux, or Windows registry `PP_PhmSoftPowerPlayTable` blobs.
 
 ## Pre-Save Binary Diff & VBIOS Checksum Audit
-- Clicking **Save** opens a live byte-level diff table showing every modified PPTable offset, VBIOS ROM offset, old/new byte values, and automatic AtomBIOS `0x21` checksum recalculation before writing to disk.
+- Clicking **Diff & Save (N B)** in the bottom action bar opens a live byte-level diff table showing every modified PPTable offset, VBIOS ROM offset, old/new byte values, and automatic AtomBIOS `0x21` checksum recalculation before writing to disk.
 - **RDNA 2 ULV Voltage (`0x380..0x388`)**: Displays `UlvVoltageVminGfx` (`0x380`), `UlvVoltageVminSoc` (`0x382`), `UlvVoltageVmaxGfx` (`0x384`), and `UlvVoltageVmaxSoc` (`0x386`) in mV (`raw / 4`).

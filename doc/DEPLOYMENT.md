@@ -7,7 +7,7 @@
 1. Open the **Advance -> macOS** tab.
 2. Verify the detected `IOACPIPlane` GPU device path in the **macOS Status** card on top.
 3. Choose one of three injection methods in the **OpenCore Export** card:
-   * **DeviceProperties (`config.plist`)**: Copy Base64 or Hex, or export a ready-to-merge `.plist` snippet under `PP_PhmSoftPowerPlayTable`.
+   * **DeviceProperties (`config.plist`)**: Copy Base64 or Hex, or toggle `Key: PP,PhmSoftPowerPlayTable` / `PP_PhmSoftPowerPlayTable` and export a ready-to-merge `.plist` snippet.
    * **ACPI SSDT (`SSDT-sPPT.aml`)**: Automatically generates and compiles an ACPI table (requires `iasl` from ACPICA).
    * **Codeless Injector (`RadeonPowerPlayInjector.kext`)**: Generates a standalone kext bundle for `EFI/OC/Kexts`.
 4. Reboot to apply the injected `PP_PhmSoftPowerPlayTable`.
