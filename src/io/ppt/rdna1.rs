@@ -27,15 +27,42 @@ impl PowerPlayApp {
             self.fan_pwm_min = r1p.fan_pwm_min as i32;
             self.fan_max_rpm = r1p.fan_max_rpm as i32;
             self.fan_target_temp = r1p.fan_target_temp as i32;
-            self.oc_gfx_clock[1] = r1p.od_gfx_max as i32;
-            self.oc_mem_clock[1] = r1p.od_uclk_max as i32;
+            let f = r1p.od_feature_flags;
+            self.gpu_clock_limit = f[0] != 0;
+            self.gpu_clock_curve = f[1] != 0;
+            self.memory_clock_limit = f[2] != 0;
+            self.zero_rpm = f[3] != 0;
+            self.min_fan_speed = f[4] != 0;
+            self.fan_target_temp_limit = f[5] != 0;
+            self.operating_temp_limit = f[6] != 0;
+            self.fan_acoustic_rpm = f[7] != 0;
+            self.fan_curve = f[8] != 0;
+            self.power_limit_feat = f[9] != 0;
+            self.timing_tuning = f[10] != 0;
+            self.power_mode = f[11] != 0;
+            self.auto_undervolt_gpu = f[12] != 0;
+            self.auto_overclock_gpu = f[13] != 0;
+            self.auto_overclock_mem = f[14] != 0;
+            self.auto_fan_acoustic_limit = f[15] != 0;
+
+            self.oc_gfx_clock = [r1p.od_settings_min[0] as i32, r1p.od_settings_max[0] as i32];
+            self.oc_mem_clock = [r1p.od_settings_min[1] as i32, r1p.od_settings_max[1] as i32];
+            self.oc_power_limit = [r1p.od_settings_min[2] as i32, r1p.od_settings_max[2] as i32];
+            self.oc_fan_rpm = [r1p.od_settings_min[3] as i32, r1p.od_settings_max[3] as i32];
+            self.oc_fan_acoustic_rpm = [r1p.od_settings_min[4] as i32, r1p.od_settings_max[4] as i32];
+            self.fan_acoustic_limit = r1p.fan_acoustic_rpm as i32;
+            self.fan_target_gfx_clock = r1p.fan_target_gfx as i32;
+            self.fan_zero_rpm_enable = r1p.fan_zero_rpm;
+            self.static_volt_a[0] = r1p.curve_gfx[0] as f64;
+            self.static_volt_b[0] = r1p.curve_gfx[1] as f64;
+            self.static_volt_c[0] = r1p.curve_gfx[2] as f64;
+            self.baseline_buffer = b.to_owned();
+
             let did = self.vbios_buffer.as_deref()
                 .and_then(|vb| crate::vbios::inspect_vbios_info(vb, self.vbios_ppt_offset.unwrap_or(0)))
                 .map(|vi| vi.device_id)
                 .unwrap_or(0);
-            let chip_name = crate::pptable_rdna1::AtomSmcDpmInfoV4_5::from_bytes(b)
-                .map(|t1| t1.detect_chip(did).display_name().to_string())
-                .unwrap_or_else(|| "RDNA 1 (Navi 10 / Navi 14)".to_string());
+            let chip_name = crate::pptable_rdna1::NaviRDNA1Chip::from_did_and_clock(did, r1p.od_settings_max[0]).display_name().to_string();
             let vbios_tag = if let Some(voff) = self.vbios_ppt_offset {
                 format!(" | VBIOS PP_PhmSoftPowerPlayTable @ 0x{:04X}", voff)
             } else {
@@ -201,8 +228,32 @@ impl PowerPlayApp {
             r1p.fan_pwm_min = self.fan_pwm_min.max(0) as u16;
             r1p.fan_max_rpm = self.fan_max_rpm.max(0) as u16;
             r1p.fan_target_temp = self.fan_target_temp.max(0) as u16;
-            r1p.od_gfx_max = self.oc_gfx_clock[1].max(0) as u32;
-            r1p.od_uclk_max = self.oc_mem_clock[1].max(0) as u32;
+            r1p.od_settings_min = [
+                self.oc_gfx_clock[0].max(0) as u32,
+                self.oc_mem_clock[0].max(0) as u32,
+                self.oc_power_limit[0] as u32,
+                self.oc_fan_rpm[0].max(0) as u32,
+                self.oc_fan_acoustic_rpm[0].max(0) as u32,
+            ];
+            r1p.od_settings_max = [
+                self.oc_gfx_clock[1].max(0) as u32,
+                self.oc_mem_clock[1].max(0) as u32,
+                self.oc_power_limit[1] as u32,
+                self.oc_fan_rpm[1].max(0) as u32,
+                self.oc_fan_acoustic_rpm[1].max(0) as u32,
+            ];
+            r1p.od_gfx_max = r1p.od_settings_max[0];
+            r1p.od_uclk_max = r1p.od_settings_max[1];
+            r1p.od_feature_flags = [
+                u8::from(self.gpu_clock_limit), u8::from(self.gpu_clock_curve),
+                u8::from(self.memory_clock_limit), u8::from(self.zero_rpm),
+                u8::from(self.min_fan_speed), u8::from(self.fan_target_temp_limit),
+                u8::from(self.operating_temp_limit), u8::from(self.fan_acoustic_rpm),
+                u8::from(self.fan_curve), u8::from(self.power_limit_feat),
+                u8::from(self.timing_tuning), u8::from(self.power_mode),
+                u8::from(self.auto_undervolt_gpu), u8::from(self.auto_overclock_gpu),
+                u8::from(self.auto_overclock_mem), u8::from(self.auto_fan_acoustic_limit),
+            ];
             r1p.write_to_buf(&mut self.raw_buffer);
             return true;
         }
