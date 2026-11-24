@@ -92,13 +92,18 @@ impl PowerPlayApp {
             }
             if show_ulvvoltage {
                 draw_card(ui, arch.card_title(crate::ppt_arch::PptCard::UlvVoltage), |ui| {
-                    if is_rdna3 {
-                        kv_row_1(ui, "GFX Vmin", "ulv_voltage_vmin_gfx (0x3C4)", &mut self.ulv_gfx[0], 62.0);
-                        kv_row_1(ui, "Soc Vmin", "ulv_voltage_vmin_soc (0x3C6)", &mut self.ulv_soc[0], 62.0);
+                    if !arch.is_rdna2() {
+                        let (ug_tag, us_tag) = match arch {
+                            crate::ppt_arch::PptArch::Rdna3 => ("ulv_voltage_vmin_gfx (0x3C4)", "ulv_voltage_vmin_soc (0x3C6)"),
+                            crate::ppt_arch::PptArch::Rdna1 => ("min_voltage_ulv_gfx (0x246 / 0x0ED)", "min_voltage_ulv_soc (0x248 / 0x0EF)"),
+                            _ => ("min_voltage_ulv_gfx (0x137)", "min_voltage_ulv_soc (0x139)"),
+                        };
+                        kv_row_1(ui, "GFX Vmin", ug_tag, &mut self.ulv_gfx[0], 62.0);
+                        kv_row_1(ui, "Soc Vmin", us_tag, &mut self.ulv_soc[0], 62.0);
                     } else {
                         kv_header_2(ui, "Vmin", "Vmax", 62.0);
-                        kv_row_2(ui, "GFX", match arch { crate::ppt_arch::PptArch::Vega20 => "min_voltage_ulv_gfx / ulv_voltage_offset_gfx (0x137 / 0x131)", crate::ppt_arch::PptArch::Rdna1 => "min_voltage_ulv_gfx / ulv_voltage_offset_gfx (0x0D1 / 0x0CB)", _ => "ulv_voltage_vmin_gfx / vmax_gfx (0x380 / 0x384)" }, &mut self.ulv_gfx, 62.0);
-                        kv_row_2(ui, "Soc", match arch { crate::ppt_arch::PptArch::Vega20 => "min_voltage_ulv_soc / ulv_voltage_offset_soc (0x139 / 0x12F)", crate::ppt_arch::PptArch::Rdna1 => "min_voltage_ulv_soc / ulv_voltage_offset_soc (0x0D3 / 0x0C9)", _ => "ulv_voltage_vmin_soc / vmax_soc (0x382 / 0x386)" }, &mut self.ulv_soc, 62.0);
+                        kv_row_2(ui, "GFX", "ulv_voltage_vmin_gfx / vmax_gfx (0x380 / 0x384)", &mut self.ulv_gfx, 62.0);
+                        kv_row_2(ui, "Soc", "ulv_voltage_vmin_soc / vmax_soc (0x382 / 0x386)", &mut self.ulv_soc, 62.0);
                     }
                 });
             }
