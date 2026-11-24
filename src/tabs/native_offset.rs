@@ -114,7 +114,7 @@ pub(crate) fn collect_native_struct_entries(b: &[u8]) -> Option<NativeStructEntr
             ("Power", "BoostPower / MaxCurrent", 0x016, 6, format!("Boost={}W, TDC_GFX={}A, TDC_Soc={}A", u16_at(0x016), u16_at(0x018), u16_at(0x01A))),
             ("OD8", "od_settings_max (GFX/Mem)", 0x027, 8, format!("GFX={}MHz, Mem={}MHz", u32_at(0x027), u32_at(0x02B))),
             ("Voltage", "GFX Vmin..Vmax (OD8)", 0x03B, 12, format!("GFX={}..{}mV (Ceiling={}mV)", u32_at(0x03B), u32_at(0x043), u32_at(0x047))),
-            ("Thermal", "temp_limit[0..7]", 0x1FA, 14, format!("[{}, {}, {}, {}, {}, {}, {}] °C", u16_at(0x1FA), u16_at(0x1FC), u16_at(0x1FE), u16_at(0x200), u16_at(0x202), u16_at(0x204), u16_at(0x206))),
+            ("Thermal", "temp_limit[0..7]", 0x1FA, 18, format!("[{}, {}, {}, {}, {}, {}, {}] °C", u16_at(0x1FA), u16_at(0x1FC), u16_at(0x202), u16_at(0x204), u16_at(0x206), u16_at(0x208), u16_at(0x20A))),
             ("Clocks", "freq_table_gfx[0..7]", 0x33A, 16, format!("GFX={}..{}MHz", u16_at(0x33A), u16_at(0x348))),
             ("Memory", "freq_table_uclk[0..3]", 0x38A, 8, format!("UCLK={}..{}MHz", u16_at(0x3C4), u16_at(0x3CA))),
         ]));
