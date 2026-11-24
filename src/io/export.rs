@@ -107,11 +107,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn roundtrip_mpt_reg_plist_rdna2_and_rdna3() {
-        for sz in [2470usize, 5424usize] {
+    fn roundtrip_mpt_reg_plist_all_table_sizes() {
+        for (sz, rev) in [(833usize, 0x07u8), (1534, 0x0B), (1674, 0x0C), (2470, 0x0F), (5424, 0x15)] {
             let mut sample = vec![0u8; sz];
             sample[0..2].copy_from_slice(&(sz as u16).to_le_bytes());
-            sample[2] = if sz == 2470 { 0x0F } else { 0x15 };
+            sample[2] = rev;
             for (i, b) in sample.iter_mut().enumerate().skip(4) {
                 *b = (i.wrapping_mul(31) & 0xFF) as u8;
             }
