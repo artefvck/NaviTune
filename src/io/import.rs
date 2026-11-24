@@ -164,7 +164,8 @@ pub fn parse_plist_ppt(raw: &[u8]) -> Result<Vec<u8>, String> {
     let txt = String::from_utf8_lossy(raw);
     let key_pos = txt
         .find("PP_PhmSoftPowerPlayTable")
-        .ok_or("Could not find PP_PhmSoftPowerPlayTable key in .plist")?;
+        .or_else(|| txt.find("PP,PhmSoftPowerPlayTable"))
+        .ok_or("Could not find PP_PhmSoftPowerPlayTable or PP,PhmSoftPowerPlayTable key in .plist")?;
     let after_key = &txt[key_pos..];
     let data_start = after_key.find("<data>").ok_or("Missing <data> tag after PP_PhmSoftPowerPlayTable")? + 6;
     let data_end = after_key[data_start..].find("</data>").ok_or("Missing </data> closing tag")? + data_start;
