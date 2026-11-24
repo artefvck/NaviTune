@@ -271,6 +271,8 @@ impl PowerPlayApp {
         self.oc_gfx_clock = st.oc_gfx_clock;
         self.oc_mem_clock = st.oc_mem_clock;
         self.oc_power_limit = st.oc_power_limit;
+        self.oc_fan_rpm = [0, 0];
+        self.oc_fan_acoustic_rpm = [0, 0];
         self.volt_gfx = st.volt_gfx;
         self.volt_soc = st.volt_soc;
         self.freq_gfx = st.freq_gfx;
