@@ -161,6 +161,14 @@ impl AtomSmcDpmInfoV4_12 {
         }
         chip
     }
+
+    pub fn effective_gfx_min_offset_and_val(&self, buf: &[u8]) -> (usize, i32) {
+        if self.header.format_revision >= 0x16 && self.freq_gfx_min < 500 && buf.len() > 0x695 {
+            (0x694usize, u16::from_le_bytes([buf[0x694], buf[0x695]]) as i32)
+        } else {
+            (offset_of!(Self, freq_gfx_min), self.freq_gfx_min as i32)
+        }
+    }
 }
 
 pub fn field_offset_by_name(name: &str) -> usize {
