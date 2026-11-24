@@ -50,17 +50,29 @@ impl PowerPlayApp {
             crate::card_layout::draw_arch_note_card(ui, &format!("{} — Thermal & Fan Architecture", arch.label()), "No discrete fan or thermal sub-table is present in this PPTable revision.");
             return;
         }
+        let r1_1674 = crate::pptable_rdna1::Rdna1ParsedState::parse(&self.raw_buffer);
+        let (pwm_t, ac_t, thr_t, max_t, tgt_t, gfx_t, stop_t, start_t) = if r1_1674.is_some() {
+            ("fan_pwm_min (0x476)", "fan_acoustic_rpm (0x478)", "fan_throttling_rpm (0x47A)", "fan_max_rpm (0x47C)", "fan_target_temp (0x47E)", "fan_target_gfx (0x480)", "fan_stop_temp (0x45E)", "fan_start_temp (0x460)")
+        } else if arch == crate::ppt_arch::PptArch::Rdna1 {
+            ("fan_pwm_min (0x68B)", "fan_acoustic_limit_rpm (0x68D)", "fan_throttling_rpm (0x68F)", "fan_maximum_rpm (0x691)", "fan_target_temperature (0x693)", "fan_target_gfxclk (0x695)", "fan_stop_temp (0x679)", "fan_start_temp (0x67B)")
+        } else if arch == crate::ppt_arch::PptArch::Vega20 {
+            ("fan_pwm_min (0x675)", "fan_acoustic_limit_rpm (0x677)", "fan_throttling_rpm (0x679)", "fan_maximum_rpm (0x67B)", "fan_target_temperature (0x67D)", "fan_target_gfxclk (0x67F)", "fan_stop_temp (0x663)", "fan_start_temp (0x665)")
+        } else if is_rdna3 {
+            ("fan_pwm_min (0x86C)", "fan_acoustic_limit (0x86E)", "fan_throttling_rpm (0x86A)", "fan_max_rpm (0x870)", "fan_target_temp (0x878)", "fan_target_gfx_clock (0x876)", "fan_stop_temp (0x81E)", "fan_start_temp (0x838)")
+        } else {
+            ("fan_pwm_min (0x716)", "fan_acoustic_limit (0x718)", "fan_throttling_rpm (0x71A)", "fan_max_rpm (0x71C)", "fan_target_temp (0x720)", "fan_target_gfx_clock (0x722)", "fan_stop_temp (0x6FE)", "fan_start_temp (0x700)")
+        };
         two_col_cards_adaptive(ui, "fan_cols", true, show_zerorpm || show_fancurve, |ui| {
             draw_card(ui, "Fan Settings", |ui| {
                 crate::card_layout::kv_header_1(ui, "Value", 74.0);
-                kv_row_1(ui, "PWM Min (%)", "fan_pwm_min (0x716 / 0x86C)", &mut self.fan_pwm_min, 62.0);
+                kv_row_1(ui, "PWM Min (%)", pwm_t, &mut self.fan_pwm_min, 62.0);
                 if !arch.is_gcn_subtable() {
-                    kv_row_1(ui, "Acoustic Limit (RPM)", "fan_acoustic_limit (0x718 / 0x86E)", &mut self.fan_acoustic_limit, 62.0);
-                    kv_row_1(ui, "Throttling RPM", "fan_throttling_rpm (0x71A / 0x86A)", &mut self.fan_throttling_rpm, 62.0);
+                    kv_row_1(ui, "Acoustic Limit (RPM)", ac_t, &mut self.fan_acoustic_limit, 62.0);
+                    kv_row_1(ui, "Throttling RPM", thr_t, &mut self.fan_throttling_rpm, 62.0);
                 }
-                kv_row_1(ui, "Max RPM", "fan_max_rpm (0x71C / 0x870)", &mut self.fan_max_rpm, 62.0);
-                kv_row_1(ui, "Target Temp (°C)", "fan_target_temp (0x720 / 0x878)", &mut self.fan_target_temp, 62.0);
-                kv_row_1(ui, "Target GFX Clock", "fan_target_gfx_clock (0x722 / 0x876)", &mut self.fan_target_gfx_clock, 62.0);
+                kv_row_1(ui, "Max RPM", max_t, &mut self.fan_max_rpm, 62.0);
+                kv_row_1(ui, "Target Temp (°C)", tgt_t, &mut self.fan_target_temp, 62.0);
+                kv_row_1(ui, "Target GFX Clock", gfx_t, &mut self.fan_target_gfx_clock, 62.0);
                 if is_rdna2 {
                     kv_row_1(ui, "Fan Mode", "fan_mode (0x71E)", &mut self.fan_mode, 62.0);
                     kv_row_1(ui, "Hyst / Ctrl", "fan_hyst_ctrl (0x71F)", &mut self.fan_hyst_ctrl, 62.0);
@@ -102,8 +114,8 @@ impl PowerPlayApp {
                         });
                     }
                     ui.add_space(4.0);
-                    kv_row_1(ui, "Stop Temp (°C)", "fan_stop_temp (0x728 / 0x81E)", &mut self.fan_stop_temp, 62.0);
-                    kv_row_1(ui, "Start Temp (°C)", "fan_start_temp (0x72A / 0x838)", &mut self.fan_start_temp, 62.0);
+                    kv_row_1(ui, "Stop Temp (°C)", stop_t, &mut self.fan_stop_temp, 62.0);
+                    kv_row_1(ui, "Start Temp (°C)", start_t, &mut self.fan_start_temp, 62.0);
                 });
             }
             if show_fancurve {
