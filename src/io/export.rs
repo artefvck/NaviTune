@@ -49,6 +49,10 @@ pub fn format_mpt_ppt(data: &[u8]) -> Vec<u8> {
 }
 
 pub fn format_opencore_plist(data: &[u8], pci_path: &str) -> String {
+    format_opencore_plist_with_key(data, pci_path, "PP,PhmSoftPowerPlayTable")
+}
+
+pub fn format_opencore_plist_with_key(data: &[u8], pci_path: &str, key_name: &str) -> String {
     let b64 = encode_base64(data);
     let wrapped: String = b64
         .as_bytes()
@@ -66,7 +70,7 @@ pub fn format_opencore_plist(data: &[u8], pci_path: &str) -> String {
 		<dict>
 			<key>{}</key>
 			<dict>
-				<key>PP_PhmSoftPowerPlayTable</key>
+				<key>{}</key>
 				<data>
 {}				</data>
 			</dict>
@@ -75,7 +79,7 @@ pub fn format_opencore_plist(data: &[u8], pci_path: &str) -> String {
 </dict>
 </plist>
 "#,
-        pci_path, wrapped
+        pci_path, key_name, wrapped
     )
 }
 
