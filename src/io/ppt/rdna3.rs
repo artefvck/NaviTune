@@ -34,11 +34,11 @@ impl PowerPlayApp {
                 *feature = (mask & (1u64 << bit)) != 0;
             }
 
-            self.oc_gfx_clock = [0, { t3.od_gfx_max } as i32];
-            self.oc_mem_clock = [0, { t3.od_mem_max } as i32];
-            self.oc_power_limit = [0, { t3.od_pwr_max } as i32];
-            self.oc_fan_rpm = [0, { t3.od_fan_max } as i32];
-            self.oc_fan_acoustic_rpm = [0, { t3.od_acoustic_max } as i32];
+            self.oc_gfx_clock = [{ t3.od_gfx_min } as i32, { t3.od_gfx_max } as i32];
+            self.oc_mem_clock = [{ t3.od_mem_min } as i32, { t3.od_mem_max } as i32];
+            self.oc_power_limit = [-({ t3.od_pwr_min } as i32), { t3.od_pwr_max } as i32];
+            self.oc_fan_rpm = [{ t3.od_fan_min } as i32, { t3.od_fan_max } as i32];
+            self.oc_fan_acoustic_rpm = [{ t3.od_acoustic_min } as i32, { t3.od_acoustic_max } as i32];
 
             self.power_limit_w = { t3.socket_power_limit_ac } as i32;
             self.volt_gfx = [{ t3.min_voltage_gfx } as i32 / 4, { t3.max_voltage_gfx } as i32 / 4];
@@ -115,11 +115,18 @@ impl PowerPlayApp {
                 if en { mask |= 1u64 << bit; }
             }
             t3.features_to_run = mask;
-            t3.od_gfx_max = self.oc_gfx_clock[1] as u32;
-            t3.od_mem_max = self.oc_mem_clock[1] as u32;
-            t3.od_pwr_max = self.oc_power_limit[1] as u32;
-            t3.od_fan_max = self.oc_fan_rpm[1] as u32;
-            t3.od_acoustic_max = self.oc_fan_acoustic_rpm[1] as u32;
+            t3.od_gfx_min = self.oc_gfx_clock[0].max(0) as u32;
+            t3.od_gfx_min_2 = self.oc_gfx_clock[0].max(0) as u32;
+            t3.od_gfx_max = self.oc_gfx_clock[1].max(0) as u32;
+            t3.od_mem_min = self.oc_mem_clock[0].max(0) as u32;
+            t3.od_mem_min_2 = self.oc_mem_clock[0].max(0) as u32;
+            t3.od_mem_max = self.oc_mem_clock[1].max(0) as u32;
+            t3.od_pwr_min = self.oc_power_limit[0].unsigned_abs();
+            t3.od_pwr_max = self.oc_power_limit[1].max(0) as u32;
+            t3.od_fan_min = self.oc_fan_rpm[0].max(0) as u32;
+            t3.od_fan_max = self.oc_fan_rpm[1].max(0) as u32;
+            t3.od_acoustic_min = self.oc_fan_acoustic_rpm[0].max(0) as u32;
+            t3.od_acoustic_max = self.oc_fan_acoustic_rpm[1].max(0) as u32;
             t3.socket_power_limit_ac = self.power_limit_w as u16;
             let qmv_r3 = |ui_mv: i32, orig: u16| if (orig / 4) as i32 == ui_mv { orig } else { (ui_mv.max(0) * 4) as u16 };
         t3.ulv_voltage_vmin_gfx = qmv_r3(self.ulv_gfx[0], t3.ulv_voltage_vmin_gfx);

@@ -250,11 +250,11 @@ impl PptArch {
                 "od_acoustic_min / max (0x20A / 0x10A)",
             ),
             Self::Rdna3 => (
-                "od_gfx_max (0x0FF)",
-                "od_mem_max (0x107)",
-                "od_pwr_max (0x10F)",
-                "od_fan_max (0x113)",
-                "od_acoustic_max (0x117)",
+                "od_gfx_min / max (0x1FF / 0x0FF)",
+                "od_mem_min / max (0x207 / 0x107)",
+                "od_pwr_min / max (0x20F / 0x10F)",
+                "od_fan_min / max (0x213 / 0x113)",
+                "od_acoustic_min / max (0x217 / 0x117)",
             ),
             Self::Unknown => ("GFX Clock", "Memory Clock", "Power Limit", "Fan Max RPM", "Fan Acoustic RPM"),
         }
