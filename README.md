@@ -3,9 +3,9 @@
 Cross-platform Rust GUI inspector & editor for AMD Radeon PowerPlayTables (`PPTable`) and VBIOS ROMs across **Polaris (`SMU 8.0`)**, **Vega 10 (`SMU 9.0`)**, **Vega 20 (`SMU 11.0`)**, **RDNA 1 (`V4_5`)**, **RDNA 2 (`V4_9`)**, and **RDNA 3 (`V4_12`)**.
 
 ## Key Features
-- **Full 6-Generation Silicon Support**: Decodes and round-trips standalone `.bin`/`.ppt` tables and full `.rom` VBIOS images across Polaris (`833 B`), Vega 10, Vega 20 (`1534 B` & `1924 B`), RDNA 1, RDNA 2 (`2470 B`), and RDNA 3 (`5424 B`).
-- **Architecture-Aware Adaptive UI**: Automatically hides cards and checkboxes not supported by the loaded GPU architecture, collapses single-column layouts to 100% width, and tracks every edit against its factory baseline.
-- **Live VBIOS Offset Audit & Safe Tune**: Displays exact table & VBIOS ROM hex offsets (`Native Offset`, `Dump Audit`) and validates electrical/thermal limits (`Safe Tune`) before saving.
+- **Full 6-Generation Silicon Support**: Decodes and round-trips standalone `.bin`/`.ppt` tables, MorePowerTool `.mpt` profiles, Windows `.reg` exports, OpenCore `.plist` blobs, and full `.rom` VBIOS images across Polaris (`384 B` / `833 B`), Vega 10 (`512 B`), Vega 20 (`1534 B` & `1924 B`), RDNA 1 (`1674 B` & `1924 B`), RDNA 2 (`2470 B` & `2690 B`), and RDNA 3 (`5424 B`).
+- **Single-Source-of-Truth Offset Maps**: Unifies `PptArch` metadata, `collect_native_struct_entries`, `pptool --inspect`, `pptool --audit`, `pptool --diff`, `Struct Window`, and the Pre-Save Binary Diff Modal.
+- **Headless CLI & Safe Presets**: Inspect, audit, diff, and apply calibrated presets (`quiet-undervolt`, `balanced-oc`, `auto-fix`) directly to `.rom` (with automatic `$PSP` discovery and `0x21` Option ROM checksum preservation), `.bin`, `.mpt`, `.plist`, or `.reg`.
 
 ## Documentation
 - [Architecture Overview](doc/ARCHITECTURE.md)
@@ -17,10 +17,16 @@ Cross-platform Rust GUI inspector & editor for AMD Radeon PowerPlayTables (`PPTa
 - [RDNA 3 PPTable (`V4_12`)](doc/RDNA3_PPTABLE.md)
 - [Deployment & Cross-Platform Build](doc/DEPLOYMENT.md)
 
-## Quick Start
+## Quick Start & Headless CLI
 ```bash
-cargo test
+cargo clippy --all-targets -- -D warnings && cargo test
 cargo run --release
+
+# Headless CLI inspection, parity audit, diff & VBIOS preset patching
+cargo run --release -- --inspect target/Navi23.rom
+cargo run --release -- --audit target/stable.mpt --json
+cargo run --release -- --diff target/Navi23.rom target/stable.mpt
+cargo run --release -- --preset auto-fix target/Navi23.rom --export-rom patched.rom --export-mpt patched.mpt
 ```
 
 ## Project Structure
@@ -105,7 +111,7 @@ cargo run --release
 
 ## Architecture & Verification Matrix
 
-- **Supported AMD Radeon Generations**: Polaris (`SMU 8.0 / rev 0x07`), Vega 10 (`SMU 9.0 / rev 0x08`), Vega 20 (`SMU 11.0 / rev 0x0B`), RDNA 1 (`V4_5 / rev 0x0D`), RDNA 2 (`V4_9 / rev 0x0F`), and RDNA 3 (`V4_12 / rev 0x14`).
+- **Supported AMD Radeon Generations**: Polaris (`SMU 8.0 / rev 0x07`), Vega 10 (`SMU 9.0 / rev 0x08`), Vega 20 (`SMU 11.0 / rev 0x0B`), RDNA 1 (`1674 B rev 0x0C` & `V4_5 / rev 0x0D..0x0F`), RDNA 2 (`V4_9 / rev 0x0F..0x13`), and RDNA 3 (`V4_12 / rev 0x14..0x16`).
 - **Modular Codebase Layout**:
   - `src/arch/`: Generation-specific `PowerPlayTable` codecs, header detector (`detect.rs`), and overflow-safe `SMU` feature mask helpers (`smu_features.rs`).
   - `src/cli/`: Modular CLI commands split into `inspect.rs`, `export.rs`, and `audit.rs`.
