@@ -138,8 +138,7 @@ impl eframe::App for PowerPlayApp {
                     if ui.ctx().input(|i| i.pointer.hover_pos().is_some()) {
                         let hov = ui.ctx().data(|d| d.get_temp::<String>(egui::Id::new("hovered_field_banner")).unwrap_or_default());
                         if !hov.is_empty() {
-                            if !self.raw_buffer.is_empty() && ui.button("Diff & Save").clicked() { self.show_save_diff_modal = true; }
-                ui.separator();
+                            ui.separator();
                             ui.colored_label(egui::Color32::from_rgb(165, 195, 235), egui::RichText::new(hov).small().monospace());
                         }
                     }
@@ -165,6 +164,11 @@ impl eframe::App for PowerPlayApp {
                     }
                     if ui.add_sized([68.0, 25.0], egui::Button::new(egui::RichText::new("Save").strong().color(egui::Color32::WHITE)).fill(egui::Color32::from_rgb(205, 48, 72))).clicked() {
                         self.save_ppt_file();
+                    }
+                    let mod_cnt = self.modified_byte_count();
+                    let diff_lbl = if mod_cnt > 0 { format!("Diff & Save ({} B)", mod_cnt) } else { "Diff & Save".to_string() };
+                    if ui.add_enabled(!self.raw_buffer.is_empty(), egui::Button::new(diff_lbl).min_size(egui::vec2(96.0, 25.0))).clicked() {
+                        self.show_save_diff_modal = true;
                     }
                     if ui.add_sized([82.0, 25.0], egui::Button::new("Reset All")).clicked() {
                         self.reset_all_values();
