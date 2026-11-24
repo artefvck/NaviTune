@@ -133,16 +133,37 @@ pub fn try_run_cli() -> bool {
 
 
 fn load_app_from_path(path: &str) -> Result<(PowerPlayApp, Option<usize>), String> {
-    let data = crate::io::read_bounded(std::path::Path::new(&path)).map_err(|e| format!("Failed to read '{}': {}", path, e))?;
+    let p = std::path::Path::new(&path);
+    let data = crate::io::read_bounded(p).map_err(|e| format!("Failed to read '{}': {}", path, e))?;
+    let ext = p.extension().and_then(|s| s.to_str()).unwrap_or("").to_ascii_lowercase();
     let mut app = PowerPlayApp::default();
-    if let Ok((ppt, off)) = vbios::extract_ppt_from_rom(&data) {
-        app.vbios_ppt_offset = Some(off);
-        app.vbios_buffer = Some(data);
-        app.apply_ppt_bytes(ppt, path);
-        Ok((app, Some(off)))
-    } else {
-        app.apply_ppt_bytes(data, path);
-        Ok((app, None))
+    match ext.as_str() {
+        "mpt" => {
+            let ppt = crate::import_formats::parse_mpt_ppt(&data)?;
+            app.apply_ppt_bytes(ppt, path);
+            Ok((app, None))
+        }
+        "reg" => {
+            let ppt = crate::import_formats::parse_reg_ppt(&data)?;
+            app.apply_ppt_bytes(ppt, path);
+            Ok((app, None))
+        }
+        "plist" => {
+            let ppt = crate::import_formats::parse_plist_ppt(&data)?;
+            app.apply_ppt_bytes(ppt, path);
+            Ok((app, None))
+        }
+        _ => {
+            if let Ok((ppt, off)) = vbios::extract_ppt_from_rom(&data) {
+                app.vbios_ppt_offset = Some(off);
+                app.vbios_buffer = Some(data);
+                app.apply_ppt_bytes(ppt, path);
+                Ok((app, Some(off)))
+            } else {
+                app.apply_ppt_bytes(data, path);
+                Ok((app, None))
+            }
+        }
     }
 }
 
