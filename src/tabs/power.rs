@@ -127,10 +127,13 @@ impl PowerPlayApp {
             && show_memoryvoltage {
                     draw_card(ui, arch.card_title(crate::ppt_arch::PptCard::MemoryVoltage), |ui| {
                         kv_header_2(ui, "VDDCI", "MVDD", 62.0);
-                        if is_rdna1 {
+                        if is_rdna1 && self.raw_buffer.len() >= 1924 {
+                            let prev_max = self.mem_dpm_volt[3];
                             kv_row_2(ui, "Max (VDDCI/MVDD)", "vddci_max / mvdd_max (0x0DF / 0x0E1)", &mut self.mem_dpm_volt[3], 62.0);
-                            for i in 0..3 {
-                                self.mem_dpm_volt[i] = self.mem_dpm_volt[3];
+                            if self.mem_dpm_volt[3] != prev_max {
+                                for i in 0..3 {
+                                    self.mem_dpm_volt[i] = self.mem_dpm_volt[3];
+                                }
                             }
                         } else {
                             for (i, volt) in self.mem_dpm_volt.iter_mut().enumerate().take(4) {
