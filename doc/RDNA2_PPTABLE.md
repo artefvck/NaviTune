@@ -1,6 +1,6 @@
 # RDNA 2 PowerPlayTable Layout (`SMU 11.0`, `V4_9`, Navi 21 / 22 / 23 / 24)
 
-Verified directly against `src/pptable_rdna2.rs` (`AtomSmcDpmInfoV4_9`, `2470 bytes`, RX 6600 / 6700 / 6800 / 6900 XT).
+Verified directly against `src/arch/rdna2.rs` (`AtomSmcDpmInfoV4_9`, `2470 bytes`, RX 6600 / 6700 / 6800 / 6900 XT).
 
 - **Struct**: `AtomSmcDpmInfoV4_9` (`2470 bytes`)
 - **Verified Offset Assertions**: `23` fields checked at compile time
@@ -8,8 +8,8 @@ Verified directly against `src/pptable_rdna2.rs` (`AtomSmcDpmInfoV4_9`, `2470 by
 ## Architecture Notes
 
 - Full `2470-byte` (`0x9A6`) `AtomSmcDpmInfoV4_9` layout with 64-bit `features_to_run` and `od_feature_flags[0..16]`.
-- Supports all 17 `PptCard` panels including RDNA 2-exclusive `Thermal Vmin` (`0x5D8..0x5DF`) and `Power Mode Acoustic` (`0x912..0x91E`).
-- Supports 4-preset `Power Modes` (`Quiet`, `Balanced`, `Turbo`, `Rage` @ `0x902..0x90E`).
+- Supports all 18 `PptCard` panels including RDNA 2-exclusive `Thermal Vmin` (`0x3B2..0x3C2`) and `Power Mode Acoustic` (`0x2F2..0x302`).
+- Supports 4-preset `Power Modes` (`Quiet`, `Balanced`, `Turbo`, `Rage` @ `0x2DA..0x2F2`).
 
 ## Verified Binary Offset Map
 

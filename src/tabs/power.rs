@@ -100,7 +100,7 @@ impl PowerPlayApp {
                         if !arch.has_per_dpm_mem_voltage() || (arch.is_rdna1() && self.raw_buffer.len() >= 1924) {
                             let prev_max = self.mem_dpm_volt[3];
                             let rail_lbl = if arch.is_vega() { "HBM2 Rail (All DPM)" } else { "Max (VDDCI/MVDD)" };
-                            kv_row_2(ui, rail_lbl, arch.memory_voltage_offset_label(), &mut self.mem_dpm_volt[3], 62.0);
+                            kv_row_2(ui, rail_lbl, arch.memory_voltage_offset_label_for_buf(&self.raw_buffer), &mut self.mem_dpm_volt[3], 62.0);
                             if self.mem_dpm_volt[3] != prev_max {
                                 for i in 0..3 {
                                     self.mem_dpm_volt[i] = self.mem_dpm_volt[3];

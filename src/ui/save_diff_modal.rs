@@ -20,15 +20,20 @@ pub fn compute_ppt_diff(
     let mut diffs = Vec::new();
     for i in 0..len {
         if baseline[i] != current[i] {
-            let old_u16 = if i + 1 < len {
-                u16::from_le_bytes([baseline[i], baseline[i + 1]])
+            let aligned = if i > 0 && resolve_diff_field_name(current, i) == resolve_diff_field_name(current, i - 1) {
+                i - 1
             } else {
-                baseline[i] as u16
+                i
             };
-            let new_u16 = if i + 1 < len {
-                u16::from_le_bytes([current[i], current[i + 1]])
+            let old_u16 = if aligned + 1 < len {
+                u16::from_le_bytes([baseline[aligned], baseline[aligned + 1]])
             } else {
-                current[i] as u16
+                baseline[aligned] as u16
+            };
+            let new_u16 = if aligned + 1 < len {
+                u16::from_le_bytes([current[aligned], current[aligned + 1]])
+            } else {
+                current[aligned] as u16
             };
             diffs.push(ByteDiffEntry {
                 ppt_offset: i,
@@ -50,10 +55,13 @@ pub fn preview_patched_checksum(
 ) -> Option<(u8, u8)> {
     let orig = vbios_buf?;
     let off = ppt_offset?;
-    let old_csum = orig.get(0x21).copied()?;
+    let old_info = vbios::inspect_vbios_info(orig, off)?;
+    if !old_info.has_legacy_opt_rom {
+        return None;
+    }
     let patched = vbios::patch_ppt_into_rom(orig, off, new_ppt).ok()?;
-    let new_csum = patched.get(0x21).copied()?;
-    Some((old_csum, new_csum))
+    let new_info = vbios::inspect_vbios_info(&patched, off)?;
+    Some((old_info.checksum_byte, new_info.checksum_byte))
 }
 
 pub fn resolve_diff_field_name(buf: &[u8], ppt_offset: usize) -> &'static str {
