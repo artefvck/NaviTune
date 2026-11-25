@@ -36,7 +36,7 @@ fn main() -> eframe::Result<()> {
             .with_inner_size(crate::ui_theme::load_saved_window_size())
             .with_min_inner_size([580.0, 500.0])
             .with_resizable(true)
-            .with_transparent(true),
+            .with_transparent(!crate::ui_theme::load_low_gpu_config()),
         #[cfg(target_os = "windows")]
         renderer: eframe::Renderer::Glow,
         vsync: true,
@@ -225,7 +225,12 @@ impl eframe::App for PowerPlayApp {
                 } else {
                     "NaviTune — PowerPlay Editor".to_string()
                 };
-                ctx.send_viewport_cmd(egui::ViewportCommand::Title(win_title));
+                let last_title_id = egui::Id::new("last_win_title");
+                let prev_title = ctx.data(|d| d.get_temp::<String>(last_title_id).unwrap_or_default());
+                if prev_title != win_title {
+                    ctx.data_mut(|d| d.insert_temp(last_title_id, win_title.clone()));
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Title(win_title));
+                }
                 let current_text = self.gpus.get(self.selected_gpu).cloned().unwrap_or_else(|| "Select GPU Path...".into());
                 let mut picked_gpu: Option<usize> = None;
                 egui::ComboBox::from_id_salt("gpu_selector")
@@ -303,6 +308,7 @@ impl eframe::App for PowerPlayApp {
                         let mut base = ctx.data(|d| d.get_temp::<egui::Color32>(id_base).unwrap_or(crate::ui_theme::DEFAULT_GLASS_BASE));
                         let mut text = ctx.data(|d| d.get_temp::<egui::Color32>(id_txt).unwrap_or(crate::ui_theme::DEFAULT_TEXT_COLOR));
                         let mut check = ctx.data(|d| d.get_temp::<egui::Color32>(id_chk).unwrap_or(crate::ui_theme::DEFAULT_CHECK_COLOR));
+                        let mut low_gpu = crate::ui_theme::is_low_gpu_mode(ctx);
                         let mut changed = false;
 
                         for preset in crate::ui_theme::THEME_PRESETS {
@@ -327,9 +333,11 @@ impl eframe::App for PowerPlayApp {
                         changed |= ui.color_edit_button_srgba(&mut text).changed();
                         ui.small("Tick:");
                         changed |= ui.color_edit_button_srgba(&mut check).changed();
+                        ui.separator();
+                        changed |= crate::ui_theme::green_checkbox(ui, &mut low_gpu, "Low GPU Mode").changed();
 
                         if changed {
-                            crate::ui_theme::apply_full_theme(ctx, alpha, accent, base, text, check);
+                            crate::ui_theme::apply_full_theme(ctx, alpha, accent, base, text, check, low_gpu);
                         }
                     });
                 }

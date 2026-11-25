@@ -76,19 +76,35 @@ fn theme_config_path() -> Option<std::path::PathBuf> {
     base.map(|d| d.join("navitune").join("theme.cfg"))
 }
 
-fn save_theme_config(alpha: f32, accent: Color32, base: Color32, text: Color32, check: Color32) {
+pub fn is_low_gpu_mode(ctx: &egui::Context) -> bool {
+    ctx.data(|d| d.get_temp::<bool>(egui::Id::new("tahoe_low_gpu")).unwrap_or_else(load_low_gpu_config))
+}
+
+pub fn load_low_gpu_config() -> bool {
+    let Some(path) = theme_config_path() else { return true; };
+    let Ok(txt) = std::fs::read_to_string(path) else { return true; };
+    for line in txt.lines() {
+        if let Some(("low_gpu", v)) = line.split_once('=') {
+            return v.trim() != "0";
+        }
+    }
+    true
+}
+
+fn save_theme_config(alpha: f32, accent: Color32, base: Color32, text: Color32, check: Color32, low_gpu: bool) {
     let Some(path) = theme_config_path() else { return; };
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
     let [w, h] = load_saved_window_size();
     let data = format!(
-        "alpha={:.4}\naccent={},{},{}\nbase={},{},{}\ntext={},{},{}\ncheck={},{},{}\nsize={:.0},{:.0}\n",
+        "alpha={:.4}\naccent={},{},{}\nbase={},{},{}\ntext={},{},{}\ncheck={},{},{}\nlow_gpu={}\nsize={:.0},{:.0}\n",
         alpha,
         accent.r(), accent.g(), accent.b(),
         base.r(), base.g(), base.b(),
         text.r(), text.g(), text.b(),
         check.r(), check.g(), check.b(),
+        u8::from(low_gpu),
         w, h,
     );
     let _ = std::fs::write(path, data);
@@ -134,11 +150,12 @@ pub fn apply_modern_theme(ctx: &egui::Context) {
     ].into();
     ctx.set_style(style);
 
+    let low_gpu = load_low_gpu_config();
     if let Some((alpha, accent, base, text, check)) = load_theme_config() {
-        apply_full_theme(ctx, alpha, accent, base, text, check);
+        apply_full_theme(ctx, alpha, accent, base, text, check, low_gpu);
     } else {
         let p = THEME_PRESETS[0];
-        apply_full_theme(ctx, p.alpha, p.accent, p.base, p.text, p.check);
+        apply_full_theme(ctx, p.alpha, p.accent, p.base, p.text, p.check, low_gpu);
     }
 }
 
@@ -149,6 +166,7 @@ pub fn apply_full_theme(
     base: Color32,
     text: Color32,
     check: Color32,
+    low_gpu: bool,
 ) {
     let a = alpha.clamp(0.35, 1.0);
     let light = is_light_base(base);
@@ -169,10 +187,12 @@ pub fn apply_full_theme(
         d.insert_temp(egui::Id::new("tahoe_base_color"), base);
         d.insert_temp(egui::Id::new("tahoe_text_color"), text);
         d.insert_temp(egui::Id::new("tahoe_check_color"), check);
+        d.insert_temp(egui::Id::new("tahoe_low_gpu"), low_gpu);
     });
-    save_theme_config(a, accent, base, text, check);
+    save_theme_config(a, accent, base, text, check, low_gpu);
 
     let mut style = (*ctx.style()).clone();
+    style.animation_time = if low_gpu { 0.0 } else { 0.08 };
     style.spacing.item_spacing = egui::vec2(8.0, 6.0);
     style.spacing.button_padding = egui::vec2(10.0, 5.0);
     style.spacing.window_margin = Margin::same(12.0);
@@ -222,11 +242,15 @@ pub fn apply_full_theme(
     v.hyperlink_color = accent;
     v.window_rounding = r;
     v.window_stroke = Stroke::new(1.0_f32, border_col);
-    v.window_shadow = Shadow {
-        offset: egui::vec2(0.0, 4.0),
-        blur: 14.0,
-        spread: 0.0,
-        color: Color32::from_black_alpha(if light { 40 } else { 110 }),
+    v.window_shadow = if low_gpu {
+        Shadow::NONE
+    } else {
+        Shadow {
+            offset: egui::vec2(0.0, 4.0),
+            blur: 14.0,
+            spread: 0.0,
+            color: Color32::from_black_alpha(if light { 40 } else { 110 }),
+        }
     };
 
     style.visuals = v;
@@ -248,19 +272,25 @@ pub fn card_frame(ui: &egui::Ui) -> egui::Frame {
     } else {
         Color32::from_rgba_unmultiplied(255, 255, 255, 22)
     };
-    let fill_a = (alpha.clamp(0.35, 1.0) * 225.0) as u8;
+    let low_gpu = is_low_gpu_mode(ui.ctx());
+    let fill_a = if low_gpu { 255 } else { (alpha.clamp(0.35, 1.0) * 225.0) as u8 };
+    let shadow = if low_gpu {
+        Shadow::NONE
+    } else {
+        Shadow {
+            offset: egui::vec2(0.0, 3.0),
+            blur: 10.0,
+            spread: 0.0,
+            color: Color32::from_black_alpha(if light { 28 } else { 72 }),
+        }
+    };
 
     egui::Frame::none()
         .fill(Color32::from_rgba_unmultiplied(card_rgb.r(), card_rgb.g(), card_rgb.b(), fill_a))
         .stroke(Stroke::new(1.0_f32, border_col))
         .rounding(card_r)
         .inner_margin(Margin::same(12.0))
-        .shadow(Shadow {
-            offset: egui::vec2(0.0, 3.0),
-            blur: 10.0,
-            spread: 0.0,
-            color: Color32::from_black_alpha(if light { 28 } else { 72 }),
-        })
+        .shadow(shadow)
 }
 
 pub fn green_checkbox(ui: &mut egui::Ui, checked: &mut bool, text: impl Into<egui::WidgetText>) -> egui::Response {
