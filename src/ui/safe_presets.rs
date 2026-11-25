@@ -50,7 +50,9 @@ impl PowerPlayApp {
                         }
                     }
                 }
-                if self.power_limit_w > 60 {
+                if arch == PptArch::Vega10 {
+                    self.oc_power_limit[1] = self.oc_power_limit[1].min(0);
+                } else if self.power_limit_w > 60 {
                     self.power_limit_w = ((self.power_limit_w as f32 * 0.90).round() as i32).min(caps.pwr_cap);
                     if let Some(ac0) = self.power_limit_ac.first_mut() {
                         *ac0 = self.power_limit_w;
@@ -166,8 +168,9 @@ impl PowerPlayApp {
                 if self.temp_limits[2] > safe_mem {
                     self.temp_limits[2] = safe_mem;
                 }
-                if self.oc_power_limit[1] > 20 {
-                    self.oc_power_limit[1] = 20;
+                let (_, _, safe_od_pwr_max) = arch.od_power_bounds();
+                if self.oc_power_limit[1] > safe_od_pwr_max {
+                    self.oc_power_limit[1] = safe_od_pwr_max;
                 }
                 for &bit in arch.smu_protection_bits() {
                     if bit < self.smu_features.len() {

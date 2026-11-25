@@ -8,7 +8,7 @@ impl PowerPlayApp {
         let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
 
         let mut issues: Vec<&str> = Vec::new();
-        if arch.has_od8_and_smu_masks() && !arch.has_dynamic_power_modes_only() {
+        if arch.has_od8_and_smu_masks() {
             if self.oc_gfx_clock[0] > self.oc_gfx_clock[1] { issues.push("GFX Clock Min > Max"); }
             if self.oc_mem_clock[0] > self.oc_mem_clock[1] { issues.push("Memory Clock Min > Max"); }
             if self.oc_power_limit[0] > self.oc_power_limit[1] || self.oc_power_limit[1] > 50 { issues.push("Power Limit (%) inverted or > +50%"); }

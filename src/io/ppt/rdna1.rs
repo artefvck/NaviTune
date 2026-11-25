@@ -298,7 +298,7 @@ impl PowerPlayApp {
             t1.od_settings_max[0] = self.oc_gfx_clock[1].max(0) as u32;
             t1.od_settings_min[1] = self.oc_mem_clock[0].max(0) as u32;
             t1.od_settings_max[1] = self.oc_mem_clock[1].max(0) as u32;
-            t1.od_settings_min[2] = self.oc_power_limit[0] as u32;
+            t1.od_settings_min[2] = self.oc_power_limit[0].unsigned_abs();
             t1.od_settings_max[2] = self.oc_power_limit[1].max(0) as u32;
             t1.od_settings_min[3] = self.oc_fan_rpm[0].max(0) as u32;
             t1.od_settings_max[3] = self.oc_fan_rpm[1].max(0) as u32;

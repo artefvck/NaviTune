@@ -82,7 +82,7 @@ impl PowerPlayApp {
                 ui.end_row();
                 ui.label("GFX Voltage");
                 ui.monospace(format!("{}..{} mV", vg0, vg1));
-                let v_ok = vg0 > 0 && vg0 <= vg1 && vg1 <= 1250;
+                let v_ok = if arch.is_rdna3() { vg0 > 0 && (vg1 == 0 || (vg0 <= vg1 && vg1 <= 1250)) } else { vg0 > 0 && vg0 <= vg1 && vg1 <= 1250 };
                 ui.colored_label(
                     if v_ok { egui::Color32::from_rgb(80, 210, 120) } else { egui::Color32::from_rgb(245, 185, 65) },
                     if v_ok { "OK" } else { "CHECK" },

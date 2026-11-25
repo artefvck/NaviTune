@@ -144,7 +144,7 @@ impl PowerPlayApp {
                 self.freq_gfx[0], self.freq_gfx[1]
             ));
         }
-        if self.volt_gfx[0] > self.volt_gfx[1] {
+        if self.volt_gfx[1] > 0 && self.volt_gfx[0] > self.volt_gfx[1] {
             warnings.push(format!(
                 "GFX min voltage ({} mV) exceeds max voltage ({} mV)",
                 self.volt_gfx[0], self.volt_gfx[1]

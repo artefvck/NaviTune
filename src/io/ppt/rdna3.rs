@@ -28,6 +28,10 @@ impl PowerPlayApp {
             self.power_limit_feat = f[9] != 0;
             self.timing_tuning = f[10] != 0;
             self.power_mode = f[11] != 0;
+            self.auto_undervolt_gpu = f[12] != 0;
+            self.auto_overclock_gpu = f[13] != 0;
+            self.auto_overclock_mem = f[14] != 0;
+            self.auto_fan_acoustic_limit = f[15] != 0;
 
             let mask = { t3.features_to_run };
             for (bit, feature) in self.smu_features.iter_mut().enumerate() {
@@ -106,10 +110,11 @@ impl PowerPlayApp {
     }
     pub(super) fn try_sync_rdna3(&mut self) -> bool {
         if let Some(t3) = crate::pptable_rdna3::AtomSmcDpmInfoV4_12::from_bytes_mut(&mut self.raw_buffer) {
-            t3.od_feature_flags[0..12].copy_from_slice(&[
+            t3.od_feature_flags[0..16].copy_from_slice(&[
                 self.gpu_clock_limit as u8, self.gpu_clock_curve as u8, self.memory_clock_limit as u8, self.zero_rpm as u8,
                 self.min_fan_speed as u8, self.fan_target_temp_limit as u8, self.operating_temp_limit as u8, self.fan_acoustic_rpm as u8,
                 self.fan_curve as u8, self.power_limit_feat as u8, self.timing_tuning as u8, self.power_mode as u8,
+                self.auto_undervolt_gpu as u8, self.auto_overclock_gpu as u8, self.auto_overclock_mem as u8, self.auto_fan_acoustic_limit as u8,
             ]);
             let mut mask = 0u64;
             for (bit, &en) in self.smu_features.iter().enumerate() {

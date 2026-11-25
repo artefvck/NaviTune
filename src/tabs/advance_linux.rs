@@ -33,8 +33,9 @@ impl PowerPlayApp {
                     ui.monospace(format!("{} / {}", gfxoff as u8, baco as u8));
                     ui.colored_label(egui::Color32::from_rgb(130, 180, 255), if gfxoff { "Power Saving" } else { "Compute" });
                     ui.end_row();
+                    let card_id = sel_lbl.split("(").nth(1).and_then(|s| s.split_whitespace().next()).filter(|s| s.starts_with("card")).unwrap_or("card0");
                     ui.label("sysfs Target");
-                    ui.monospace("card0/device/pp_table");
+                    ui.monospace(format!("{}/device/pp_table", card_id));
                     ui.colored_label(egui::Color32::from_rgb(80, 210, 120), "READY");
                     ui.end_row();
                     let (sync_detail, sync_badge, sync_color) = check_linux_ppt_sync(&sel_lbl);

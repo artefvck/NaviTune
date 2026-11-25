@@ -63,15 +63,16 @@ impl PowerPlayApp {
                 kv_row_1(ui, "Target Temp (°C)", tgt_t, &mut self.fan_target_temp, 62.0);
                 kv_row_1(ui, "Target GFX Clock", gfx_t, &mut self.fan_target_gfx_clock, 62.0);
                 if arch.has_5point_fan_curve_slots() {
-                    kv_row_1(ui, "Fan Mode", "fan_mode (0x71E)", &mut self.fan_mode, 62.0);
-                    kv_row_1(ui, "Hyst / Ctrl", "fan_hyst_ctrl (0x71F)", &mut self.fan_hyst_ctrl, 62.0);
+                    kv_row_1(ui, "Fan Mode", "fan_mode (0x724)", &mut self.fan_mode, 62.0);
+                    kv_row_1(ui, "Hyst / Ctrl", "fan_hyst_ctrl (0x725)", &mut self.fan_hyst_ctrl, 62.0);
                 }
             });
             if arch.supports_card_in_buf(crate::ppt_arch::PptCard::FanLimits, &self.raw_buffer) {
                 draw_card(ui, arch.card_title(crate::ppt_arch::PptCard::FanLimits), |ui| {
                     kv_header_2(ui, "Min", "Max", 62.0);
-                    kv_row_2(ui, "Fan RPM", "od_fan_min/max (0x106 / 0x113)", &mut self.oc_fan_rpm, 62.0);
-                    kv_row_2(ui, "Acoustic RPM", "od_acoustic_min/max (0x10A / 0x117)", &mut self.oc_fan_acoustic_rpm, 62.0);
+                    let (_, _, _, fan_od_tag, ac_od_tag) = arch.od_offset_labels();
+                    kv_row_2(ui, "Fan RPM", fan_od_tag, &mut self.oc_fan_rpm, 62.0);
+                    kv_row_2(ui, "Acoustic RPM", ac_od_tag, &mut self.oc_fan_acoustic_rpm, 62.0);
                     if arch.has_5point_fan_curve_slots() {
                         kv_row_2(ui, "OD Temp (°C)", "od_fan_curve_min/max", &mut self.od_fan_temp, 62.0);
                         kv_row_2(ui, "OD Speed (%)", "od_fan_curve_min/max", &mut self.od_fan_speed, 62.0);

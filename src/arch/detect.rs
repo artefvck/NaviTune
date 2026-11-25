@@ -274,7 +274,19 @@ impl PptArch {
     }
 
     pub fn od_power_min_bounds(self) -> (i32, i32) {
-        if self.is_rdna1() { (-50, -50) } else { (-10, -6) }
+        let (min_b, fac_min, _) = self.od_power_bounds();
+        (min_b, fac_min)
+    }
+
+    /// Single source of truth for OverDrive power slider bounds: (min_bound, factory_min, safe_max)
+    pub fn od_power_bounds(self) -> (i32, i32, i32) {
+        if self.is_gcn_subtable() {
+            (-50, -50, 50)
+        } else if self.is_rdna1() || self.is_vega() {
+            (-50, -50, 20)
+        } else {
+            (-10, -6, 20)
+        }
     }
 
     pub fn smu_protection_bits(self) -> &'static [usize] {

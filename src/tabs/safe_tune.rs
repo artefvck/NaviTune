@@ -119,9 +119,9 @@ impl PowerPlayApp {
         let fan_sev = if rpm_inv || (has_zrpm && (self.fan_stop_temp >= self.fan_start_temp || (self.fan_target_temp >= 45 && self.fan_start_temp >= self.fan_target_temp))) || temp_risk { 2 } else if rpm_warn || self.fan_target_temp > max_fan_tgt || self.fan_pwm_min < 10 || temp_warn { 1 } else { 0 };
         checks.push(("Thermal", "Fan & TempLimits (Edge/Hot/Mem)", format!("Tgt {}° ({}/{} RPM) | {}/{}/{}°C", self.fan_target_temp, self.fan_throttling_rpm, self.fan_max_rpm, edge_lim, hotspot_lim, mem_lim), format!("Tgt <= {}°, Throttle <= Max RPM | <= {}/{}/{}°C", max_fan_tgt, safe_edge, safe_hot, safe_mem), fan_sev, "Validates Zero-RPM hysteresis, Throttling/Max fan RPM ordering, and TempLimit[0..2] (Edge/Hotspot/Mem)."));
 
-        let (min_od_pwr, factory_min_od_pwr) = arch.od_power_min_bounds();
-        let od_pwr_sev = if self.oc_power_limit[0] > self.oc_power_limit[1] || self.oc_power_limit[1] > 30 { 2 } else if self.oc_power_limit[0] < min_od_pwr || self.oc_power_limit[1] > 20 { 1 } else { 0 };
-        checks.push(("OverDrive", "OD Power Slider (%)", format!("{}% .. +{}%", self.oc_power_limit[0], self.oc_power_limit[1]), format!("{}% .. +20% (Factory Range)", factory_min_od_pwr), od_pwr_sev, "Standard AMD OverDrive power slider allows up to +15%..+20% around socket PPT."));
+        let (min_od_pwr, factory_min_od_pwr, safe_od_pwr_max) = arch.od_power_bounds();
+        let od_pwr_sev = if self.oc_power_limit[0] > self.oc_power_limit[1] || self.oc_power_limit[1] > safe_od_pwr_max + 15 { 2 } else if self.oc_power_limit[0] < min_od_pwr || self.oc_power_limit[1] > safe_od_pwr_max { 1 } else { 0 };
+        checks.push(("OverDrive", "OD Power Slider (%)", format!("{}% .. +{}%", self.oc_power_limit[0], self.oc_power_limit[1]), format!("{}% .. +{}% (Factory Range)", factory_min_od_pwr, safe_od_pwr_max), od_pwr_sev, "Validates OverDrive power slider bounds against factory silicon limits."));
 
         let fclk_sev = if self.freq_fclk[0] > self.freq_fclk[1] || self.freq_soc[0] > self.freq_soc[1] { 2 } else if self.freq_fclk[1] < min_fclk || self.freq_soc[1] < min_soc { 1 } else { 0 };
         if !is_gcn {
@@ -131,7 +131,7 @@ impl PowerPlayApp {
 
         let (disp_gen, disp_lanes) = arch.decode_pcie_link(self.pcie_gen_speed[1], self.pcie_lane_count[1]);
         let pcie_sev = if disp_gen > 4 || disp_lanes > expected_lanes { 2 } else if disp_gen < 4 || disp_lanes < expected_lanes { 1 } else { 0 };
-        if !is_gcn && (self.pcie_gen_speed[1] > 0 || self.pcie_lane_count[1] > 0) {
+        if arch.has_pcie_and_lclk_limits() && (self.pcie_gen_speed[1] > 0 || self.pcie_lane_count[1] > 0) {
         checks.push(("PCIe Bus", "Link Gen & Lane Width", format!("Gen {} x{} lanes", disp_gen, disp_lanes), format!("Gen 4 x{} lanes (Silicon Native)", expected_lanes), pcie_sev, "Navi 21/22/31/32 use PCIe 4.0 x16; Navi 23/33 use x8; Navi 24 uses x4."));
         }
 

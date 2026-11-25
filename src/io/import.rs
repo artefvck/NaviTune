@@ -30,6 +30,7 @@ pub fn parse_reg_ppt(raw: &[u8]) -> Result<Vec<u8>, String> {
     let mut bytes = Vec::new();
     for line in after_key[hex_pos + 4..].split('\n').map(|l| l.trim_end_matches('\r')) {
         let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with(';') { continue; }
         let cont = trimmed.ends_with('\\');
         let clean = trimmed.trim_end_matches('\\');
         for tok in clean.split(',') {

@@ -83,13 +83,14 @@ impl PowerPlayApp {
                 if let Some(t) = AtomSmcDpmInfoV4_5::from_bytes(buf) {
                     matched_v45 = true;
                     push("OD Max GFX Clock (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, od_settings_max), "u32", self.oc_gfx_clock[1], t.od_settings_max[0] as i32);
-                    push("OD Max Mem Clock (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, od_settings_max) + 8, "u32", self.oc_mem_clock[1], t.od_settings_max[2] as i32);
+                    let gfx_n = (t.dpm_descriptor[0] as usize).clamp(1, 16);
+                    push("OD Max Mem Clock (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, od_settings_max) + 4, "u32", self.oc_mem_clock[1], t.od_settings_max[1] as i32);
                     push("Socket Power Limit (W)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, socket_power_limit_ac), "u16", self.power_limit_w, t.socket_power_limit_ac[0] as i32);
                     push("TDC GFX Limit (A)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, tdc_limit_gfx), "u16", self.tdc_gfx, t.tdc_limit_gfx as i32);
                     push("GFX Voltage Min (mV)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, min_voltage_gfx), "u16 / 4", self.volt_gfx[0], (t.min_voltage_gfx / 4) as i32);
                     push("GFX Voltage Max (mV)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, max_voltage_gfx), "u16 / 4", self.volt_gfx[1], (t.max_voltage_gfx / 4) as i32);
                     push("GFX Clock Min (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, freq_table_gfx), "u16", self.freq_gfx[0], t.freq_table_gfx[0] as i32);
-                    push("GFX Clock Max (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, freq_table_gfx) + 2, "u16", self.freq_gfx[1], t.freq_table_gfx[1] as i32);
+                    push("GFX Clock Max (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, freq_table_gfx) + (gfx_n - 1) * 2, "u16", self.freq_gfx[1], t.freq_table_gfx[gfx_n - 1] as i32);
                     push("UCLK DPM0 (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, freq_table_uclk), "u16", self.mem_dpm_freq[0][0], t.freq_table_uclk[0] as i32);
                     push("UCLK DPM3 (MHz)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, freq_table_uclk) + 6, "u16", self.mem_dpm_freq[3][0], t.freq_table_uclk[3] as i32);
                     push("Fan Max RPM (RPM)", std::mem::offset_of!(AtomSmcDpmInfoV4_5, fan_maximum_rpm), "u16", self.fan_max_rpm, t.fan_maximum_rpm as i32);
