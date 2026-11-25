@@ -15,6 +15,7 @@ Cross-platform Rust GUI inspector & editor for AMD Radeon PowerPlayTables (`PPTa
 - [RDNA 1 PPTable (`V4_5`)](doc/RDNA1_PPTABLE.md)
 - [RDNA 2 PPTable (`V4_9`)](doc/RDNA2_PPTABLE.md)
 - [RDNA 3 PPTable (`V4_12`)](doc/RDNA3_PPTABLE.md)
+- [GUI Quick Reference](doc/GUI_QUICK_REFERENCE.md)
 - [Deployment & Cross-Platform Build](doc/DEPLOYMENT.md)
 
 ## Quick Start
