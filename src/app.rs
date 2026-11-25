@@ -6,6 +6,7 @@ pub struct PowerPlayApp {
     pub(crate) gpus: Vec<String>,
     pub(crate) ioreg_entries: Vec<crate::macos_ioreg::IoregGpuEntry>,
     pub(crate) live_telemetry_on: bool,
+    pub(crate) telemetry_stop: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
     pub(crate) telemetry_data: std::sync::Arc<std::sync::Mutex<crate::gpu_telemetry::GpuTelemetry>>,
     pub(crate) active_tab: Tab,
     pub advance_os_tab: AdvanceOsTab,
@@ -78,6 +79,7 @@ impl Default for PowerPlayApp {
             power_limit_ac: [0; 4],
             selected_gpu: 0, gpus: Vec::new(), ioreg_entries: Vec::new(),
             live_telemetry_on: false,
+            telemetry_stop: None,
             telemetry_data: std::sync::Arc::new(std::sync::Mutex::new(crate::gpu_telemetry::GpuTelemetry::default())),
             active_tab: Tab::Features,
             advance_os_tab: AdvanceOsTab::MacOS, raw_buffer: Vec::new(),
@@ -155,6 +157,18 @@ impl PowerPlayApp {
                 "GFX max voltage ({} mV) exceeds 1350 mV safety ceiling",
                 self.volt_gfx[1]
             ));
+        }
+        if self.volt_soc[1] > 0 && self.volt_soc[0] > self.volt_soc[1] {
+            warnings.push(format!(
+                "Soc min voltage ({} mV) exceeds max voltage ({} mV)",
+                self.volt_soc[0], self.volt_soc[1]
+            ));
+        }
+        if self.oc_gfx_clock[0] > self.oc_gfx_clock[1] || self.oc_mem_clock[0] > self.oc_mem_clock[1] || self.oc_power_limit[0] > self.oc_power_limit[1] {
+            warnings.push("OverDrive min limit exceeds max limit".to_string());
+        }
+        if self.temp_limits.iter().any(|&t| !(0..=130).contains(&t)) {
+            warnings.push("Thermal limit out of 0..130 °C range".to_string());
         }
         warnings
     }

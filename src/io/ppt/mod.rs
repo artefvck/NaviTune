@@ -152,6 +152,16 @@ impl PowerPlayApp {
             (0x07 | 0x08, _) => "Polaris (RX 400/500)",
             _ => "Unknown AMD Architecture",
         };
+        let saved_vbios = self.vbios_buffer.take();
+        let saved_voff = self.vbios_ppt_offset.take();
+        let saved_file = self.loaded_file.take();
+        let saved_gpu = self.selected_gpu;
+        self.reset_all_values();
+        self.vbios_buffer = saved_vbios;
+        self.vbios_ppt_offset = saved_voff;
+        self.loaded_file = saved_file;
+        self.selected_gpu = saved_gpu;
+
         if self.try_apply_rdna3(&b, label, frev, crev, trev) { return; }
         if self.try_apply_rdna1(&b, label, frev, crev, trev) { return; }
         if self.try_apply_vega20(&b, label, frev, crev, trev) { return; }

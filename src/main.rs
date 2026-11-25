@@ -257,13 +257,25 @@ impl eframe::App for PowerPlayApp {
                 ui.horizontal(|ui| {
                     let was_on = self.live_telemetry_on;
                     ui.toggle_value(&mut self.live_telemetry_on, "Live Telemetry");
-                    if self.live_telemetry_on && !was_on {
+                    if !self.live_telemetry_on && was_on {
+                        if let Some(stop) = self.telemetry_stop.take() {
+                            stop.store(true, std::sync::atomic::Ordering::Relaxed);
+                        }
+                    } else if self.live_telemetry_on && !was_on {
+                        if let Some(prev_stop) = self.telemetry_stop.take() {
+                            prev_stop.store(true, std::sync::atomic::Ordering::Relaxed);
+                        }
+                        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+                        self.telemetry_stop = Some(stop.clone());
                         let shared = self.telemetry_data.clone();
                         std::thread::spawn(move || {
-                            loop {
+                            while !stop.load(std::sync::atomic::Ordering::Relaxed) {
                                 let sample = crate::gpu_telemetry::poll_gpu_telemetry();
                                 if let Ok(mut guard) = shared.lock() { *guard = sample; }
-                                std::thread::sleep(std::time::Duration::from_secs(1));
+                                for _ in 0..10 {
+                                    if stop.load(std::sync::atomic::Ordering::Relaxed) { return; }
+                                    std::thread::sleep(std::time::Duration::from_millis(100));
+                                }
                             }
                         });
                     }
