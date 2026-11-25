@@ -1,4 +1,4 @@
-# NaviTune (`pptool`)
+# NaviTune (`navitune`)
 
 Cross-platform Rust GUI inspector & editor for AMD Radeon PowerPlayTables (`PPTable`) and VBIOS ROMs across **Polaris (`SMU 8.0`)**, **Vega 10 (`SMU 9.0`)**, **Vega 20 (`SMU 11.0`)**, **RDNA 1 (`V4_5`)**, **RDNA 2 (`V4_9`)**, and **RDNA 3 (`V4_12`)**.
 

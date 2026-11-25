@@ -1,6 +1,6 @@
 # RDNA 1 PowerPlayTable Layout (`SMU 11.0`, `V4_5`, Navi 10 / 12 / 14)
 
-Verified directly against `src/pptable_rdna1.rs` (`AtomSmcDpmInfoV4_5`, RX 5500 / 5600 / 5700 XT).
+Verified directly against `src/arch/rdna1.rs` (`AtomSmcDpmInfoV4_5`, RX 5500 / 5600 / 5700 XT).
 
 - **Struct**: `AtomSmcDpmInfoV4_5` (`1924 bytes`)
 - **Verified Offset Assertions**: `9` fields checked at compile time

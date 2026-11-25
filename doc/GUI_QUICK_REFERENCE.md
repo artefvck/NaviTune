@@ -29,3 +29,10 @@
 | **Export OpenCore `.plist`, `.kext`, or Base64/Hex** | Bottom Bar → **`Quick Export ▾`** | Instant export from any tab without switching views. |
 | **Audit every modified byte before saving** | Bottom Bar → **`Diff & Save (N B)`** | Shows old vs. new bytes with struct field names and updates the AtomBIOS `0x21` checksum. |
 | **Clear all changes** | Bottom Bar → **`Reset All`** | Resets all UI fields back to initial defaults. |
+
+## Log & Diagnostics Sub-Tabs
+
+- **Capture (`log_capture.rs`)**: Real-time debug and event capture log.
+- **Inspect (`log_inspect.rs`)**: Interactive header, `$PSP`, and decoded table inspector.
+- **Offset Audit (`log_offset_audit.rs`)**: Live UI-to-binary struct parity verification.
+- **Struct Window (`log_struct_window.rs`)**: Hex and field-level memory layout viewer.

@@ -22,7 +22,7 @@ Verified directly against an **AMD Radeon RX 580 2048SP** VBIOS ROM (`target/rx5
 | `0x039` | `0x09C47` | `D1 02` | `usPowerTuneTableOffset` | `0x02D1` (`ATOM_Polaris_PowerTune_Table`) |
 | `0x03D` | `0x09C4B` | `20 03` | `usPPMTableOffset` | `0x0320` (`ATOM_Tonga_PPM_Table`) |
 | `0x03F` | `0x09C4D` | `3A 03` | `usCacTdpTableOffset` | `0x033A` (`ATOM_PowerTune_Table` CAC/TDP) |
-| `0x04B` | `0x09C59` | `00 00` | `usHardLimitTableOffset` | `0x0000` (absent on `rev 0x07.01.00`) |
+| `0x047` | `0x09C55` | `00 00` | `usHardLimitTableOffset` | `0x0000` (absent on `rev 0x07.01.00`) |
 
 ## Sub-Table Offset Maps (RX 580 2048SP)
 
