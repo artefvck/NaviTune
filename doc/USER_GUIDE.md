@@ -28,6 +28,14 @@
 - **Low GPU Mode** disables blurred card/window drop-shadows, compositor transparency, and multi-frame hover animations so GPU utilization stays at ~0% idle when the window is open.
 - **Live Telemetry** spawns a 1 Hz background hardware poller only while toggled on and stops the worker thread immediately when toggled off.
 
+## Zero-Value Read-Only Protection & Safe Editing
+- **Read-Only Guard (`0`-Valued & Unsupported Fields)**: Any numeric field whose baseline VBIOS value is `0` (such as unused thermal slots or unpopulated rails) and any 32-bit SMU feature mask equal to `0x00000000` (e.g., on Vega 10 workstation VBIOSes) are automatically locked **read-only** with a warning tooltip so padding or reserved bytes cannot be accidentally corrupted.
+
 ## Pre-Save Binary Diff & VBIOS Checksum Audit
 - Clicking **Diff & Save (N B)** in the bottom action bar opens a live byte-level diff table resolving every modified PPTable offset and VBIOS ROM offset to its **Struct Field** name alongside old/new byte values and automatic AtomBIOS `0x21` checksum recalculation before writing to disk.
+- **Automated ROM Integrity & Read-Back Verification**: Saving a `.rom` image (via **Save**, **Diff & Save -> Patch VBIOS ROM (.rom)**, or CLI `--export-rom`) automatically audits:
+  1. Exact file size preservation (`orig.len() == patched.len()`) and valid `0x55AA` ROM header.
+  2. AtomBIOS 8-bit modular checksum across the active ROM block (`rom[0x02] * 512`), verifying `sum mod 256 == 0x00` at offset `0x21`.
+  3. Strict byte-change boundary check ensuring only bytes inside `vbios_ppt_offset..vbios_ppt_offset + ppt_len` or `0x21` were modified.
+  4. Post-write disk read-back verification, displaying a confirmation modal popup (`[ROM OK | off 0x.... | csum 0x.. | .. B changed | blk .. B]`).
 - **RDNA 2 ULV Voltage (`0x380..0x388`)**: Displays `UlvVoltageVminGfx` (`0x380`), `UlvVoltageVminSoc` (`0x382`), `UlvVoltageVmaxGfx` (`0x384`), and `UlvVoltageVmaxSoc` (`0x386`) in mV (`raw / 4`).

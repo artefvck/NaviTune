@@ -12,11 +12,23 @@ use crate::vbios;
 use crate::PowerPlayApp;
 
 
+#[cfg(target_os = "windows")]
+fn attach_parent_console_if_needed() {
+    extern "system" {
+        fn AttachConsole(dwProcessId: u32) -> i32;
+    }
+    unsafe {
+        let _ = AttachConsole(0xFFFF_FFFF);
+    }
+}
+
 pub fn try_run_cli() -> bool {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.is_empty() {
         return false;
     }
+    #[cfg(target_os = "windows")]
+    attach_parent_console_if_needed();
     match args[0].as_str() {
         "-h" | "--help" => {
             print_help();

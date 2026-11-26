@@ -61,8 +61,8 @@ src/
     ├── curve_plot.rs          # Interactive Fan & V/F curve 2D drag-plots
     ├── more_popups.rs         # Pop-out power & throttler dialogs
     ├── safe_presets.rs        # Quiet Undervolt, Balanced OC & Auto-Fix Risks
-    ├── save_diff_modal.rs     # Pre-Save Binary Diff & VBIOS Checksum Audit modal
-    └── theme.rs               # Modern dark theme & styling
+    ├── save_diff_modal.rs     # Pre-Save Binary Diff, VBIOS Checksum Audit & ROM verification modal
+    └── theme.rs               # Modern theme, zero-value read-only guards & AtomBIOS ROM verifier
 ```
 
 ## Zero-Byte Unmodified Round-Trip Parity
