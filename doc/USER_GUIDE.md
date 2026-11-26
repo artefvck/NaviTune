@@ -39,3 +39,8 @@
   3. Strict byte-change boundary check ensuring only bytes inside `vbios_ppt_offset..vbios_ppt_offset + ppt_len` or `0x21` were modified.
   4. Post-write disk read-back verification, displaying a confirmation modal popup (`[ROM OK | off 0x.... | csum 0x.. | .. B changed | blk .. B]`).
 - **RDNA 2 ULV Voltage (`0x380..0x388`)**: Displays `UlvVoltageVminGfx` (`0x380`), `UlvVoltageVminSoc` (`0x382`), `UlvVoltageVmaxGfx` (`0x384`), and `UlvVoltageVmaxSoc` (`0x386`) in mV (`raw / 4`).
+
+### Windows Workflow (Registry, MorePowerTool `.mpt`, & Live Telemetry)
+- **Automatic UAC Elevation**: `navitune.exe` requests Administrator privileges on launch so **More -> 3. Advance -> Windows -> Write to Registry / Delete Registry Key** can write `PP_PhmSoftPowerPlayTable` directly to `HKLM\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000` without manual elevation. Press **`Win + Ctrl + Shift + B`** after writing or deleting to reload the AMD graphics driver immediately.
+- **Saving `.mpt` & `.reg` Files**: Save into a user subfolder (e.g. `D:\NaviTune\`) rather than a drive root (`D:\`) to avoid Windows root-directory ACL restrictions. `.mpt` exports include the `0x100`-byte MorePowerTool header and PCI Device ID so they open directly via **Load** in MorePowerTool; `.reg` exports can be double-clicked in Explorer to merge into the Windows Registry.
+- **Native Live Telemetry**: Clicking **Live Telemetry** polls AMD Display Library (`atiadlxx.dll` PMLog sensors) and Windows Performance Data Helper (`pdh.dll`) for real-time GFX/Memory clocks, Edge/Hotspot temperatures, GPU load, board power, fan RPM/%, and VRAM usage.

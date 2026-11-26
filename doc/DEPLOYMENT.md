@@ -24,3 +24,7 @@
 1. Open the **Advance -> Linux** tab.
 2. Check active DRM card detection (`/sys/class/drm/cardX/device/pp_table`) in **Linux Status**.
 3. Apply `pp_table` live to `sysfs` for immediate testing, or install `/etc/xppt/pp_table.bin` with the `xppt-pptable.service` `systemd` unit so custom limits persist across reboots.
+
+### Windows Build & UAC Manifest Notes
+- **`build_windows.ps1`** automatically detects the active Rust host target (`x86_64-pc-windows-gnu` with MinGW-w64 `windres`/`dlltool` or `x86_64-pc-windows-msvc` with `rc.exe`/`link.exe`).
+- Release builds embed `assets/navitune.manifest` (`requireAdministrator` + `PerMonitorV2` DPI awareness) via `build.rs` and use `windows_subsystem = "windows"` so the GUI launches cleanly without a background terminal window while preserving CLI stdout/stderr via `AttachConsole`.
