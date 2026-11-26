@@ -149,30 +149,116 @@ pub fn poll_gpu_telemetry() -> GpuTelemetry {
 
 #[cfg(target_os = "windows")]
 pub fn poll_gpu_telemetry() -> GpuTelemetry {
-    use std::os::windows::process::CommandExt;
-    const CREATE_NO_WINDOW: u32 = 0x08000000;
-    let ps = r#"$l=(Get-Counter '\GPU Engine(*engtype_3D)\Utilization Percentage' -EA SilentlyContinue).CounterSamples.CookedValue|Measure-Object -Sum;$vu=(Get-Counter '\GPU Adapter Memory(*)\Dedicated Usage' -EA SilentlyContinue).CounterSamples.CookedValue|Measure-Object -Max;$vt=(Get-Counter '\GPU Adapter Memory(*)\Dedicated Limit' -EA SilentlyContinue).CounterSamples.CookedValue|Measure-Object -Max;$tot=[math]::Round($vt.Maximum/1MB);if($tot -le 0){$vc=Get-CimInstance Win32_VideoController -EA SilentlyContinue|Where-Object{$_.PNPDeviceID -match 'VEN_1002'}|Select-Object -First 1;if($vc -and $vc.AdapterRAM -gt 0){$tot=[math]::Round($vc.AdapterRAM/1MB)}};$gfx=0;$mem=0;$tmp=0;$hot=0;$pwr=0;$rpm=0;$fpct=0;foreach($ns in @('root\LibreHardwareMonitor','root\OpenHardwareMonitor')){$hw=Get-CimInstance -Namespace $ns -ClassName Hardware -EA SilentlyContinue|Where-Object{$_.HardwareType -match 'GpuAmd'}|Select-Object -First 1;if($hw){$sn=Get-CimInstance -Namespace $ns -ClassName Sensor -EA SilentlyContinue|Where-Object{$_.Parent -eq $hw.Identifier};foreach($s in $sn){$v=[math]::Round($s.Value);if($s.SensorType -eq 'Clock' -and $s.Name -match 'Core'){$gfx=$v}elseif($s.SensorType -eq 'Clock' -and $s.Name -match 'Memory'){$mem=$v}elseif($s.SensorType -eq 'Temperature' -and $s.Name -match 'Hot'){$hot=$v}elseif($s.SensorType -eq 'Temperature' -and $s.Name -match 'Core|Edge'){$tmp=$v}elseif($s.SensorType -eq 'Power' -and $s.Name -match 'Package|Total|Core'){$pwr=$v}elseif($s.SensorType -eq 'Fan'){$rpm=$v}elseif($s.SensorType -eq 'Control' -and $s.Name -match 'Fan'){$fpct=$v}};break}};if($hot -le 0){$hot=$tmp};"$gfx|$mem|$tmp|$hot|$([math]::Round($l.Sum))|$pwr|$rpm|$fpct|$([math]::Round($vu.Maximum/1MB))|$tot""#;
-    let Ok(out) = crate::platform::run_cmd_bounded(Command::new("powershell")
-        .creation_flags(CREATE_NO_WINDOW)
-        .args(["-NoProfile", "-NonInteractive", "-Command", ps])
-        , 2500) else { return GpuTelemetry::default(); };
-    let txt = String::from_utf8_lossy(&out.stdout);
-    let p: Vec<i64> = txt.trim().split('|').map(|s| s.trim().parse::<i64>().unwrap_or(0)).collect();
-    if p.len() < 10 {
-        return GpuTelemetry::default();
+    use std::ffi::c_void;
+
+    #[repr(C)]
+    union PdhValue {
+        long_val: i32,
+        double_val: f64,
+        large_val: i64,
+        ansi_str: *mut i8,
+        wide_str: *mut u16,
     }
+
+    #[repr(C)]
+    struct PdhFmtCounterValue {
+        c_status: u32,
+        val: PdhValue,
+    }
+
+    #[link(name = "pdh")]
+    extern "system" {
+        fn PdhOpenQueryW(szDataSource: *const u16, dwUserData: usize, phQuery: *mut *mut c_void) -> u32;
+        fn PdhAddEnglishCounterW(hQuery: *mut c_void, szFullCounterPath: *const u16, dwUserData: usize, phCounter: *mut *mut c_void) -> u32;
+        fn PdhCollectQueryData(hQuery: *mut c_void) -> u32;
+        fn PdhGetFormattedCounterArrayW(
+            hCounter: *mut c_void,
+            dwFormat: u32,
+            lpdwBufferSize: *mut u32,
+            lpdwItemCount: *mut u32,
+            itemBuffer: *mut u8,
+        ) -> u32;
+        fn PdhCloseQuery(hQuery: *mut c_void) -> u32;
+    }
+
+    const PDH_FMT_DOUBLE: u32 = 0x0000_0200;
+    const PDH_FMT_LARGE: u32 = 0x0000_0400;
+    const PDH_MORE_DATA: u32 = 0x8000_07D2;
+
+    fn to_wide(s: &str) -> Vec<u16> {
+        s.encode_utf16().chain(std::iter::once(0)).collect()
+    }
+
+    unsafe fn read_counter_sum_or_max(counter: *mut c_void, fmt: u32, is_sum: bool) -> i64 {
+        let mut buf_sz = 0u32;
+        let mut count = 0u32;
+        let st = PdhGetFormattedCounterArrayW(counter, fmt, &mut buf_sz, &mut count, std::ptr::null_mut());
+        if st != PDH_MORE_DATA || buf_sz == 0 || count == 0 {
+            return 0;
+        }
+        let mut buf = vec![0u8; buf_sz as usize];
+        if PdhGetFormattedCounterArrayW(counter, fmt, &mut buf_sz, &mut count, buf.as_mut_ptr()) != 0 {
+            return 0;
+        }
+        let stride = (buf_sz as usize) / (count as usize);
+        let mut acc = 0.0f64;
+        let mut max_v = 0i64;
+        for i in 0..(count as usize) {
+            let item_ptr = buf.as_ptr().add(i * stride + std::mem::size_of::<*const u16>()) as *const PdhFmtCounterValue;
+            let cv = &*item_ptr;
+            if cv.c_status == 0 {
+                if fmt == PDH_FMT_DOUBLE {
+                    acc += cv.val.double_val;
+                } else if cv.val.large_val > max_v {
+                    max_v = cv.val.large_val;
+                }
+            }
+        }
+        if fmt == PDH_FMT_DOUBLE { acc.round() as i64 } else if is_sum { acc.round() as i64 } else { max_v }
+    }
+
+    let mut load_pct = 0i64;
+    let mut vram_used_mb = 0i64;
+    let mut vram_total_mb = 0i64;
+    let mut pdh_ok = false;
+
+    unsafe {
+        let mut q: *mut c_void = std::ptr::null_mut();
+        if PdhOpenQueryW(std::ptr::null(), 0, &mut q) == 0 && !q.is_null() {
+            let p_load = to_wide(r"\GPU Engine(*engtype_3D)\Utilization Percentage");
+            let p_used = to_wide(r"\GPU Adapter Memory(*)\Dedicated Usage");
+            let p_lim = to_wide(r"\GPU Adapter Memory(*)\Dedicated Limit");
+            let mut c_load: *mut c_void = std::ptr::null_mut();
+            let mut c_used: *mut c_void = std::ptr::null_mut();
+            let mut c_lim: *mut c_void = std::ptr::null_mut();
+            let _ = PdhAddEnglishCounterW(q, p_load.as_ptr(), 0, &mut c_load);
+            let _ = PdhAddEnglishCounterW(q, p_used.as_ptr(), 0, &mut c_used);
+            let _ = PdhAddEnglishCounterW(q, p_lim.as_ptr(), 0, &mut c_lim);
+            if PdhCollectQueryData(q) == 0 {
+                std::thread::sleep(std::time::Duration::from_millis(80));
+                if PdhCollectQueryData(q) == 0 {
+                    pdh_ok = true;
+                    if !c_load.is_null() {
+                        load_pct = read_counter_sum_or_max(c_load, PDH_FMT_DOUBLE, true).clamp(0, 100);
+                    }
+                    if !c_used.is_null() {
+                        vram_used_mb = read_counter_sum_or_max(c_used, PDH_FMT_LARGE, false) / (1024 * 1024);
+                    }
+                    if !c_lim.is_null() {
+                        vram_total_mb = read_counter_sum_or_max(c_lim, PDH_FMT_LARGE, false) / (1024 * 1024);
+                    }
+                }
+            }
+            let _ = PdhCloseQuery(q);
+        }
+    }
+
     GpuTelemetry {
-        valid: p > 0 || p > 0 || p > 0 || p > 0 || p > 0 || p > 0,
-        gfx_mhz: p,
-        mem_mhz: p,
-        temp_c: p,
-        hotspot_c: p,
-        load_pct: p,
-        power_w: p,
-        fan_rpm: p,
-        fan_pct: p,
-        vram_used_mb: p,
-        vram_total_mb: p,
+        valid: pdh_ok || vram_used_mb > 0 || vram_total_mb > 0 || load_pct > 0,
+        load_pct,
+        vram_used_mb,
+        vram_total_mb,
+        ..Default::default()
     }
 }
 
