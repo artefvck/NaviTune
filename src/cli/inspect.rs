@@ -37,14 +37,29 @@ pub(super) fn cmd_dump_all_json(path: &str) -> Result<(), String> {
         app.raw_buffer.get(3).copied().unwrap_or(0),
         app.raw_buffer.get(4).copied().unwrap_or(0),
     );
-    let mut smu_mask = 0u64;
-    let mut bits = Vec::new();
-    for (bit, &en) in app.smu_features.iter().enumerate() {
-        if en {
-            smu_mask |= 1u64 << bit;
-            bits.push(bit.to_string());
+    let (smu_mask, bits) = if arch.is_gcn_subtable() && app.raw_buffer.len() >= 0x17 {
+        let caps = u32::from_le_bytes([
+            app.raw_buffer[0x13],
+            app.raw_buffer[0x14],
+            app.raw_buffer[0x15],
+            app.raw_buffer[0x16],
+        ]) as u64;
+        let b: Vec<String> = (0..32usize)
+            .filter(|&bit| (caps & (1u64 << bit)) != 0)
+            .map(|bit| bit.to_string())
+            .collect();
+        (caps, b)
+    } else {
+        let mut m = 0u64;
+        let mut b = Vec::new();
+        for (bit, &en) in app.smu_features.iter().enumerate() {
+            if en {
+                m |= 1u64 << bit;
+                b.push(bit.to_string());
+            }
         }
-    }
+        (m, b)
+    };
     let mut cards_json = Vec::new();
     for card in PptArch::ALL_CARDS {
         if app.is_card_usable(card) {
