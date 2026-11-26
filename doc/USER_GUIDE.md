@@ -23,6 +23,11 @@
 - **One-Click Safe Presets**: `navitune --preset <quiet-undervolt|balanced-oc|auto-fix> <file> [--export-rom out.rom] [--export-bin out.bin] [--export-mpt out.mpt] [--export-oc out.plist] [--export-kext out.kext] [--export-reg out.reg]`
 - **Direct Export**: `navitune --export-oc <file> [out.plist]`, `navitune --export-reg <file> [out.reg]`, or `navitune --export-bin <file.rom> <out.bin>`
 
+## UI Performance & Low GPU Mode
+- Click **Theme** in the top toolbar to toggle **Low GPU Mode** (enabled by default and saved in `theme.cfg`).
+- **Low GPU Mode** disables blurred card/window drop-shadows, compositor transparency, and multi-frame hover animations so GPU utilization stays at ~0% idle when the window is open.
+- **Live Telemetry** spawns a 1 Hz background hardware poller only while toggled on and stops the worker thread immediately when toggled off.
+
 ## Pre-Save Binary Diff & VBIOS Checksum Audit
 - Clicking **Diff & Save (N B)** in the bottom action bar opens a live byte-level diff table resolving every modified PPTable offset and VBIOS ROM offset to its **Struct Field** name alongside old/new byte values and automatic AtomBIOS `0x21` checksum recalculation before writing to disk.
 - **RDNA 2 ULV Voltage (`0x380..0x388`)**: Displays `UlvVoltageVminGfx` (`0x380`), `UlvVoltageVminSoc` (`0x382`), `UlvVoltageVmaxGfx` (`0x384`), and `UlvVoltageVmaxSoc` (`0x386`) in mV (`raw / 4`).

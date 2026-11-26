@@ -10,7 +10,7 @@ NaviTune (`navitune`) is a cross-platform Rust + `egui`/`eframe` GPU PowerPlayTa
 6. **RDNA 3** (`SMU 13.0`, `rev 0x14..=0x16` / `V4_12`, `5424 B`, e.g., RX 7600/7700/7800/7900 XTX)
 
 ## Core Modules
-- **`src/arch/detect.rs`**: Central silicon classifier (`PptArch`) and 18-card capability matrix (`PptCard`), controlling card visibility, safe-tune/OverDrive bounds (`od_power_bounds`), and bitmask decoding (`PHM_PlatformCaps` vs `FeaturesToRun`).
+- **`src/arch/detect.rs`**: Central silicon classifier (`PptArch`) and 18-card capability matrix (`PptCard`), controlling card visibility, OverDrive/Safe Tune ceilings (`od_power_bounds`, `safe_thermal_ceilings`, `safe_tune_risk_ceilings`), and bitmask decoding (`PHM_PlatformCaps` vs `FeaturesToRun`).
 - **`src/arch/polaris.rs` / `vega.rs` / `rdna1.rs` / `rdna2.rs` / `rdna3.rs`**: Zero-copy / padded-slice binary parsers and writers for each generation.
 - **`src/io/vbios.rs`**: VBIOS ROM scanner (`0x55AA` PCI expansion ROM header + AtomBIOS Master Data Table `PowerPlayInfo` locator) supporting direct ROM open & surgical in-place VBIOS save.
 - **`src/ui/cards.rs`**: Adaptive UI layout (`two_col_cards_adaptive`, `draw_card`, `draw_arch_note_card`) that hides non-usable cards per architecture, collapses single-column tabs to 100% width, and renders framed architectural summary cards when a tab has no applicable sub-tables.

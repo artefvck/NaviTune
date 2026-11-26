@@ -2,7 +2,8 @@
 
 ## 1. Screen Layout Overview
 
-- **Top Card**: macOS `IORegistry` GPU selector dropdown, **`Theme`** customizer, and **`Live Telemetry`** sensor bar.
+- **Top Card**: macOS `IORegistry` GPU selector dropdown, **`Theme`** customizer, and **`Low GPU Mode (Theme) | Disables drop-shadows & hover animations for ~0% idle GPU |
+| Live Telemetry`** sensor bar.
 - **Tab Strip**: `Features` · `OC Limits` · `Power` · `Frequency` · `Curve` · `Fan` · `Advance` · `Safe Tune` · `More` · `Log`.
 - **Two-Column Cards**:
   - **Gray border**: Unmodified factory baseline.
