@@ -1,3 +1,4 @@
+#[cfg(target_os = "macos")]
 use std::process::Command;
 
 #[derive(Clone, Debug, Default)]
@@ -123,24 +124,35 @@ pub fn poll_gpu_telemetry() -> GpuTelemetry {
                 let vram_total = read_i64(&dev.join("mem_info_vram_total")) / (1024 * 1024);
                 let mut gfx = parse_active_dpm_mhz(&dev.join("pp_dpm_sclk"));
                 let mut mem = parse_active_dpm_mhz(&dev.join("pp_dpm_mclk"));
+                let mut temp = 0i64;
+                let mut hot = 0i64;
+                let mut pwr = 0i64;
+                let mut rpm = 0i64;
+                let mut pct = 0i64;
                 if let Ok(hwmons) = std::fs::read_dir(dev.join("hwmon")) {
                     for hw in hwmons.flatten() {
                         let hp = hw.path();
+                        let hw_name = std::fs::read_to_string(hp.join("name")).unwrap_or_default();
+                        if !hw_name.trim().is_empty() && hw_name.trim() != "amdgpu" {
+                            continue;
+                        }
                         if gfx == 0 { gfx = read_i64(&hp.join("freq1_input")) / 1_000_000; }
                         if mem == 0 { mem = read_i64(&hp.join("freq2_input")) / 1_000_000; }
-                        let temp = read_i64(&hp.join("temp1_input")) / 1000;
-                        let hot = (read_i64(&hp.join("temp2_input")) / 1000).max(temp);
-                        let pwr = read_i64(&hp.join("power1_average")).max(read_i64(&hp.join("power1_input"))) / 1_000_000;
-                        let rpm = read_i64(&hp.join("fan1_input"));
+                        temp = read_i64(&hp.join("temp1_input")) / 1000;
+                        hot = (read_i64(&hp.join("temp2_input")) / 1000).max(temp);
+                        pwr = read_i64(&hp.join("power1_average")).max(read_i64(&hp.join("power1_input"))) / 1_000_000;
+                        rpm = read_i64(&hp.join("fan1_input"));
                         let pwm = read_i64(&hp.join("pwm1"));
-                        let pct = if pwm > 0 { (pwm * 100) / 255 } else { 0 };
-                        return GpuTelemetry {
-                            valid: true, gfx_mhz: gfx, mem_mhz: mem, temp_c: temp, hotspot_c: hot,
-                            load_pct: load, power_w: pwr, fan_rpm: rpm, fan_pct: pct,
-                            vram_used_mb: vram_used, vram_total_mb: vram_total,
-                        };
+                        pct = if pwm > 0 { (pwm * 100) / 255 } else { 0 };
+                        break;
                     }
                 }
+                return GpuTelemetry {
+                    valid: gfx > 0 || mem > 0 || temp > 0 || vram_total > 0 || load > 0,
+                    gfx_mhz: gfx, mem_mhz: mem, temp_c: temp, hotspot_c: hot,
+                    load_pct: load, power_w: pwr, fan_rpm: rpm, fan_pct: pct,
+                    vram_used_mb: vram_used, vram_total_mb: vram_total,
+                };
             }
         }
     }
