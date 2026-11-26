@@ -193,18 +193,35 @@ impl PowerPlayApp {
                         if ui.button("Patch VBIOS ROM (.rom)").clicked() {
                             match vbios::patch_ppt_into_rom(&orig_rom, off, &self.raw_buffer) {
                                 Ok(patched_rom) => {
-                                    if let Some(path) = rfd::FileDialog::new()
-                                        .set_file_name("vbios_patched.rom")
-                                        .save_file()
-                                    {
-                                        if let Err(e) = std::fs::write(&path, &patched_rom) {
-                                            self.status_msg = format!("ROM write error: {}", e);
-                                        } else {
-                                            self.vbios_buffer = Some(patched_rom);
-                                            self.baseline_buffer = self.raw_buffer.clone();
-                                            self.status_msg = format!("Patched VBIOS ROM ({} B) -> {}", orig_rom.len(), path.display());
-                                            close_modal = true;
+                                    match crate::ui_theme::verify_atombios_rom(&orig_rom, &patched_rom, off, self.raw_buffer.len()) {
+                                        Ok((blk, csum, diff_cnt)) => {
+                                            if let Some(path) = rfd::FileDialog::new()
+                                                .set_file_name("vbios_patched.rom")
+                                                .save_file()
+                                            {
+                                                if let Err(e) = crate::io::write_atomic(&path, &patched_rom) {
+                                                    self.status_msg = format!("ROM write error: {}", e);
+                                                } else if std::fs::read(&path).ok().as_deref() != Some(patched_rom.as_slice()) {
+                                                    self.status_msg = "ROM read-back verification failed!".to_string();
+                                                } else {
+                                                    let tag = format!("[ROM OK | off 0x{:04X} | csum 0x{:02X} | {} B changed | blk {} B]", off, csum, diff_cnt, blk);
+                                                    self.vbios_buffer = Some(patched_rom);
+                                                    self.baseline_buffer = self.raw_buffer.clone();
+                                                    self.status_msg = format!("Patched {} {}", path.file_name().unwrap_or_default().to_string_lossy(), tag);
+                                                    crate::ui_theme::log_debug("SAVE", &format!("Modal exported {} {}", path.display(), tag));
+                                                    close_modal = true;
+                                                    self.show_error(
+                                                        "VBIOS ROM Verified & Saved",
+                                                        &format!(
+                                                            "File: {}\n{}\n\nChecksum ATOMBIOS (0x21) valid dan read-back disk cocok 100%.",
+                                                            path.display(),
+                                                            tag
+                                                        ),
+                                                    );
+                                                }
+                                            }
                                         }
+                                        Err(e) => self.status_msg = format!("ROM verification failed: {}", e),
                                     }
                                 }
                                 Err(e) => self.status_msg = format!("Patch error: {}", e),

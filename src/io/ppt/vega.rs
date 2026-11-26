@@ -306,6 +306,32 @@ impl PowerPlayApp {
                 self.fan_stop_temp,
                 self.fan_start_temp,
             );
+            // Sinkronkan Hotspot Temp Limit (hl_off + 0x15) dan VDDC Lookup Table Max (vddc_off)
+            if self.raw_buffer.len() >= 0x4A {
+                let hl_off = u16::from_le_bytes([self.raw_buffer[0x48], self.raw_buffer[0x49]]) as usize;
+                if hl_off > 0 && hl_off + 0x16 <= self.raw_buffer.len() && self.temp_limits[0] > 0 {
+                    self.raw_buffer[hl_off + 0x15] = self.temp_limits[0].clamp(60, 125) as u8;
+                }
+                let vddc_off = u16::from_le_bytes([self.raw_buffer[0x3E], self.raw_buffer[0x3F]]) as usize;
+                if vddc_off > 0 && vddc_off + 2 <= self.raw_buffer.len() && self.volt_gfx[1] > 0 {
+                    let cnt = self.raw_buffer[vddc_off + 1] as usize;
+                    if cnt > 0 && vddc_off + 2 + cnt * 2 <= self.raw_buffer.len() {
+                        let vmax = self.volt_gfx[1].max(0) as u16;
+                        let last_eo = vddc_off + 2 + (cnt - 1) * 2;
+                        self.raw_buffer[last_eo..last_eo + 2].copy_from_slice(&vmax.to_le_bytes());
+                        // Pastikan tidak ada entri LUT di bawahnya yang melebihi batas vmax baru
+                        for i in 0..cnt.saturating_sub(1) {
+                            let eo = vddc_off + 2 + i * 2;
+                            let cur = u16::from_le_bytes([self.raw_buffer[eo], self.raw_buffer[eo + 1]]);
+                            if cur > vmax {
+                                self.raw_buffer[eo..eo + 2].copy_from_slice(&vmax.to_le_bytes());
+                            }
+                        }
+                    }
+                }
+            }
+            let parsed_state = self.capture_vega_parsed();
+            parsed_state.write_to_buf(&mut self.raw_buffer);
             return true;
         }
         false

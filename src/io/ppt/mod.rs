@@ -499,6 +499,16 @@ impl PowerPlayApp {
                     }
                     crate::ui_theme::log_debug("SAVE", &format!("Exported {} ({} B){} | GFX={:?} MHz, Power={} W, Volt={:?} mV", path.display(), self.raw_buffer.len(), rom_verify_tag, self.freq_gfx, self.power_limit_w, self.volt_gfx));
                     self.status_msg = format!("Saved to {}{}", path.file_name().unwrap_or_default().to_string_lossy(), rom_verify_tag);
+                    if ext == "rom" && !rom_verify_tag.is_empty() {
+                        self.show_error(
+                            "VBIOS ROM Verified & Saved",
+                            &format!(
+                                "File: {}\n{}\n\nChecksum ATOMBIOS (0x21) valid dan read-back disk cocok 100%.",
+                                path.display(),
+                                rom_verify_tag.trim()
+                            ),
+                        );
+                    }
                 }
                 Err(e) => self.show_error("File Save Error", &e.to_string()),
             }
