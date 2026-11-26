@@ -151,16 +151,50 @@ pub fn poll_gpu_telemetry() -> GpuTelemetry {
 pub fn poll_gpu_telemetry() -> GpuTelemetry {
     use std::os::windows::process::CommandExt;
     const CREATE_NO_WINDOW: u32 = 0x08000000;
-    let ps = "$l=(Get-Counter '\\GPU Engine(*engtype_3D)\\Utilization Percentage' -EA SilentlyContinue).CounterSamples.CookedValue|Measure-Object -Sum;$v=(Get-Counter '\\GPU Adapter Memory(*)\\Dedicated Usage' -EA SilentlyContinue).CounterSamples.CookedValue|Measure-Object -Max;\"$([math]::Round($l.Sum))|$([math]::Round($v.Maximum/1MB))\"";
+    let ps = concat!(
+        "$l=(Get-Counter '\GPU Engine(*engtype_3D)\Utilization Percentage' -EA SilentlyContinue).CounterSamples.CookedValue|Measure-Object -Sum;",
+        "$vu=(Get-Counter '\GPU Adapter Memory(*)\Dedicated Usage' -EA SilentlyContinue).CounterSamples.CookedValue|Measure-Object -Max;",
+        "$vt=(Get-Counter '\GPU Adapter Memory(*)\Dedicated Limit' -EA SilentlyContinue).CounterSamples.CookedValue|Measure-Object -Max;",
+        "$tot=[math]::Round($vt.Maximum/1MB);",
+        "if($tot -le 0){$vc=Get-CimInstance Win32_VideoController -EA SilentlyContinue|Where-Object{$_.PNPDeviceID -match 'VEN_1002'}|Select-Object -First 1;if($vc -and $vc.AdapterRAM -gt 0){$tot=[math]::Round($vc.AdapterRAM/1MB)}};",
+        "$gfx=0;$mem=0;$tmp=0;$hot=0;$pwr=0;$rpm=0;$fpct=0;",
+        "foreach($ns in @('root\LibreHardwareMonitor','root\OpenHardwareMonitor')){",
+        "$hw=Get-CimInstance -Namespace $ns -ClassName Hardware -EA SilentlyContinue|Where-Object{$_.HardwareType -match 'GpuAmd'}|Select-Object -First 1;",
+        "if($hw){$sn=Get-CimInstance -Namespace $ns -ClassName Sensor -EA SilentlyContinue|Where-Object{$_.Parent -eq $hw.Identifier};",
+        "foreach($s in $sn){$v=[math]::Round($s.Value);",
+        "if($s.SensorType -eq 'Clock' -and $s.Name -match 'Core'){$gfx=$v}",
+        "elseif($s.SensorType -eq 'Clock' -and $s.Name -match 'Memory'){$mem=$v}",
+        "elseif($s.SensorType -eq 'Temperature' -and $s.Name -match 'Hot'){$hot=$v}",
+        "elseif($s.SensorType -eq 'Temperature' -and $s.Name -match 'Core|Edge'){$tmp=$v}",
+        "elseif($s.SensorType -eq 'Power' -and $s.Name -match 'Package|Total|Core'){$pwr=$v}",
+        "elseif($s.SensorType -eq 'Fan'){$rpm=$v}",
+        "elseif($s.SensorType -eq 'Control' -and $s.Name -match 'Fan'){$fpct=$v}",
+        "};break}};",
+        "if($hot -le 0){$hot=$tmp};",
+        ""$gfx|$mem|$tmp|$hot|$([math]::Round($l.Sum))|$pwr|$rpm|$fpct|$([math]::Round($vu.Maximum/1MB))|$tot""
+    );
     let Ok(out) = crate::platform::run_cmd_bounded(Command::new("powershell")
         .creation_flags(CREATE_NO_WINDOW)
         .args(["-NoProfile", "-NonInteractive", "-Command", ps])
-        , 1500) else { return GpuTelemetry::default(); };
+        , 2500) else { return GpuTelemetry::default(); };
     let txt = String::from_utf8_lossy(&out.stdout);
-    let mut parts = txt.trim().split('|');
-    let load = parts.next().and_then(|s| s.parse::<i64>().ok()).unwrap_or(0);
-    let vram_used = parts.next().and_then(|s| s.parse::<i64>().ok()).unwrap_or(0);
-    GpuTelemetry { valid: load > 0 || vram_used > 0, load_pct: load, vram_used_mb: vram_used, ..Default::default() }
+    let p: Vec<i64> = txt.trim().split('|').map(|s| s.trim().parse::<i64>().unwrap_or(0)).collect();
+    if p.len() < 10 {
+        return GpuTelemetry::default();
+    }
+    GpuTelemetry {
+        valid: p[0] > 0 || p[1] > 0 || p[2] > 0 || p[4] > 0 || p[8] > 0 || p[9] > 0,
+        gfx_mhz: p[0],
+        mem_mhz: p[1],
+        temp_c: p[2],
+        hotspot_c: p[3],
+        load_pct: p[4],
+        power_w: p[5],
+        fan_rpm: p[6],
+        fan_pct: p[7],
+        vram_used_mb: p[8],
+        vram_total_mb: p[9],
+    }
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
