@@ -39,13 +39,40 @@ pub fn format_reg_ppt(data: &[u8]) -> String {
     out
 }
 
-pub fn format_mpt_ppt(data: &[u8]) -> Vec<u8> {
+fn infer_default_did_for_ppt(data: &[u8]) -> u16 {
+    let frev = data.get(2).copied().unwrap_or(0);
+    match frev {
+        0x07 => 0x67DF, // Polaris (RX 580)
+        0x08 => 0x687F, // Vega 10 (RX Vega 64)
+        0x0B => 0x66AF, // Vega 20 (Radeon VII)
+        0x0C | 0x0D => 0x731F, // RDNA 1 (RX 5700 XT)
+        0x0F => 0x73BF, // RDNA 2 Navi 21 (RX 6800/6900 XT)
+        0x10 | 0x11 => 0x73DF, // RDNA 2 Navi 22 (RX 6700 XT)
+        0x12 => 0x73FF, // RDNA 2 Navi 23 (RX 6600/6600 XT)
+        0x13 => 0x743F, // RDNA 2 Navi 24 (RX 6400/6500 XT)
+        0x14 => 0x744C, // RDNA 3 Navi 31 (RX 7900 XTX)
+        0x15 => 0x747E, // RDNA 3 Navi 32 (RX 7800 XT)
+        0x16 => 0x7480, // RDNA 3 Navi 33 (RX 7600)
+        _ => 0x73FF,
+    }
+}
+
+pub fn format_mpt_ppt_with_did(data: &[u8], device_id: Option<u16>) -> Vec<u8> {
+    let did = device_id.filter(|&d| d != 0).unwrap_or_else(|| infer_default_did_for_ppt(data));
     let mut out = vec![0u8; 0x100 + data.len()];
-    out[0] = 0x55;
-    out[1] = 0xAA;
+    out = 0x55;
+    out = 0xAA;
     out[0x18] = 0x3C;
+    out[0x42..0x44].copy_from_slice(&did.to_le_bytes());
+    out[0x48] = 0x50;
+    out[0x70] = 0x80;
+    out[0xA3] = 0x01;
     out[0x100..].copy_from_slice(data);
     out
+}
+
+pub fn format_mpt_ppt(data: &[u8]) -> Vec<u8> {
+    format_mpt_ppt_with_did(data, None)
 }
 
 pub fn format_opencore_plist(data: &[u8], pci_path: &str) -> String {
@@ -96,7 +123,12 @@ pub fn serialize_export_bytes(
             _ => Err("You must load an original VBIOS (.rom / .bin) before saving a patched .rom image.".into()),
         },
         "reg" => Ok(format_reg_ppt(raw_buffer).into_bytes()),
-        "mpt" => Ok(format_mpt_ppt(raw_buffer)),
+        "mpt" => {
+            let did = vbios_buffer
+                .and_then(|rom| crate::vbios::inspect_vbios_info(rom, vbios_ppt_offset.unwrap_or(0)))
+                .map(|vi| vi.device_id);
+            Ok(format_mpt_ppt_with_did(raw_buffer, did))
+        }
         "plist" => Ok(format_opencore_plist(raw_buffer, pci_path).into_bytes()),
         _ => Ok(raw_buffer.to_vec()),
     }
