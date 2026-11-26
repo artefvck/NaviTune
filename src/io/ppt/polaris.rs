@@ -110,7 +110,7 @@ impl PowerPlayApp {
             crate::pptable_polaris::AtomPolarisPowerPlayTable::write_hard_limits_full(
                 &mut self.raw_buffer,
                 self.freq_gfx[1],
-                self.mem_dpm_freq[3][0],
+                self.mem_dpm_freq.iter().map(|m| m[0]).max().unwrap_or(0),
                 self.volt_gfx[1],
                 self.mem_dpm_volt[3][0],
                 self.mem_dpm_volt[3][1],

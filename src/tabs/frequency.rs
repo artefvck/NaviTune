@@ -13,7 +13,7 @@ impl PowerPlayApp {
         let mut issues: Vec<&'static str> = Vec::new();
         if arch.has_hard_limit_subtable() {
             if self.freq_gfx[1] <= 0 { issues.push("HardLimit GFXCLK Max <= 0 MHz"); }
-            if self.mem_dpm_freq[3][0] <= 0 { issues.push("HardLimit MCLK Max <= 0 MHz"); }
+            if self.mem_dpm_freq.iter().map(|m| m[0]).max().unwrap_or(0) <= 0 { issues.push("HardLimit MCLK Max <= 0 MHz"); }
         } else {
             if self.freq_gfx[0] > self.freq_gfx[1] { issues.push("GFX Min > Max"); }
             if self.freq_soc[0] > self.freq_soc[1] { issues.push("Soc Min > Max"); }
