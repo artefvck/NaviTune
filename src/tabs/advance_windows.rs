@@ -54,23 +54,35 @@ impl PowerPlayApp {
                 ui.horizontal_wrapped(|ui| {
                     if ui.button("Write to Registry").clicked() {
                         self.sync_fields_to_buffer();
-                        let sel_lbl = self.gpus.get(self.selected_gpu).cloned().unwrap_or_default();
+                        let prev_sel = self.selected_gpu;
+                        let sel_lbl = self.gpus.get(prev_sel).cloned().unwrap_or_default();
                         match write_ppt_to_windows_registry(&self.raw_buffer, &sel_lbl) {
                             Ok(msg) => {
                                 crate::ui_theme::log_debug("WIN_REG", &msg);
                                 self.status_msg = msg;
                                 self.refresh_ioreg_gpus();
+                                if prev_sel < self.ioreg_entries.len() {
+                                    self.selected_gpu = prev_sel;
+                                } else if !self.ioreg_entries.is_empty() {
+                                    self.selected_gpu = 0;
+                                }
                             }
                             Err(err) => self.show_error("Windows Registry Write Error", &err),
                         }
                     }
                     if ui.button("Delete Registry Key").clicked() {
-                        let sel_lbl = self.gpus.get(self.selected_gpu).cloned().unwrap_or_default();
+                        let prev_sel = self.selected_gpu;
+                        let sel_lbl = self.gpus.get(prev_sel).cloned().unwrap_or_default();
                         match delete_ppt_from_windows_registry(&sel_lbl) {
                             Ok(msg) => {
                                 crate::ui_theme::log_debug("WIN_REG", &msg);
                                 self.status_msg = msg;
                                 self.refresh_ioreg_gpus();
+                                if prev_sel < self.ioreg_entries.len() {
+                                    self.selected_gpu = prev_sel;
+                                } else if !self.ioreg_entries.is_empty() {
+                                    self.selected_gpu = 0;
+                                }
                             }
                             Err(err) => self.show_error("Windows Registry Delete Error", &err),
                         }
