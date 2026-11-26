@@ -55,8 +55,8 @@ impl PowerPlayApp {
             // polaris_od_caps_loaded: decode ulPlatformCaps (0x013) + ATOM_Tonga_Fan_Table state
             if b.len() >= 0x17 {
                 let pcaps = u32::from_le_bytes([b[0x13], b[0x14], b[0x15], b[0x16]]);
-                for bit in 0..32usize {
-                    self.smu_features[bit] = (pcaps & (1u32 << bit)) != 0;
+                for (bit, feat) in self.smu_features.iter_mut().enumerate().take(32) {
+                    *feat = (pcaps & (1u32 << bit)) != 0;
                 }
                 let odn_ac = (pcaps & (1 << 18)) != 0;
                 self.gpu_clock_limit = odn_ac;
@@ -87,8 +87,8 @@ impl PowerPlayApp {
             // polaris_od_caps_saved: sync 32-bit PlatformCaps + OverDrive Feature checkboxes back to ulPlatformCaps (0x013..0x017)
             if self.raw_buffer.len() >= 0x17 {
                 let mut pcaps = 0u32;
-                for bit in 0..32usize {
-                    if self.smu_features[bit] {
+                for (bit, &en) in self.smu_features.iter().enumerate().take(32) {
+                    if en {
                         pcaps |= 1u32 << bit;
                     }
                 }

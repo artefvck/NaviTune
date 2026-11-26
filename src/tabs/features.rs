@@ -116,14 +116,17 @@ impl PowerPlayApp {
                         ui.separator();
                         egui::ScrollArea::vertical().id_salt("smu_vp_scroll").auto_shrink([false, false]).max_height(ui.available_height()).show(ui, |ui| {
                             ui.spacing_mut().item_spacing.y = 4.0;
-                            for bit in 0..32usize {
+                            let smu_editable = self.smu_features.iter().any(|&b| b);
+                            ui.add_enabled_ui(smu_editable, |ui| {
+                            for (bit, feat) in self.smu_features.iter_mut().enumerate().take(32) {
                                 ui.horizontal(|ui| {
-                                    if crate::ui_theme::green_checkbox(ui, &mut self.smu_features[bit], format!("{:02}: {}", bit, arch.feature_bit_name(bit))).changed() {
+                                    if crate::ui_theme::green_checkbox(ui, feat, format!("{:02}: {}", bit, arch.feature_bit_name(bit))).changed() {
                                         ctx.data_mut(|d| d.insert_temp(egui::Id::new("ppt_dirty"), true));
                                     }
                                     ui.colored_label(egui::Color32::from_rgb(72, 235, 148), egui::RichText::new(format!("[plat_cap_{:02}]", bit)).monospace().small());
                                 });
                             }
+                            }).response.on_disabled_hover_text("Read-only: VBIOS ini tidak memiliki SMU feature mask aktif (0x0).");
                         });
                     } else {
                         let si_arch = crate::smu_features::detect_silicon_arch(&self.raw_buffer);

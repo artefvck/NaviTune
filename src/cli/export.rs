@@ -97,9 +97,24 @@ pub(super) fn cmd_preset(
                 app.vbios_ppt_offset,
                 DEFAULT_OC_PCI_PATH,
             )?;
-            crate::io::write_atomic(std::path::Path::new(dst), &bytes)
+            let mut rom_tag = String::new();
+            if ext == "rom" {
+                if let (Some(orig_rom), Some(voff)) = (app.vbios_buffer.as_deref(), app.vbios_ppt_offset) {
+                    let (blk, csum, diff_cnt) = crate::ui_theme::verify_atombios_rom(orig_rom, &bytes, voff, app.raw_buffer.len())?;
+                    rom_tag = format!(" [ROM OK | off 0x{:04X} | csum 0x{:02X} | {} B changed | blk {} B]", voff, csum, diff_cnt, blk);
+                }
+            }
+            let dst_path = std::path::Path::new(dst);
+            crate::io::write_atomic(dst_path, &bytes)
                 .map_err(|e| format!("Failed to write '{}': {}", dst, e))?;
-            println!("{} : {} ({} B)", label, dst, bytes.len());
+            if ext == "rom" {
+                let disk_bytes = std::fs::read(dst_path)
+                    .map_err(|e| format!("Failed to verify '{}' on disk: {}", dst, e))?;
+                if disk_bytes != bytes {
+                    return Err(format!("ROM read-back verification failed for '{}'", dst));
+                }
+            }
+            println!("{} : {} ({} B){}", label, dst, bytes.len(), rom_tag);
         }
     }
     if let Some(kext_dst) = out.kext {

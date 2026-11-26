@@ -61,7 +61,14 @@ impl PowerPlayApp {
             self.fan_zero_rpm_enable = v20.fan_zero_rpm_enable != 0;
             self.fan_stop_temp = { v20.fan_stop_temp } as i32;
             self.fan_start_temp = { v20.fan_start_temp } as i32;
-            let mask = { v20.features_to_run };
+            let mask = if b.len() == 1534 && b.len() >= 0x01E6 {
+                u64::from_le_bytes([
+                    b[0x01DE], b[0x01DF], b[0x01E0], b[0x01E1],
+                    b[0x01E2], b[0x01E3], b[0x01E4], b[0x01E5],
+                ])
+            } else {
+                v20.features_to_run
+            };
             for (bit, feature) in self.smu_features.iter_mut().enumerate() {
                 *feature = (mask & (1u64 << bit)) != 0;
             }
@@ -170,8 +177,8 @@ impl PowerPlayApp {
             self.temp_limits.fill(0);
             if b.len() >= 0x17 {
                 let pcaps = u32::from_le_bytes([b[0x13], b[0x14], b[0x15], b[0x16]]);
-                for bit in 0..32usize {
-                    self.smu_features[bit] = (pcaps & (1u32 << bit)) != 0;
+                for (bit, feat) in self.smu_features.iter_mut().enumerate().take(32) {
+                    *feat = (pcaps & (1u32 << bit)) != 0;
                 }
             }
             if let Some(st) = crate::pptable_vega::VegaParsedState::parse(b, frev) {
@@ -251,6 +258,8 @@ impl PowerPlayApp {
             ];
             v20_val.write_back_to_slice(&mut self.raw_buffer);
             if self.raw_buffer.len() == 1534 && self.raw_buffer.len() >= 0x53C {
+                let mask1534 = Self::build_smu_mask(&self.smu_features);
+                self.raw_buffer[0x01DE..0x01E6].copy_from_slice(&mask1534.to_le_bytes());
                 let v20_pro_toffs = [0x1FAusize, 0x1FC, 0x202, 0x204, 0x206, 0x208, 0x20A];
                 for (i, &toff) in v20_pro_toffs.iter().enumerate() {
                     let bytes = (self.temp_limits[i].max(0) as u16).to_le_bytes();
@@ -271,8 +280,8 @@ impl PowerPlayApp {
             v10.power_control_limit = self.oc_power_limit[1].max(0) as u16;
             if self.raw_buffer.len() >= 0x17 {
                 let mut pcaps = 0u32;
-                for bit in 0..32usize {
-                    if self.smu_features[bit] {
+                for (bit, &en) in self.smu_features.iter().enumerate().take(32) {
+                    if en {
                         pcaps |= 1u32 << bit;
                     }
                 }

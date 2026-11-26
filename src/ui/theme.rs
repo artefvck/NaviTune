@@ -446,6 +446,63 @@ pub(crate) fn tinted_badge_fill(base: eframe::egui::Color32, alpha: u8) -> efram
     eframe::egui::Color32::from_rgba_unmultiplied(base.r(), base.g(), base.b(), alpha)
 }
 
+
+pub fn safe_drag_i32(
+    ui: &mut egui::Ui,
+    value: &mut i32,
+    is_editable: bool,
+    range: std::ops::RangeInclusive<i32>,
+    suffix: &str,
+) -> egui::Response {
+    ui.add_enabled_ui(is_editable, |ui| {
+        let mut dv = egui::DragValue::new(value).range(range);
+        if !suffix.is_empty() {
+            dv = dv.suffix(suffix);
+        }
+        let resp = ui.add(dv);
+        if !is_editable {
+            resp.clone().on_disabled_hover_text(
+                "Read-only: Parameter ini bernilai 0 atau tidak didukung VBIOS ini (mengubahnya berisiko merusak PowerPlay Table).",
+            );
+        }
+        resp
+    })
+    .inner
+}
+
+pub fn verify_atombios_rom(
+    orig_rom: &[u8],
+    patched_rom: &[u8],
+    ppt_offset: usize,
+    ppt_len: usize,
+) -> Result<(usize, u8, usize), String> {
+    if orig_rom.len() != patched_rom.len() {
+        return Err(format!("Ukuran file ROM berubah ({} -> {} B)", orig_rom.len(), patched_rom.len()));
+    }
+    if patched_rom.len() < 0x22 || patched_rom[0] != 0x55 || patched_rom[1] != 0xAA {
+        return Err("Header ATOMBIOS 0x55AA tidak valid.".into());
+    }
+    let block_size = (patched_rom[0x02] as usize) * 512;
+    if block_size == 0 || block_size > patched_rom.len() {
+        return Err(format!("Ukuran blok ROM tidak valid: {} B", block_size));
+    }
+    let csum_mod = patched_rom[..block_size].iter().fold(0u8, |acc, &b| acc.wrapping_add(b));
+    if csum_mod != 0 {
+        return Err(format!("Checksum ATOMBIOS gagal: sum mod 256 = 0x{:02X} (seharusnya 0x00)", csum_mod));
+    }
+    let mut changed = 0usize;
+    for (idx, (&old_b, &new_b)) in orig_rom.iter().zip(patched_rom.iter()).enumerate() {
+        if old_b != new_b {
+            let in_ppt = idx >= ppt_offset && idx < ppt_offset + ppt_len;
+            if !in_ppt && idx != 0x21 {
+                return Err(format!("Byte di luar PowerPlay Table berubah pada offset 0x{:04X}", idx));
+            }
+            changed += 1;
+        }
+    }
+    Ok((block_size, patched_rom[0x21], changed))
+}
+
 #[cfg(test)]
 mod theme_palette_tests {
     use super::tinted_badge_fill;

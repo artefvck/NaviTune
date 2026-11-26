@@ -472,11 +472,33 @@ impl PowerPlayApp {
                     return;
                 }
             };
+            let mut rom_verify_tag = String::new();
+            if ext == "rom" {
+                if let (Some(orig_rom), Some(voff)) = (self.vbios_buffer.as_deref(), self.vbios_ppt_offset) {
+                    match crate::ui_theme::verify_atombios_rom(orig_rom, &bytes, voff, self.raw_buffer.len()) {
+                        Ok((blk, csum, diff_cnt)) => {
+                            rom_verify_tag = format!(" [ROM OK | off 0x{:04X} | csum 0x{:02X} | {} B changed | blk {} B]", voff, csum, diff_cnt, blk);
+                        }
+                        Err(e) => {
+                            self.show_error("ROM Checksum / Offset Verification Failed", &e);
+                            return;
+                        }
+                    }
+                }
+            }
             let write_res = crate::io::write_atomic(&path, &bytes);
             match write_res {
                 Ok(_) => {
-                    crate::ui_theme::log_debug("SAVE", &format!("Exported {} ({} B) | GFX={:?} MHz, Power={} W, Volt={:?} mV", path.display(), self.raw_buffer.len(), self.freq_gfx, self.power_limit_w, self.volt_gfx));
-                    self.status_msg = format!("Saved to {}", path.file_name().unwrap_or_default().to_string_lossy());
+                    if ext == "rom" {
+                        if let Ok(disk_bytes) = std::fs::read(&path) {
+                            if disk_bytes != bytes {
+                                self.show_error("ROM Read-Back Verification Failed", "Isi file .rom di disk tidak identik dengan buffer memori.");
+                                return;
+                            }
+                        }
+                    }
+                    crate::ui_theme::log_debug("SAVE", &format!("Exported {} ({} B){} | GFX={:?} MHz, Power={} W, Volt={:?} mV", path.display(), self.raw_buffer.len(), rom_verify_tag, self.freq_gfx, self.power_limit_w, self.volt_gfx));
+                    self.status_msg = format!("Saved to {}{}", path.file_name().unwrap_or_default().to_string_lossy(), rom_verify_tag);
                 }
                 Err(e) => self.show_error("File Save Error", &e.to_string()),
             }
