@@ -148,6 +148,121 @@ pub fn poll_gpu_telemetry() -> GpuTelemetry {
 }
 
 #[cfg(target_os = "windows")]
+unsafe fn poll_amd_adl() -> Option<(i64, i64, i64, i64, i64, i64, i64, i64)> {
+    use std::ffi::{c_char, c_void};
+
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn LoadLibraryA(lpLibFileName: *const c_char) -> *mut c_void;
+        fn GetProcAddress(hModule: *mut c_void, lpProcName: *const c_char) -> *mut c_void;
+        fn FreeLibrary(hLibModule: *mut c_void) -> i32;
+    }
+
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    struct AdapterInfo {
+        i_size: i32,
+        i_adapter_index: i32,
+        str_udid: [c_char; 256],
+        i_bus_number: i32,
+        i_device_number: i32,
+        i_function_number: i32,
+        i_vendor_id: i32,
+        str_adapter_name: [c_char; 256],
+        str_display_name: [c_char; 256],
+        i_present: i32,
+        i_exist: i32,
+        str_driver_path: [c_char; 256],
+        str_driver_path_ext: [c_char; 256],
+        str_pnp_string: [c_char; 256],
+        i_os_display_index: i32,
+    }
+
+    #[repr(C)]
+    #[derive(Clone, Copy, Default)]
+    struct AdlSingleSensorData {
+        supported: i32,
+        value: i32,
+    }
+
+    #[repr(C)]
+    struct AdlPmLogDataOutput {
+        size: i32,
+        sensors: [AdlSingleSensorData; 256],
+    }
+
+    unsafe extern "C" fn adl_malloc(i_size: i32) -> *mut c_void {
+        if i_size <= 0 { return std::ptr::null_mut(); }
+        let layout = std::alloc::Layout::from_size_align_unchecked(i_size as usize, 8);
+        std::alloc::alloc_zeroed(layout) as *mut c_void
+    }
+
+    let lib = LoadLibraryA(c"atiadlxx.dll".as_ptr());
+    if lib.is_null() { return None; }
+
+    type MainCreateFn = unsafe extern "C" fn(unsafe extern "C" fn(i32) -> *mut c_void, i32, *mut *mut c_void) -> i32;
+    type MainDestroyFn = unsafe extern "C" fn(*mut c_void) -> i32;
+    type NumAdaptersFn = unsafe extern "C" fn(*mut c_void, *mut i32) -> i32;
+    type AdapterInfoGetFn = unsafe extern "C" fn(*mut c_void, *mut AdapterInfo, i32) -> i32;
+    type PmLogDataGetFn = unsafe extern "C" fn(*mut c_void, i32, *mut AdlPmLogDataOutput) -> i32;
+
+    let p_create = GetProcAddress(lib, c"ADL2_Main_Control_Create".as_ptr());
+    let p_destroy = GetProcAddress(lib, c"ADL2_Main_Control_Destroy".as_ptr());
+    let p_num = GetProcAddress(lib, c"ADL2_Adapter_NumberOfAdapters_Get".as_ptr());
+    let p_info = GetProcAddress(lib, c"ADL2_Adapter_AdapterInfo_Get".as_ptr());
+    let p_pmlog = GetProcAddress(lib, c"ADL2_New_QueryPMLogData_Get".as_ptr());
+
+    if p_create.is_null() || p_destroy.is_null() || p_num.is_null() || p_info.is_null() || p_pmlog.is_null() {
+        FreeLibrary(lib);
+        return None;
+    }
+
+    let main_create: MainCreateFn = std::mem::transmute(p_create);
+    let main_destroy: MainDestroyFn = std::mem::transmute(p_destroy);
+    let num_adapters: NumAdaptersFn = std::mem::transmute(p_num);
+    let adapter_info_get: AdapterInfoGetFn = std::mem::transmute(p_info);
+    let pmlog_fn: PmLogDataGetFn = std::mem::transmute(p_pmlog);
+
+    let mut ctx: *mut c_void = std::ptr::null_mut();
+    if main_create(adl_malloc, 1, &mut ctx) != 0 || ctx.is_null() {
+        FreeLibrary(lib);
+        return None;
+    }
+
+    let mut count = 0i32;
+    let mut out_vals = None;
+    if num_adapters(ctx, &mut count) == 0 && count > 0 {
+        let mut infos = vec![std::mem::zeroed::<AdapterInfo>(); count as usize];
+        for item in &mut infos {
+            item.i_size = std::mem::size_of::<AdapterInfo>() as i32;
+        }
+        let sz = (count as usize * std::mem::size_of::<AdapterInfo>()) as i32;
+        if adapter_info_get(ctx, infos.as_mut_ptr(), sz) == 0 {
+            if let Some(amd) = infos.iter().find(|a| a.i_vendor_id == 1002 || a.i_vendor_id == 0x1002) {
+                let mut pm: AdlPmLogDataOutput = std::mem::zeroed();
+                pm.size = std::mem::size_of::<AdlPmLogDataOutput>() as i32;
+                if pmlog_fn(ctx, amd.i_adapter_index, &mut pm) == 0 {
+                    let s = |i: usize| pm.sensors.get(i).filter(|d| d.supported != 0).map(|d| d.value as i64).unwrap_or(0);
+                    let gfx = s(1);
+                    let mem = s(2);
+                    let edge = s(8);
+                    let hot = if s(27) > 0 { s(27) } else { edge };
+                    let rpm = s(14);
+                    let pct = s(15);
+                    let load = s(19);
+                    let pwr = if s(23) > 0 { s(23) } else { s(17) };
+                    out_vals = Some((gfx, mem, edge, hot, load, pwr, rpm, pct));
+                }
+            }
+        }
+    }
+
+    let _ = main_destroy(ctx);
+    FreeLibrary(lib);
+    out_vals
+}
+
+#[cfg(target_os = "windows")]
 pub fn poll_gpu_telemetry() -> GpuTelemetry {
     use std::ffi::c_void;
 
@@ -253,12 +368,22 @@ pub fn poll_gpu_telemetry() -> GpuTelemetry {
         }
     }
 
+    let (gfx_mhz, mem_mhz, temp_c, hotspot_c, adl_load, power_w, fan_rpm, fan_pct) =
+        unsafe { poll_amd_adl() }.unwrap_or((0, 0, 0, 0, 0, 0, 0, 0));
+    let final_load = if load_pct > 0 { load_pct } else { adl_load };
+
     GpuTelemetry {
-        valid: pdh_ok || vram_used_mb > 0 || vram_total_mb > 0 || load_pct > 0,
-        load_pct,
+        valid: pdh_ok || gfx_mhz > 0 || mem_mhz > 0 || temp_c > 0 || vram_total_mb > 0 || final_load > 0,
+        gfx_mhz,
+        mem_mhz,
+        temp_c,
+        hotspot_c,
+        load_pct: final_load,
+        power_w,
+        fan_rpm,
+        fan_pct,
         vram_used_mb,
         vram_total_mb,
-        ..Default::default()
     }
 }
 
