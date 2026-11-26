@@ -168,6 +168,12 @@ impl PowerPlayApp {
                 self.fan_start_temp = 0;
             }
             self.temp_limits.fill(0);
+            if b.len() >= 0x17 {
+                let pcaps = u32::from_le_bytes([b[0x13], b[0x14], b[0x15], b[0x16]]);
+                for bit in 0..32usize {
+                    self.smu_features[bit] = (pcaps & (1u32 << bit)) != 0;
+                }
+            }
             if let Some(st) = crate::pptable_vega::VegaParsedState::parse(b, frev) {
                 self.apply_vega_parsed(st);
             }
@@ -263,6 +269,15 @@ impl PowerPlayApp {
             v10.max_od_engine_clock = (self.oc_gfx_clock[1].max(0) * 100) as u32;
             v10.max_od_memory_clock = (self.oc_mem_clock[1].max(0) * 100) as u32;
             v10.power_control_limit = self.oc_power_limit[1].max(0) as u16;
+            if self.raw_buffer.len() >= 0x17 {
+                let mut pcaps = 0u32;
+                for bit in 0..32usize {
+                    if self.smu_features[bit] {
+                        pcaps |= 1u32 << bit;
+                    }
+                }
+                self.raw_buffer[0x13..0x17].copy_from_slice(&pcaps.to_le_bytes());
+            }
             crate::pptable_vega::AtomVega10PowerPlayTable::write_hard_limits_full(
                 &mut self.raw_buffer,
                 self.freq_soc[1],

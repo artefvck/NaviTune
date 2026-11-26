@@ -8,15 +8,14 @@ impl PowerPlayApp {
         let loaded = !self.raw_buffer.is_empty();
         let gen = ctx.data(|d| d.get_temp::<u64>(egui::Id::new("ppt_baseline_gen")).unwrap_or(0));
 
-        if !arch.is_gcn_subtable() {
-            ui.vertical_centered(|ui| {
-                let btn = egui::Button::new("PPTable Features").min_size(egui::vec2(180.0, 28.0));
-                if ui.add(btn).clicked() {
-                    self.show_smu_features_window = !self.show_smu_features_window;
-                }
-            });
-            ui.add_space(6.0);
-        }
+        ui.vertical_centered(|ui| {
+            let btn_lbl = if arch.is_gcn_subtable() { "PlatformCaps (0x013)" } else { "PPTable Features" };
+            let btn = egui::Button::new(btn_lbl).min_size(egui::vec2(180.0, 28.0));
+            if ui.add(btn).clicked() {
+                self.show_smu_features_window = !self.show_smu_features_window;
+            }
+        });
+        ui.add_space(6.0);
 
         let card_title = if arch.is_gcn_subtable() {
             "OverDrive & Platform Capabilities (0x013)"
@@ -83,9 +82,11 @@ impl PowerPlayApp {
         });
 
         if self.show_smu_features_window {
+            let is_gcn_caps = arch.is_gcn_subtable();
+            let vp_title = if is_gcn_caps { "PHM_PlatformCaps (0x013..0x017)" } else { "PPTable Features (FeaturesToRun)" };
             let vp_id = egui::ViewportId::from_hash_of("smu_ppt_features_viewport");
             let builder = egui::ViewportBuilder::default()
-                .with_title("PPTable Features (FeaturesToRun)")
+                .with_title(vp_title)
                 .with_inner_size([420.0, 500.0])
                 .with_resizable(true);
             ui.ctx().show_viewport_immediate(vp_id, builder, |ctx, _class| {
@@ -99,44 +100,54 @@ impl PowerPlayApp {
                         });
                         return;
                     }
+                    let max_bits = if is_gcn_caps { 32 } else { 64 };
                     let mut live_mask = 0u64;
-                    for (bit, &en) in self.smu_features.iter().enumerate() {
+                    for (bit, &en) in self.smu_features.iter().take(max_bits).enumerate() {
                         if en { live_mask |= 1u64 << bit; }
                     }
-                    let arch = crate::smu_features::detect_silicon_arch(&self.raw_buffer);
                     let active_cnt = live_mask.count_ones();
-                    ui.horizontal(|ui| {
-                        ui.strong("FeaturesToRun:");
-                        ui.monospace(format!("0x{:016X}", live_mask));
+                    if is_gcn_caps {
+                        ui.horizontal(|ui| {
+                            ui.strong("ulPlatformCaps:");
+                            ui.monospace(format!("0x{:08X}", live_mask as u32));
+                            ui.separator();
+                            ui.colored_label(egui::Color32::from_rgb(72, 235, 148), egui::RichText::new(format!("{} ({} active)", arch.label(), active_cnt)).strong());
+                        });
                         ui.separator();
-                        ui.colored_label(
-                            egui::Color32::from_rgb(72, 235, 148),
-                            egui::RichText::new(format!("{} [{}] ({} active)", arch.label(), arch.mask_tag(), active_cnt)).strong(),
-                        );
-                    });
-                    ui.separator();
-                    egui::ScrollArea::vertical()
-                        .id_salt("smu_vp_scroll")
-                        .auto_shrink([false, false])
-                        .max_height(ui.available_height())
-                        .show(ui, |ui| {
-                        ui.spacing_mut().item_spacing.y = 4.0;
-                        for def in &crate::smu_features::SMU_FEATURE_DEFS {
-                            let (tag, supported) = crate::smu_features::arch_badge(def, arch);
-                            ui.horizontal(|ui| {
-                                crate::ui_theme::green_checkbox(ui, &mut self.smu_features[def.bit], format!("{:02}: {}", def.bit, def.name));
-                                let badge_col = if supported {
-                                    egui::Color32::from_rgb(72, 235, 148)
-                                } else {
-                                    egui::Color32::from_rgb(130, 145, 170)
-                                };
-                                ui.colored_label(
-                                    badge_col,
-                                    egui::RichText::new(format!("[smu_feat_{:02} | {}]", def.bit, tag)).monospace().small(),
-                                );
-                            });
-                        }
-                    });
+                        egui::ScrollArea::vertical().id_salt("smu_vp_scroll").auto_shrink([false, false]).max_height(ui.available_height()).show(ui, |ui| {
+                            ui.spacing_mut().item_spacing.y = 4.0;
+                            for bit in 0..32usize {
+                                ui.horizontal(|ui| {
+                                    if crate::ui_theme::green_checkbox(ui, &mut self.smu_features[bit], format!("{:02}: {}", bit, arch.feature_bit_name(bit))).changed() {
+                                        ctx.data_mut(|d| d.insert_temp(egui::Id::new("ppt_dirty"), true));
+                                    }
+                                    ui.colored_label(egui::Color32::from_rgb(72, 235, 148), egui::RichText::new(format!("[plat_cap_{:02}]", bit)).monospace().small());
+                                });
+                            }
+                        });
+                    } else {
+                        let si_arch = crate::smu_features::detect_silicon_arch(&self.raw_buffer);
+                        ui.horizontal(|ui| {
+                            ui.strong("FeaturesToRun:");
+                            ui.monospace(format!("0x{:016X}", live_mask));
+                            ui.separator();
+                            ui.colored_label(egui::Color32::from_rgb(72, 235, 148), egui::RichText::new(format!("{} [{}] ({} active)", si_arch.label(), si_arch.mask_tag(), active_cnt)).strong());
+                        });
+                        ui.separator();
+                        egui::ScrollArea::vertical().id_salt("smu_vp_scroll").auto_shrink([false, false]).max_height(ui.available_height()).show(ui, |ui| {
+                            ui.spacing_mut().item_spacing.y = 4.0;
+                            for def in &crate::smu_features::SMU_FEATURE_DEFS {
+                                let (tag, supported) = crate::smu_features::arch_badge(def, si_arch);
+                                ui.horizontal(|ui| {
+                                    if crate::ui_theme::green_checkbox(ui, &mut self.smu_features[def.bit], format!("{:02}: {}", def.bit, def.name)).changed() {
+                                        ctx.data_mut(|d| d.insert_temp(egui::Id::new("ppt_dirty"), true));
+                                    }
+                                    let badge_col = if supported { egui::Color32::from_rgb(72, 235, 148) } else { egui::Color32::from_rgb(130, 145, 170) };
+                                    ui.colored_label(badge_col, egui::RichText::new(format!("[smu_feat_{:02} | {}]", def.bit, tag)).monospace().small());
+                                });
+                            }
+                        });
+                    }
                 });
             });
         }
