@@ -138,6 +138,16 @@ impl PowerPlayApp {
     }
 
     /// Validates active clock, voltage, and fan ranges so invalid inversions are surfaced before save/export.
+    pub(crate) fn is_gfx_voltage_valid(&self) -> bool {
+        let arch = crate::arch::detect::PptArch::detect(&self.raw_buffer);
+        let (vg0, vg1) = (self.volt_gfx[0], self.volt_gfx[1]);
+        if arch.is_rdna3() {
+            vg0 > 0 && (vg1 == 0 || (vg0 <= vg1 && vg1 <= 1250))
+        } else {
+            vg0 > 0 && vg0 <= vg1 && vg1 <= 1250
+        }
+    }
+
     pub(crate) fn validate_tunables(&self) -> Vec<String> {
         let mut warnings = Vec::new();
         if self.freq_gfx[0] > self.freq_gfx[1] {

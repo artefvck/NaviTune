@@ -278,6 +278,14 @@ impl PptArch {
         (min_b, fac_min)
     }
 
+    /// Single source of truth for Safe Tune red-risk ceilings:
+    /// (risk_gfx_clk, risk_mem_clk, risk_v_gfx, risk_v_soc, risk_edge_temp, risk_hotspot_temp)
+    pub fn safe_tune_risk_ceilings(self) -> (i32, i32, i32, i32, i32, i32) {
+        let (g, m, vg, vs, _) = self.safe_tune_bounds();
+        let (t_edge, t_hot, _) = self.safe_thermal_ceilings();
+        (g + 200, m + 200, (vg + 75).min(1350), vs + 75, t_edge + 5, t_hot + 5)
+    }
+
     /// Single source of truth for OverDrive power slider bounds: (min_bound, factory_min, safe_max)
     pub fn od_power_bounds(self) -> (i32, i32, i32) {
         if self.is_gcn_subtable() {
