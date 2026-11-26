@@ -7,6 +7,7 @@
 - **Tab Strip**: `Features` · `OC Limits` · `Power` · `Frequency` · `Curve` · `Fan` · `Advance` · `Safe Tune` · `More` · `Log`.
 - **Two-Column Cards**:
   - **Gray border**: Unmodified factory baseline.
+  - **Disabled / Dimmed control**: Read-only guard (`0`-valued VBIOS field or `0x0` SMU mask) locked to prevent corrupting unused table space.
   - **Crimson border / Red `●`**: Modified value or checkbox.
   - **Hover Tooltip**: Displays AMD struct field name, `+0xXXXX` binary offset, factory default, and live `+Δ` / `-Δ` delta.
 - **Bottom Action Bar**: `Load` · `Save` · `Diff & Save (N B)` · `Quick Export ▾` · `Reset All` · `Exit`.
