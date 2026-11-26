@@ -211,3 +211,38 @@ mod app_validation_tests {
         assert_eq!(warns.len(), 3);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_gfx_voltage_valid_avfs_rdna3_vs_legacy() {
+        let mut app_state = PowerPlayApp::default();
+
+        // RDNA 3 (V4_12) AVFS: Vmin > 0 and Vmax == 0 must be valid
+        let mut r3 = vec![0u8; 5424];
+        r3[0..2].copy_from_slice(&5424u16.to_le_bytes());
+        r3[2] = 0x15;
+        app_state.raw_buffer = r3;
+        app_state.volt_gfx = [725, 0];
+        assert!(app_state.is_gfx_voltage_valid(), "RDNA 3 AVFS (Vmax=0) must be valid");
+
+        app_state.volt_gfx = [0, 0];
+        assert!(!app_state.is_gfx_voltage_valid(), "RDNA 3 with Vmin=0 must be invalid");
+
+        // RDNA 2 (V4_9): Vmax == 0 must be invalid; 750..1150 mV must be valid
+        let mut r2 = vec![0u8; 2470];
+        r2[0..2].copy_from_slice(&2470u16.to_le_bytes());
+        r2[2] = 0x0F;
+        app_state.raw_buffer = r2;
+        app_state.volt_gfx = [750, 0];
+        assert!(!app_state.is_gfx_voltage_valid(), "RDNA 2 with Vmax=0 must be invalid");
+
+        app_state.volt_gfx = [750, 1150];
+        assert!(app_state.is_gfx_voltage_valid(), "RDNA 2 750..1150 mV must be valid");
+
+        app_state.volt_gfx = [750, 1300];
+        assert!(!app_state.is_gfx_voltage_valid(), "Voltage > 1250 mV must fail check");
+    }
+}

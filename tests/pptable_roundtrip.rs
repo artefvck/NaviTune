@@ -6,6 +6,7 @@ mod pptable_polaris;
 #[path = "../src/arch/detect.rs"]
 mod ppt_arch;
 
+
 #[allow(dead_code)]
 #[path = "../src/arch/vega.rs"]
 mod pptable_vega;
@@ -687,4 +688,20 @@ fn test_reg_import_skips_comments_and_blank_lines() {
     let with_comments = format!("; NaviTune header comment\r\n\r\n{}; trailing comment\r\n", raw_reg);
     let parsed = import_formats::parse_reg_ppt(with_comments.as_bytes()).expect("parse .reg with comments");
     assert_eq!(parsed, sample);
+}
+
+#[test]
+fn test_safe_tune_risk_ceilings_all_six_architectures() {
+    use ppt_arch::PptArch::*;
+    for arch in [Polaris, Vega10, Vega20, Rdna1, Rdna2, Rdna3] {
+        let (g, m, vg, vs, _) = arch.safe_tune_bounds();
+        let (t_edge, t_hot, _) = arch.safe_thermal_ceilings();
+        let (rg, rm, rvg, rvs, redge, rhot) = arch.safe_tune_risk_ceilings();
+        assert_eq!(rg, g + 200);
+        assert_eq!(rm, m + 200);
+        assert_eq!(rvg, (vg + 75).min(1350));
+        assert_eq!(rvs, vs + 75);
+        assert_eq!(redge, t_edge + 5);
+        assert_eq!(rhot, t_hot + 5);
+    }
 }
