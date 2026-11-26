@@ -652,3 +652,39 @@ fn test_memory_voltage_and_uclk_offset_labels_all_six_architectures() {
     assert!(Rdna2.memory_uclk_offset_label(2470).contains("0x57E"));
     assert!(Rdna3.memory_uclk_offset_label(5424).contains("0x63C"));
 }
+
+#[test]
+fn test_od_power_bounds_all_six_architectures() {
+    use ppt_arch::PptArch::*;
+    assert_eq!(Polaris.od_power_bounds(), (-50, -50, 50));
+    assert_eq!(Vega10.od_power_bounds(), (-50, -50, 50));
+    assert_eq!(Vega20.od_power_bounds(), (-50, -50, 20));
+    assert_eq!(Rdna1.od_power_bounds(), (-50, -50, 20));
+    assert_eq!(Rdna2.od_power_bounds(), (-10, -6, 20));
+    assert_eq!(Rdna3.od_power_bounds(), (-10, -6, 20));
+}
+
+#[test]
+fn test_vbios_spi_offset_opt_rom_checksum_parity() {
+    let mut rom = vec![0xFFu8; 65536];
+    let opt_base = 0x1000;
+    rom[opt_base] = 0x55;
+    rom[opt_base + 1] = 0xAA;
+    rom[opt_base + 2] = 64; // 32 KiB legacy option ROM image
+
+    let sample = make_rdna2_sample();
+    let ppt_offset = opt_base + 0x2000;
+    let patched = vbios::patch_ppt_into_rom(&rom, ppt_offset, &sample).expect("patch SPI offset ROM");
+    let info = vbios::inspect_vbios_info(&patched, ppt_offset).expect("inspect SPI offset ROM");
+    assert!(info.has_legacy_opt_rom);
+    assert_eq!(info.checksum_sum, 0, "Option ROM checksum sum at opt_base + 0x21 must equal 0");
+}
+
+#[test]
+fn test_reg_import_skips_comments_and_blank_lines() {
+    let sample = make_rdna1_sample();
+    let raw_reg = export_formats::format_reg_ppt(&sample);
+    let with_comments = format!("; NaviTune header comment\r\n\r\n{}; trailing comment\r\n", raw_reg);
+    let parsed = import_formats::parse_reg_ppt(with_comments.as_bytes()).expect("parse .reg with comments");
+    assert_eq!(parsed, sample);
+}
