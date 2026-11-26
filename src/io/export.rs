@@ -60,8 +60,8 @@ fn infer_default_did_for_ppt(data: &[u8]) -> u16 {
 pub fn format_mpt_ppt_with_did(data: &[u8], device_id: Option<u16>) -> Vec<u8> {
     let did = device_id.filter(|&d| d != 0).unwrap_or_else(|| infer_default_did_for_ppt(data));
     let mut out = vec![0u8; 0x100 + data.len()];
-    out = 0x55;
-    out = 0xAA;
+    out[0] = 0x55;
+    out[1] = 0xAA;
     out[0x18] = 0x3C;
     out[0x42..0x44].copy_from_slice(&did.to_le_bytes());
     out[0x48] = 0x50;
