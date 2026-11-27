@@ -133,6 +133,21 @@ pub fn try_run_cli() -> bool {
             }
             true
         }
+                "--apply-cfg" => {
+            let Some(cfg_path) = args.get(1) else {
+                eprintln!("Usage: navitune --apply-cfg <override.cfg> [--target /sys/class/drm/card1/device/pp_table]");
+                std::process::exit(2);
+            };
+            let target = args.windows(2)
+                .find(|w| w[0] == "--target")
+                .map(|w| w[1].as_str())
+                .unwrap_or("/sys/class/drm/card1/device/pp_table");
+            if let Err(e) = cmd_apply_cfg(cfg_path, target) {
+                eprintln!("Error: {}", e);
+                std::process::exit(1);
+            }
+            true
+        }
         "--audit" => {
             let is_json = args.iter().skip(1).any(|a| a == "--json");
             let Some(path) = args.iter().skip(1).find(|a| a.as_str() != "--json") else {

@@ -123,3 +123,29 @@ pub(super) fn cmd_preset(
     }
     Ok(())
 }
+
+pub(super) fn cmd_apply_cfg(cfg_path: &str, sysfs_target: &str) -> Result<(), String> {
+    let cfg_txt = std::fs::read_to_string(cfg_path)
+        .map_err(|e| format!("Failed reading config '{}': {}", cfg_path, e))?;
+    let target_p = std::path::Path::new(sysfs_target);
+    let cur_ppt = std::fs::read(target_p)
+        .map_err(|e| format!("Failed reading sysfs '{}': {}", sysfs_target, e))?;
+    let mut app = PowerPlayApp::default();
+    app.load_bytes_for_path(std::path::Path::new("pp_table.bin"), cur_ppt.clone(), sysfs_target)?;
+    let n_keys = crate::io_ppt::apply_tuning_cfg_to_app(&mut app, &cfg_txt)?;
+    if app.raw_buffer.len() != cur_ppt.len() {
+        return Err(format!("Patched buffer size mismatch ({} vs {} B)", app.raw_buffer.len(), cur_ppt.len()));
+    }
+    std::fs::write(target_p, &app.raw_buffer)
+        .map_err(|e| format!("Failed writing patched PPTable to '{}': {}", sysfs_target, e))?;
+    if let Some(dev_dir) = target_p.parent() {
+        let od_path = dev_dir.join("pp_od_clk_voltage");
+        if od_path.exists() && app.freq_gfx[0] > 0 && app.freq_gfx[1] >= app.freq_gfx[0] {
+            let _ = std::fs::write(&od_path, format!("s 0 {}\n", app.freq_gfx[0]));
+            let _ = std::fs::write(&od_path, format!("s 1 {}\n", app.freq_gfx[1]));
+            let _ = std::fs::write(&od_path, "c\n");
+        }
+    }
+    println!("Patched {} ({} B, {} .cfg keys) -> {}", sysfs_target, app.raw_buffer.len(), n_keys, cfg_path);
+    Ok(())
+}

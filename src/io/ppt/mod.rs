@@ -501,6 +501,118 @@ impl PowerPlayApp {
     }
 }
 
+pub fn format_tuning_cfg(app: &crate::PowerPlayApp) -> String {
+    let arch = crate::ppt_arch::PptArch::detect(&app.raw_buffer);
+    let mem_freqs: Vec<String> = app.mem_dpm_freq.iter().map(|d| d[0].to_string()).collect();
+    let temps: Vec<String> = app.temp_limits.iter().map(|t| t.to_string()).collect();
+    format!(
+        "# NaviTune PowerPlay Override Config (.cfg)\n\
+# Applied in-place onto live /sys/class/drm/cardX/device/pp_table without replacing native VBIOS headers\n\
+arch={:?}\n\
+oc_gfx_clock={},{}\n\
+oc_mem_clock={},{}\n\
+oc_power_limit={},{}\n\
+power_limit_w={}\n\
+tdc_gfx={}\n\
+tdc_soc={}\n\
+volt_gfx={},{}\n\
+volt_soc={},{}\n\
+freq_gfx={},{}\n\
+freq_soc={},{}\n\
+freq_fclk={},{}\n\
+mem_dpm_freq={}\n\
+fan_pwm_min={}\n\
+fan_acoustic_limit={}\n\
+fan_throttling_rpm={}\n\
+fan_max_rpm={}\n\
+fan_target_temp={}\n\
+fan_zero_rpm_enable={}\n\
+fan_stop_temp={}\n\
+fan_start_temp={}\n\
+temp_limits={}\n",
+        arch,
+        app.oc_gfx_clock[0], app.oc_gfx_clock[1],
+        app.oc_mem_clock[0], app.oc_mem_clock[1],
+        app.oc_power_limit[0], app.oc_power_limit[1],
+        app.power_limit_w,
+        app.tdc_gfx,
+        app.tdc_soc,
+        app.volt_gfx[0], app.volt_gfx[1],
+        app.volt_soc[0], app.volt_soc[1],
+        app.freq_gfx[0], app.freq_gfx[1],
+        app.freq_soc[0], app.freq_soc[1],
+        app.freq_fclk[0], app.freq_fclk[1],
+        mem_freqs.join(","),
+        app.fan_pwm_min,
+        app.fan_acoustic_limit,
+        app.fan_throttling_rpm,
+        app.fan_max_rpm,
+        app.fan_target_temp,
+        u8::from(app.fan_zero_rpm_enable),
+        app.fan_stop_temp,
+        app.fan_start_temp,
+        temps.join(","),
+    )
+}
+
+pub fn apply_tuning_cfg_to_app(app: &mut crate::PowerPlayApp, cfg_text: &str) -> Result<usize, String> {
+    let parse_pair = |v: &str| -> Option<[i32; 2]> {
+        let mut it = v.split(',').filter_map(|s| s.trim().parse::<i32>().ok());
+        Some([it.next()?, it.next()?])
+    };
+    let mut applied = 0usize;
+    for raw_line in cfg_text.lines() {
+        let line = raw_line.trim();
+        if line.is_empty() || line.starts_with('#') || line.starts_with(';') {
+            continue;
+        }
+        let Some((k, v)) = line.split_once('=') else { continue; };
+        let key = k.trim();
+        let val = v.trim();
+        match key {
+            "oc_gfx_clock" => if let Some(p) = parse_pair(val) { app.oc_gfx_clock = p; applied += 1; },
+            "oc_mem_clock" => if let Some(p) = parse_pair(val) { app.oc_mem_clock = p; applied += 1; },
+            "oc_power_limit" => if let Some(p) = parse_pair(val) { app.oc_power_limit = p; applied += 1; },
+            "power_limit_w" => if let Ok(n) = val.parse::<i32>() { app.power_limit_w = n; applied += 1; },
+            "tdc_gfx" => if let Ok(n) = val.parse::<i32>() { app.tdc_gfx = n; applied += 1; },
+            "tdc_soc" => if let Ok(n) = val.parse::<i32>() { app.tdc_soc = n; applied += 1; },
+            "volt_gfx" => if let Some(p) = parse_pair(val) { app.volt_gfx = p; applied += 1; },
+            "volt_soc" => if let Some(p) = parse_pair(val) { app.volt_soc = p; applied += 1; },
+            "freq_gfx" => if let Some(p) = parse_pair(val) { app.freq_gfx = p; applied += 1; },
+            "freq_soc" => if let Some(p) = parse_pair(val) { app.freq_soc = p; applied += 1; },
+            "freq_fclk" => if let Some(p) = parse_pair(val) { app.freq_fclk = p; applied += 1; },
+            "mem_dpm_freq" => {
+                for (i, tok) in val.split(',').take(4).enumerate() {
+                    if let Ok(n) = tok.trim().parse::<i32>() {
+                        app.mem_dpm_freq[i][0] = n;
+                    }
+                }
+                applied += 1;
+            }
+            "fan_pwm_min" => if let Ok(n) = val.parse::<i32>() { app.fan_pwm_min = n; applied += 1; },
+            "fan_acoustic_limit" => if let Ok(n) = val.parse::<i32>() { app.fan_acoustic_limit = n; applied += 1; },
+            "fan_throttling_rpm" => if let Ok(n) = val.parse::<i32>() { app.fan_throttling_rpm = n; applied += 1; },
+            "fan_max_rpm" => if let Ok(n) = val.parse::<i32>() { app.fan_max_rpm = n; applied += 1; },
+            "fan_target_temp" => if let Ok(n) = val.parse::<i32>() { app.fan_target_temp = n; applied += 1; },
+            "fan_zero_rpm_enable" => if let Ok(n) = val.parse::<i32>() { app.fan_zero_rpm_enable = n != 0; applied += 1; },
+            "fan_stop_temp" => if let Ok(n) = val.parse::<i32>() { app.fan_stop_temp = n; applied += 1; },
+            "fan_start_temp" => if let Ok(n) = val.parse::<i32>() { app.fan_start_temp = n; applied += 1; },
+            "temp_limits" => {
+                for (i, tok) in val.split(',').take(9).enumerate() {
+                    if let Ok(n) = tok.trim().parse::<i32>() {
+                        app.temp_limits[i] = n;
+                    }
+                }
+                applied += 1;
+            }
+            _ => {}
+        }
+    }
+    app.sync_fields_to_buffer();
+    Ok(applied)
+}
+
+
 #[cfg(test)]
 mod rdna2_sync_roundtrip_tests {
     use crate::PowerPlayApp;

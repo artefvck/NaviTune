@@ -251,6 +251,17 @@ impl PowerPlayApp {
         ))
     }
 
+    pub fn clone_tunables_snapshot(&self) -> Self {
+        Self {
+            raw_buffer: self.raw_buffer.clone(),
+            freq_gfx: self.freq_gfx,
+            volt_gfx: self.volt_gfx,
+            power_limit_w: self.power_limit_w,
+            fan_target_temp: self.fan_target_temp,
+            ..Self::default()
+        }
+    }
+
     /// Counts how many bytes in `raw_buffer` differ from `baseline_buffer` (plus length delta).
     pub(crate) fn modified_byte_count(&self) -> usize {
         let shared = self.raw_buffer.len().min(self.baseline_buffer.len());
