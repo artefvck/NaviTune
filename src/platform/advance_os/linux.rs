@@ -212,15 +212,13 @@ pub(crate) fn write_linux_sysfs_ppt(ppt_bytes: &[u8], selected_label: &str) -> R
     let tmp_bin = "/tmp/navitune_live_pp_table.bin";
     std::fs::write(tmp_bin, ppt_bytes).map_err(|e| format!("Write temp failed: {}", e))?;
 
-    let cmd = format!("cp {tmp} {dst}", tmp = tmp_bin, dst = sysfs_path);
-    let ok = run_privileged_in_terminal_or_pkexec(&format!("NaviTune — Write PPTable to {}", card), &cmd)?;
-    let _ = std::fs::remove_file(tmp_bin);
+    let title = format!("NaviTune — Write PPTable to {}", card);
+    let cmd = format!("cp {tmp} {dst}; RC=$?; rm -f {tmp}; exit $RC", tmp = tmp_bin, dst = sysfs_path);
+    std::thread::spawn(move || {
+        let _ = run_privileged_in_terminal_or_pkexec(&title, &cmd);
+    });
 
-    if ok {
-        Ok(format!("Applied {} B PPTable to {} (RAM only — resets on reboot)", ppt_bytes.len(), sysfs_path))
-    } else {
-        Err("Write to sysfs failed or authentication cancelled".into())
-    }
+    Ok(format!("Terminal opened to write {} B PPTable to {} (RAM only — resets on reboot)", ppt_bytes.len(), sysfs_path))
 }
 
 #[cfg(not(target_os = "linux"))]
