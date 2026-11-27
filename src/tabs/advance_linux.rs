@@ -33,7 +33,7 @@ impl PowerPlayApp {
                     ui.monospace(format!("{} / {}", gfxoff as u8, baco as u8));
                     ui.colored_label(egui::Color32::from_rgb(130, 180, 255), if gfxoff { "Power Saving" } else { "Compute" });
                     ui.end_row();
-                    let card_id = sel_lbl.split("(").nth(1).and_then(|s| s.split_whitespace().next()).filter(|s| s.starts_with("card")).map(str::to_string).unwrap_or_else(|| "card0".to_string());
+                    let card_id = detect_linux_card(&sel_lbl);
                     ui.label("sysfs Target");
                     ui.monospace(format!("{}/device/pp_table", card_id));
                     ui.colored_label(egui::Color32::from_rgb(80, 210, 120), "READY");
@@ -57,11 +57,7 @@ impl PowerPlayApp {
             });
         
             draw_card(ui, "Linux sysfs Export", |ui| {
-                let active_card = self.gpus.get(self.selected_gpu)
-                    .and_then(|s| s.split('(').nth(1))
-                    .and_then(|s| s.split_whitespace().next())
-                    .filter(|s| s.starts_with("card"))
-                    .map(str::to_string).unwrap_or_else(|| "card0".to_string());
+                let active_card = detect_linux_card(&sel_lbl);
                 ui.label(format!("Export pp_table binary or copy sysfs command for /sys/class/drm/{}/device/pp_table:", active_card));
                 ui.add_space(8.0);
                 ui.horizontal_wrapped(|ui| {

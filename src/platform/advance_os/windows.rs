@@ -201,13 +201,28 @@ pub(crate) fn restart_windows_gpu_driver(_selected_label: &str) -> Result<String
 
 #[cfg(target_os = "linux")]
 pub(crate) fn detect_linux_card(selected_label: &str) -> String {
-    selected_label
-        .split('(')
-        .nth(1)
-        .and_then(|s| s.split_whitespace().next())
-        .filter(|s| s.starts_with("card") && s[4..].chars().all(|c| c.is_ascii_digit()))
-        .unwrap_or("card0")
-        .to_string()
+    for tok in selected_label.split(|c: char| !c.is_ascii_alphanumeric()) {
+        if tok.starts_with("card") && tok.len() > 4 && tok[4..].chars().all(|c| c.is_ascii_digit()) {
+            return tok.to_string();
+        }
+    }
+    if let Ok(rd) = std::fs::read_dir("/sys/class/drm") {
+        let mut cards: Vec<String> = rd
+            .flatten()
+            .filter_map(|e| e.file_name().into_string().ok())
+            .filter(|n| n.starts_with("card") && n.len() > 4 && n[4..].chars().all(|c| c.is_ascii_digit()))
+            .filter(|n| std::path::Path::new(&format!("/sys/class/drm/{}/device/pp_table", n)).exists())
+            .collect();
+        cards.sort();
+        if let Some(first_amd) = cards.into_iter().find(|n| {
+            std::fs::read_to_string(format!("/sys/class/drm/{}/device/vendor", n))
+                .map(|v| v.trim().eq_ignore_ascii_case("0x1002"))
+                .unwrap_or(false)
+        }) {
+            return first_amd;
+        }
+    }
+    "card0".to_string()
 }
 
 #[cfg(target_os = "linux")]
@@ -218,15 +233,19 @@ pub(crate) fn install_linux_ppt(ppt_bytes: &[u8], selected_label: &str) -> Resul
     let tmp_bin = "/tmp/xppt_pp_table.bin";
     std::fs::write(tmp_bin, ppt_bytes).map_err(|e| format!("Failed writing temp file: {}", e))?;
 
+    if crate::ppt_arch::PptArch::detect(ppt_bytes) == crate::ppt_arch::PptArch::Unknown {
+        return Err("Refusing to install: buffer is not a valid AMD PowerPlayTable".into());
+    }
+
     let unit = format!(
-        "[Unit]\nDescription=Apply NaviTune Soft PowerPlay Table\nAfter=systemd-modules-load.service\n\n[Service]\nType=oneshot\nExecStart=/bin/sh -c 'cat /etc/xppt/pp_table.bin > {}'\nRemainAfterExit=yes\n\n[Install]\nWantedBy=multi-user.target\n",
+        "[Unit]\nDescription=Apply NaviTune Soft PowerPlay Table\nAfter=systemd-udev-settle.service\nWants=systemd-udev-settle.service\nBefore=display-manager.service\n\n[Service]\nType=oneshot\nExecStart=/usr/bin/dd if=/etc/xppt/pp_table.bin of={} bs=65536\nRemainAfterExit=yes\n\n[Install]\nWantedBy=multi-user.target\n",
         sysfs_ppt
     );
     let tmp_unit = "/tmp/xppt-pptable.service";
     std::fs::write(tmp_unit, unit).map_err(|e| format!("Failed writing temp unit: {}", e))?;
 
     let script = format!(
-        "mkdir -p /etc/xppt && cp {} /etc/xppt/pp_table.bin && cp {} /etc/systemd/system/xppt-pptable.service && systemctl daemon-reload && systemctl enable xppt-pptable.service && cat /etc/xppt/pp_table.bin > {} && cmp -s /etc/xppt/pp_table.bin {}",
+        "mkdir -p /etc/xppt && install -m 0644 {} /etc/xppt/pp_table.bin && install -m 0644 {} /etc/systemd/system/xppt-pptable.service && systemctl daemon-reload && systemctl enable xppt-pptable.service && /usr/bin/dd if=/etc/xppt/pp_table.bin of={} bs=65536 && cmp -s /etc/xppt/pp_table.bin {}",
         tmp_bin, tmp_unit, sysfs_ppt, sysfs_ppt
     );
 
