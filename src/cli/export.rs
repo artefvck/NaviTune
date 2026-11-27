@@ -140,9 +140,15 @@ pub(super) fn cmd_apply_cfg(cfg_path: &str, sysfs_target: &str) -> Result<(), St
         .map_err(|e| format!("Failed writing patched PPTable to '{}': {}", sysfs_target, e))?;
     if let Some(dev_dir) = target_p.parent() {
         let od_path = dev_dir.join("pp_od_clk_voltage");
-        if od_path.exists() && app.freq_gfx[0] > 0 && app.freq_gfx[1] >= app.freq_gfx[0] {
-            let _ = std::fs::write(&od_path, format!("s 0 {}\n", app.freq_gfx[0]));
-            let _ = std::fs::write(&od_path, format!("s 1 {}\n", app.freq_gfx[1]));
+        if od_path.exists() {
+            if app.freq_gfx[0] > 0 && app.freq_gfx[1] >= app.freq_gfx[0] {
+                let _ = std::fs::write(&od_path, format!("s 0 {}\n", app.freq_gfx[0]));
+                let _ = std::fs::write(&od_path, format!("s 1 {}\n", app.freq_gfx[1]));
+            }
+            let uclk_peak = app.mem_dpm_freq.iter().map(|d| d[0]).max().unwrap_or(0);
+            if uclk_peak > 0 {
+                let _ = std::fs::write(&od_path, format!("m 1 {}\n", uclk_peak));
+            }
             let _ = std::fs::write(&od_path, "c\n");
         }
     }
