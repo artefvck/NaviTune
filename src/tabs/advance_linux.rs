@@ -56,6 +56,40 @@ impl PowerPlayApp {
                     ui.monospace(sync_detail);
                     ui.colored_label(sync_color, sync_badge);
                     ui.end_row();
+                    let (profiles, prof_detail) = read_linux_power_profiles(&sel_lbl);
+                    ui.label("Power Profile");
+                    if profiles.is_empty() {
+                        ui.monospace(&prof_detail);
+                        ui.colored_label(egui::Color32::from_rgb(150, 160, 180), "N/A");
+                    } else {
+                        let cur_idx = profiles.iter().find(|(_, _, act)| *act).map(|(i, _, _)| *i).unwrap_or(0);
+                        let cur_lbl = profiles.iter().find(|(_, _, act)| *act)
+                            .map(|(i, n, _)| format!("{}: {}", i, n))
+                            .unwrap_or_else(|| prof_detail.clone());
+                        let mut picked: Option<(u32, String)> = None;
+                        egui::ComboBox::from_id_salt("linux_power_profile_combo")
+                            .width(220.0)
+                            .selected_text(cur_lbl)
+                            .show_ui(ui, |ui| {
+                                for (idx, name, act) in &profiles {
+                                    let item_lbl = if *act { format!("{}: {} *", idx, name) } else { format!("{}: {}", idx, name) };
+                                    if ui.selectable_label(*act, item_lbl).clicked() && *idx != cur_idx {
+                                        picked = Some((*idx, name.clone()));
+                                    }
+                                }
+                            });
+                        if let Some((new_idx, new_name)) = picked {
+                            match set_linux_power_profile(&sel_lbl, new_idx, &new_name) {
+                                Ok(msg) => {
+                                    crate::ui_theme::log_debug("LINUX_PROFILE", &msg);
+                                    self.status_msg = msg;
+                                }
+                                Err(err) => self.show_error("Power Profile Error", &err),
+                            }
+                        }
+                        ui.colored_label(egui::Color32::from_rgb(80, 210, 120), "ACTIVE");
+                    }
+                    ui.end_row();
                 });
             });
 
