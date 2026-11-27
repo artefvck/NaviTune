@@ -66,13 +66,12 @@ impl PowerPlayApp {
                 self.status_msg = "Copied Capture Log to clipboard.".to_string();
             }
             if ui.button("Export As...").clicked() {
-                if let Some(path) = crate::io::save_file_dialog("Save File", Some("navitune_debug.log"), &[("Log / Text", &["log", "txt"])])
-                {
-                    match std::fs::write(&path, &report_text) {
-                        Ok(_) => self.status_msg = format!("Exported Capture Log to {}", path.display()),
-                        Err(e) => self.show_error("Export Log Error", &e.to_string()),
-                    }
-                }
+                crate::io::spawn_save_file_dialog(
+                    crate::io::FileDialogAction::ExportDebugLog,
+                    "Save File",
+                    Some("navitune_debug.log"),
+                    &[("Log / Text", &["log", "txt"])],
+                );
             }
             if ui.button("Clear debug.log").clicked() {
                 if let Some(ref lp) = log_path {

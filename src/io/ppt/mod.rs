@@ -84,25 +84,138 @@ impl PowerPlayApp {
         Ok(found_off)
     }
 
-    pub fn load_ppt_file(&mut self) {
-        if let Some(path) = crate::io::pick_file_dialog("Open File", &[("All PowerPlay & UPP Dumps", &["bin", "rom", "reg", "mpt", "plist", "pp_table", "ppt", "dat"]), ("All Files (*)", &["*"])])
-        {
-            let raw = match crate::io::read_bounded(&path) {
-                Ok(d) => d,
-                Err(e) => {
-                    self.show_error("File Read Error", &e.to_string());
-                    return;
+    pub fn handle_pending_file_dialogs(&mut self, ctx: &eframe::egui::Context) {
+        if crate::io::is_dialog_in_flight() {
+            ctx.request_repaint_after(std::time::Duration::from_millis(80));
+        }
+        let Some((action, path)) = crate::io::take_pending_dialog_result() else { return; };
+        use crate::io::FileDialogAction::*;
+        match action {
+            OpenPowerPlay => self.complete_load_ppt_from_path(&path),
+            SavePowerPlay => self.complete_save_ppt_to_path(&path),
+            SaveDiffModal => {
+                let before = self.status_msg.clone();
+                self.complete_save_ppt_to_path(&path);
+                if self.status_msg != before && self.status_msg.starts_with("Saved to ") {
+                    self.baseline_buffer = self.raw_buffer.clone();
+                    self.show_save_diff_modal = false;
                 }
-            };
-            let name = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
-            match self.load_bytes_for_path(&path, raw, &name) {
-                Ok(_) => {
-                    self.loaded_file = Some(path.clone());
-                    self.selected_gpu = usize::MAX;
-                    crate::ui_theme::log_debug("LOAD", &format!("Loaded {} ({} B) | {}", path.display(), self.raw_buffer.len(), self.status_msg));
-                }
-                Err(e) => self.show_error("Import Error", &e),
             }
+            PatchVbiosRomModal => {
+                if let (Some(orig_rom), Some(off)) = (self.vbios_buffer.clone(), self.vbios_ppt_offset) {
+                    if let Ok(patched_rom) = crate::vbios::patch_ppt_into_rom(&orig_rom, off, &self.raw_buffer) {
+                        match crate::ui_theme::verify_atombios_rom(&orig_rom, &patched_rom, off, self.raw_buffer.len()) {
+                            Ok((blk, csum, diff_cnt)) => {
+                                if let Err(e) = crate::io::write_atomic(&path, &patched_rom) {
+                                    self.status_msg = format!("ROM write error: {}", e);
+                                } else if std::fs::read(&path).ok().as_deref() != Some(patched_rom.as_slice()) {
+                                    self.status_msg = "ROM read-back verification failed!".to_string();
+                                } else {
+                                    let tag = format!("[ROM OK | off 0x{:04X} | csum 0x{:02X} | {} B changed | blk {} B]", off, csum, diff_cnt, blk);
+                                    self.vbios_buffer = Some(patched_rom);
+                                    self.baseline_buffer = self.raw_buffer.clone();
+                                    self.status_msg = format!("Patched {} {}", path.file_name().unwrap_or_default().to_string_lossy(), tag);
+                                    crate::ui_theme::log_debug("SAVE", &format!("Modal exported {} {}", path.display(), tag));
+                                    self.show_save_diff_modal = false;
+                                    self.show_error("VBIOS ROM Verified & Saved", &format!("File: {}
+{}
+
+Checksum ATOMBIOS (0x21) valid dan read-back disk cocok 100%.", path.display(), tag));
+                                }
+                            }
+                            Err(e) => self.status_msg = format!("ROM verification failed: {}", e),
+                        }
+                    }
+                }
+            }
+            LinuxImportDonor => match crate::io::read_bounded(&path) {
+                Ok(bytes) => match self.apply_tuning_values_only(&path, &bytes) {
+                    Ok(msg) => { ctx.data_mut(|d| d.insert_temp(eframe::egui::Id::new("ppt_dirty"), true)); self.status_msg = msg; }
+                    Err(e) => self.show_error("Import Tuning Values Error", &e),
+                },
+                Err(e) => self.status_msg = format!("Failed reading donor file: {}", e),
+            },
+            MacExportPlist => {
+                self.sync_fields_to_buffer();
+                let sel_lbl = self.gpus.get(self.selected_gpu).cloned().unwrap_or_default();
+                let acpi_path = crate::advance_os::detect_live_acpi_gpu_path(&sel_lbl);
+                let key_lbl = ctx.data(|d| d.get_temp::<String>(eframe::egui::Id::new("pending_oc_plist_key")).unwrap_or_else(|| "PP,PhmSoftPowerPlayTable".into()));
+                let plist = crate::export_formats::format_opencore_plist_with_key(&self.raw_buffer, &acpi_path, &key_lbl);
+                match std::fs::write(&path, plist) {
+                    Ok(_) => self.status_msg = format!("Exported {} ({} @ {})", path.file_name().unwrap_or_default().to_string_lossy(), key_lbl, acpi_path),
+                    Err(e) => self.show_error("OpenCore .plist Export Error", &e.to_string()),
+                }
+            }
+            MacExportKext => {
+                self.sync_fields_to_buffer();
+                match crate::advance_os::export_macos_injector_kext(&self.raw_buffer, &path) {
+                    Ok(msg) => self.status_msg = msg,
+                    Err(err) => self.show_error("Injector .kext Export Error", &err),
+                }
+            }
+            MacExportSsdt => {
+                self.sync_fields_to_buffer();
+                let sel_lbl = self.gpus.get(self.selected_gpu).cloned().unwrap_or_default();
+                let acpi_path = crate::advance_os::detect_live_acpi_gpu_path(&sel_lbl);
+                let dis_pc = ctx.data(|d| d.get_temp::<bool>(eframe::egui::Id::new("aml_dis_pc")).unwrap_or(true));
+                let dis_ulps = ctx.data(|d| d.get_temp::<bool>(eframe::egui::Id::new("aml_dis_ulps")).unwrap_or(true));
+                let dsl = crate::advance_os::format_opencore_acpi_dsl(&self.raw_buffer, &acpi_path, dis_pc, dis_ulps);
+                let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("aml").to_ascii_lowercase();
+                if ext == "dsl" {
+                    match std::fs::write(&path, dsl) {
+                        Ok(_) => self.status_msg = format!("Exported {} ({})", path.file_name().unwrap_or_default().to_string_lossy(), acpi_path),
+                        Err(e) => self.show_error("ACPI .dsl Export Error", &e.to_string()),
+                    }
+                } else {
+                    match crate::advance_os::compile_dsl_to_aml(&dsl, &path) {
+                        Ok(msg) => self.status_msg = format!("{} [{}]", msg, acpi_path),
+                        Err(err) => self.show_error("iasl Compiler Not Found / Failed", &err),
+                    }
+                }
+            }
+            ExportInspectTxt => {
+                self.sync_fields_to_buffer();
+                let src_label = self.loaded_file.as_ref().map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|| "GUI Buffer".to_string());
+                let full_report = self.format_inspect_report(&src_label);
+                match crate::io::write_atomic(&path, full_report.as_bytes()) {
+                    Ok(_) => self.status_msg = format!("Exported Inspect report to {}", path.display()),
+                    Err(e) => self.show_error("Inspect Export Error", &e.to_string()),
+                }
+            }
+            ExportDebugLog => {
+                let report = self.build_full_debug_dump();
+                match std::fs::write(&path, &report) {
+                    Ok(_) => self.status_msg = format!("Exported Capture Log to {}", path.display()),
+                    Err(e) => self.show_error("Export Log Error", &e.to_string()),
+                }
+            }
+        }
+    }
+
+    pub fn load_ppt_file(&mut self) {
+        crate::io::spawn_pick_file_dialog(
+            crate::io::FileDialogAction::OpenPowerPlay,
+            "Open File",
+            &[("All PowerPlay & UPP Dumps", &["bin", "rom", "reg", "mpt", "plist", "pp_table", "ppt", "dat"]), ("All Files (*)", &["*"])],
+        );
+    }
+
+    pub fn complete_load_ppt_from_path(&mut self, path: &std::path::Path) {
+        let raw = match crate::io::read_bounded(path) {
+            Ok(d) => d,
+            Err(e) => {
+                self.show_error("File Read Error", &e.to_string());
+                return;
+            }
+        };
+        let name = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
+        match self.load_bytes_for_path(path, raw, &name) {
+            Ok(_) => {
+                self.loaded_file = Some(path.to_path_buf());
+                self.selected_gpu = usize::MAX;
+                crate::ui_theme::log_debug("LOAD", &format!("Loaded {} ({} B) | {}", path.display(), self.raw_buffer.len(), self.status_msg));
+            }
+            Err(e) => self.show_error("Import Error", &e),
         }
     }
 
@@ -429,12 +542,23 @@ impl PowerPlayApp {
             self.show_error("Nothing to Save", "Please load a PowerPlay table (.bin, .rom, .reg, .mpt) or select a GPU from ioreg first.");
             return;
         }
-        if let Some(path) = crate::io::save_file_dialog("Save File", Some(default_name), &[("PowerPlay Binary (*.bin)", &["bin"]), ("Patched VBIOS ROM (*.rom)", &["rom"]), ("Windows Registry (*.reg)", &["reg"]), ("MorePowerTool Profile (*.mpt)", &["mpt"]), ("OpenCore DeviceProperties (*.plist)", &["plist"]), ("macOS Injector Kext (*.kext)", &["kext"])])
+        crate::io::spawn_save_file_dialog(
+            crate::io::FileDialogAction::SavePowerPlay,
+            "Save File",
+            Some(default_name),
+            &[("PowerPlay Binary (*.bin)", &["bin"]), ("Patched VBIOS ROM (*.rom)", &["rom"]), ("Windows Registry (*.reg)", &["reg"]), ("MorePowerTool Profile (*.mpt)", &["mpt"]), ("OpenCore DeviceProperties (*.plist)", &["plist"]), ("macOS Injector Kext (*.kext)", &["kext"])],
+        );
+    }
+
+    pub fn complete_save_ppt_to_path(&mut self, path: &std::path::Path) {
+        if self.raw_buffer.is_empty() {
+            return;
+        }
         {
             self.sync_fields_to_buffer();
             let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("bin").to_ascii_lowercase();
             if ext == "kext" {
-                match crate::advance_os::export_macos_injector_kext(&self.raw_buffer, &path) {
+                match crate::advance_os::export_macos_injector_kext(&self.raw_buffer, path) {
                     Ok(msg) => {
                         crate::ui_theme::log_debug("SAVE", &msg);
                         self.status_msg = format!("Saved to {}", path.file_name().unwrap_or_default().to_string_lossy());
@@ -471,11 +595,11 @@ impl PowerPlayApp {
                     }
                 }
             }
-            let write_res = crate::io::write_atomic(&path, &bytes);
+            let write_res = crate::io::write_atomic(path, &bytes);
             match write_res {
                 Ok(_) => {
                     if ext == "rom" {
-                        if let Ok(disk_bytes) = std::fs::read(&path) {
+                        if let Ok(disk_bytes) = std::fs::read(path) {
                             if disk_bytes != bytes {
                                 self.show_error("ROM Read-Back Verification Failed", "Isi file .rom di disk tidak identik dengan buffer memori.");
                                 return;

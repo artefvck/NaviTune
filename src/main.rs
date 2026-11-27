@@ -33,7 +33,7 @@ fn main() -> eframe::Result<()> {
         return Ok(());
     }
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
+        viewport: egui::ViewportBuilder::default().with_app_id("navitune")
             .with_inner_size(crate::ui_theme::load_saved_window_size())
             .with_min_inner_size([580.0, 500.0])
             .with_resizable(true)
@@ -88,6 +88,7 @@ impl eframe::App for PowerPlayApp {
             d.insert_temp(egui::Id::new("ppt_loaded"), !self.raw_buffer.is_empty());
             d.insert_temp(egui::Id::new("ppt_baseline_gen"), self.baseline_gen);
         });
+        self.handle_pending_file_dialogs(ctx);
         self.render_error_modal(ctx);
         if ctx.data_mut(|d| {
             let dirty = d.get_temp::<bool>(egui::Id::new("ppt_dirty")).unwrap_or(false);
@@ -171,27 +172,23 @@ impl eframe::App for PowerPlayApp {
                         ui.menu_button("Quick Export ▾", |ui| {
                             if ui.button("OpenCore DeviceProperties (.plist)").clicked() {
                                 self.sync_fields_to_buffer();
-                                let sel_lbl = self.gpus.get(self.selected_gpu).cloned().unwrap_or_default();
-                                if let Some(path) = crate::io::save_file_dialog("Save File", Some("DeviceProperties.plist"), &[("OpenCore Property List (*.plist)", &["plist"])])
-                                {
-                                    let acpi_path = crate::advance_os::detect_live_acpi_gpu_path(&sel_lbl);
-                                    let plist = crate::export_formats::format_opencore_plist_with_key(&self.raw_buffer, &acpi_path, "PP,PhmSoftPowerPlayTable");
-                                    match std::fs::write(&path, plist) {
-                                        Ok(_) => self.status_msg = format!("Exported {} ({})", path.file_name().unwrap_or_default().to_string_lossy(), acpi_path),
-                                        Err(e) => self.show_error("OpenCore .plist Export Error", &e.to_string()),
-                                    }
-                                }
+                                ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("pending_oc_plist_key"), "PP,PhmSoftPowerPlayTable".to_string()));
+                                crate::io::spawn_save_file_dialog(
+                                    crate::io::FileDialogAction::MacExportPlist,
+                                    "Save File",
+                                    Some("DeviceProperties.plist"),
+                                    &[("OpenCore Property List (*.plist)", &["plist"])],
+                                );
                                 ui.close_menu();
                             }
                             if ui.button("macOS Injector (.kext)").clicked() {
                                 self.sync_fields_to_buffer();
-                                if let Some(path) = crate::io::save_file_dialog("Save File", Some("RadeonPowerPlayInjector.kext"), &[])
-                                {
-                                    match crate::advance_os::export_macos_injector_kext(&self.raw_buffer, &path) {
-                                        Ok(msg) => self.status_msg = msg,
-                                        Err(err) => self.show_error("Injector .kext Export Error", &err),
-                                    }
-                                }
+                                crate::io::spawn_save_file_dialog(
+                                    crate::io::FileDialogAction::MacExportKext,
+                                    "Save File",
+                                    Some("RadeonPowerPlayInjector.kext"),
+                                    &[],
+                                );
                                 ui.close_menu();
                             }
                             if ui.button("Copy Base64 / Hex Raw...").clicked() {

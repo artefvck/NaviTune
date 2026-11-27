@@ -34,6 +34,8 @@ impl PowerPlayApp {
                     ui.colored_label(egui::Color32::from_rgb(130, 180, 255), if gfxoff { "Power Saving" } else { "Compute" });
                     ui.end_row();
                     let card_id = detect_linux_card(&sel_lbl);
+                    let sysfs_target = format!("/sys/class/drm/{}/device/pp_table", card_id);
+                    let sysfs_ok = std::path::Path::new(&sysfs_target).exists();
                     ui.label("sysfs Target");
                     ui.monospace(&sysfs_target);
                     ui.colored_label(
@@ -99,28 +101,15 @@ impl PowerPlayApp {
                 ui.add_space(8.0);
                 ui.horizontal_wrapped(|ui| {
                     if ui.button("Import Tuning Values Only...").on_hover_text("Copy only clocks, voltages, power limits & fan curve from a donor .mpt/.rom/.plist onto the currently loaded native GPU table without overwriting binary subtable structures").clicked() {
-                    if let Some(path) = crate::io::pick_file_dialog(
+                    crate::io::spawn_pick_file_dialog(
+                        crate::io::FileDialogAction::LinuxImportDonor,
                         "Select Donor Profile (.mpt, .rom, .bin, .plist)",
                         &[("PowerPlay / VBIOS", &["mpt", "rom", "bin", "ppt", "plist", "reg"])],
-                    ) {
-                        match crate::io::read_bounded(&path) {
-                            Ok(bytes) => match self.apply_tuning_values_only(&path, &bytes) {
-                                Ok(msg) => {
-                                    ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("ppt_dirty"), true));
-                                    self.status_msg = msg;
-                                }
-                                Err(e) => {
-                                    self.show_error("Import Tuning Values Error", &e);
-                                }
-                            },
-                            Err(e) => {
-                                self.status_msg = format!("Failed reading donor file: {}", e);
-                            }
-                        }
-                    }
+                    );
                 }
                 if ui.button("Install").clicked() {
                         self.sync_fields_to_buffer();
+                        let prev = self.selected_gpu;
                         let sel_lbl = self.gpus.get(self.selected_gpu).cloned().unwrap_or_default();
                         match install_linux_ppt(self, &sel_lbl) {
                             Ok(msg) => {

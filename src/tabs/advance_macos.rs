@@ -113,25 +113,22 @@ impl PowerPlayApp {
                     }
                     if ui.button("Export .plist").clicked() {
                         self.sync_fields_to_buffer();
-                        if let Some(path) = crate::io::save_file_dialog("Save File", Some("DeviceProperties.plist"), &[("OpenCore Property List (*.plist)", &["plist"])])
-                        {
-                            let acpi_path = detect_live_acpi_gpu_path(&sel_lbl);
-                            let plist = crate::export_formats::format_opencore_plist_with_key(&self.raw_buffer, &acpi_path, key_lbl);
-                            match std::fs::write(&path, plist) {
-                                Ok(_) => self.status_msg = format!("Exported {} ({} @ {})", path.file_name().unwrap_or_default().to_string_lossy(), key_lbl, acpi_path),
-                                Err(e) => self.show_error("OpenCore .plist Export Error", &e.to_string()),
-                            }
-                        }
+                        ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("pending_oc_plist_key"), key_lbl.to_string()));
+                        crate::io::spawn_save_file_dialog(
+                            crate::io::FileDialogAction::MacExportPlist,
+                            "Save File",
+                            Some("DeviceProperties.plist"),
+                            &[("OpenCore Property List (*.plist)", &["plist"])],
+                        );
                     }
                     if ui.button("Export Injector .kext").clicked() {
                         self.sync_fields_to_buffer();
-                        if let Some(path) = crate::io::save_file_dialog("Save File", Some("RadeonPowerPlayInjector.kext"), &[])
-                        {
-                            match export_macos_injector_kext(&self.raw_buffer, &path) {
-                                Ok(msg) => self.status_msg = msg,
-                                Err(err) => self.show_error("Injector .kext Export Error", &err),
-                            }
-                        }
+                        crate::io::spawn_save_file_dialog(
+                            crate::io::FileDialogAction::MacExportKext,
+                            "Save File",
+                            Some("RadeonPowerPlayInjector.kext"),
+                            &[],
+                        );
                     }
                     let id_aml_modal = egui::Id::new("aml_export_modal_open");
                     if ui.button("Export ACPI .aml").clicked() {
@@ -161,23 +158,12 @@ impl PowerPlayApp {
                                 ui.horizontal(|ui| {
                                     if ui.button("Save .aml / .dsl...").clicked() {
                                         aml_modal_open = false;
-                                        if let Some(path) = crate::io::save_file_dialog("Save File", Some("SSDT-sPPT.aml"), &[("Compiled ACPI Table (*.aml)", &["aml"]), ("ACPI Source Language (*.dsl)", &["dsl"])])
-                                        {
-                                            let acpi_path = detect_live_acpi_gpu_path(&sel_lbl);
-                                            let dsl = format_opencore_acpi_dsl(&self.raw_buffer, &acpi_path, dis_pc, dis_ulps);
-                                            let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("aml").to_ascii_lowercase();
-                                            if ext == "dsl" {
-                                                match std::fs::write(&path, dsl) {
-                                                    Ok(_) => self.status_msg = format!("Exported {} ({})", path.file_name().unwrap_or_default().to_string_lossy(), acpi_path),
-                                                    Err(e) => self.show_error("ACPI .dsl Export Error", &e.to_string()),
-                                                }
-                                            } else {
-                                                match compile_dsl_to_aml(&dsl, &path) {
-                                                    Ok(msg) => self.status_msg = format!("{} [{}]", msg, acpi_path),
-                                                    Err(err) => self.show_error("iasl Compiler Not Found / Failed", &err),
-                                                }
-                                            }
-                                        }
+                                        crate::io::spawn_save_file_dialog(
+                                            crate::io::FileDialogAction::MacExportSsdt,
+                                            "Save File",
+                                            Some("SSDT-sPPT.aml"),
+                                            &[("Compiled ACPI Table (*.aml)", &["aml"]), ("ACPI Source Language (*.dsl)", &["dsl"])],
+                                        );
                                     }
                                     if ui.button("Cancel").clicked() {
                                         aml_modal_open = false;
