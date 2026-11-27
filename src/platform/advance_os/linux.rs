@@ -204,6 +204,8 @@ pub(crate) fn install_linux_ppt(ppt_bytes: &[u8], selected_label: &str) -> Resul
     let apply_sh = concat!(
         "#!/usr/bin/env bash\n",
         "set -euo pipefail\n",
+        "# Safety bypass: skip if booted with 'noppt', 'single', 'recovery', or 'nomodeset'\n",
+        "if grep -Eq '(^| )(noppt|single|recovery|nomodeset)( |$)' /proc/cmdline; then exit 0; fi\n",
         "PPT_BIN=/etc/xppt/pp_table.bin\n",
         "[ -f \"$PPT_BIN\" ] || exit 0\n",
         "MASK_FILE=/sys/module/amdgpu/parameters/ppfeaturemask\n",
