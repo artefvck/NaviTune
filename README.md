@@ -42,7 +42,8 @@ cargo clippy --all-targets -- -D warnings && cargo test
 Platform packaging scripts are included in the repository root (`build_macos.sh`, `build_linux.sh`, `build_windows.ps1`, `build_linux_from_macos.sh`, `build_window_from_macos.sh`).
 
 ## Documentation
-- [User Guide](doc/USER_GUIDE.md) — Loading ROMs/profiles, factory baseline tracking, Safe Tune, and Pre-Save Diff
+- [User Guide](doc/USER_GUIDE.md)
+- [Universal SMU Calculator (`Calc`) & Classic WattMan (`Classic`) Guide](doc/CALC_AND_CLASSIC_GUIDE.md) — Loading ROMs/profiles, factory baseline tracking, Safe Tune, and Pre-Save Diff
 - [Architecture Overview](doc/ARCHITECTURE.md) — Single-source-of-truth offset maps and module boundaries
 - [Cross-OS Installation & Deployment Guide](doc/CROSS_OS_INSTALL.md) — Step-by-step setup for Linux (`.deb`/`systemd`), Windows (UAC/Registry), and macOS (OpenCore/`.kext`/`.aml`)
 - [Linux & Ubuntu Integration Guide](doc/LINUX_GUIDE.md) — `amdgpu.ppfeaturemask`, `systemd` service, `hwmon` telemetry & `.deb` packaging
@@ -87,6 +88,8 @@ NaviTune/
 │   │   ├── oc_limits.rs       # OverDrive clock, power, fan & acoustic ceilings
 │   │   ├── power.rs           # Socket PPT, TDC, ULV & memory DPM voltages
 │   │   ├── frequency.rs       # GFX, SoC, FCLK, UCLK & PCIe/LCLK clock domains
+│   │   ├── calc.rs            # Universal SMU V/F, DCBTC & power envelope calculator
+│   │   ├── classic.rs         # Classic Adrenalin 3-point V/F (Min/Mid/Max -> a,b,c) & fan curve
 │   │   ├── curve.rs           # V/F curve coefficients, thermal limits & 2D drag-plot
 │   │   ├── fan.rs             # Fan controller, Zero RPM hysteresis & 5-point curve drag-plot
 │   │   ├── advance*.rs        # macOS, Windows, and Linux OS injection tabs
