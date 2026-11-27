@@ -103,6 +103,30 @@ impl PowerPlayApp {
                     kv_row_2(ui, "PCIe Gen", gen_tag, &mut self.pcie_gen_speed, 62.0);
                     kv_row_2(ui, "PCIe Lanes", lane_tag, &mut self.pcie_lane_count, 62.0);
                     kv_row_2(ui, "LCLK (MHz)", lclk_tag, &mut self.lclk_mhz, 62.0);
+
+                    let (min_gen, min_lanes) = arch.decode_pcie_link(self.pcie_gen_speed[0], self.pcie_lane_count[0]);
+                    let (max_gen, max_lanes) = arch.decode_pcie_link(self.pcie_gen_speed[1], self.pcie_lane_count[1]);
+                    let raw_lane_invalid = !(1..=6).contains(&self.pcie_lane_count[0])
+                        || !(1..=6).contains(&self.pcie_lane_count[1]);
+                    ui.add_space(4.0);
+                    if raw_lane_invalid {
+                        ui.colored_label(
+                            egui::Color32::from_rgb(245, 75, 95),
+                            format!(
+                                "Invalid PCIe Lane enum ({} / {}): use 1..=6 (1=x1, 2=x2, 3=x4, 4=x8, 5=x12, 6=x16)",
+                                self.pcie_lane_count[0], self.pcie_lane_count[1]
+                            ),
+                        );
+                    } else {
+                        ui.colored_label(
+                            egui::Color32::from_rgb(130, 195, 255),
+                            format!(
+                                "Decoded Link: Gen {} -> Gen {}  |  x{} -> x{} lanes",
+                                min_gen, max_gen, min_lanes, max_lanes
+                            ),
+                        );
+                    }
+                    ui.small("Enum codes — Gen: 0=Gen1, 1=Gen2, 2=Gen3, 3=Gen4 | Lanes: 1=x1, 2=x2, 3=x4, 4=x8, 5=x12, 6=x16");
                 });
             }
         });
