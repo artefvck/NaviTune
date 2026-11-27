@@ -274,16 +274,16 @@ pub(crate) fn install_linux_ppt(ppt_bytes: &[u8], selected_label: &str) -> Resul
         "  CUR_SZ=$(wc -c < \"$dev/pp_table\" 2>/dev/null || echo 0)\n",
         "  NEW_SZ=$(wc -c < \"$PPT_BIN\" 2>/dev/null || echo 0)\n",
         "  if [ \"$CUR_SZ\" -gt 0 ] && [ \"$CUR_SZ\" -eq \"$NEW_SZ\" ]; then\n",
-        "    /usr/bin/dd if=\"$PPT_BIN\" of=\"$dev/pp_table\" bs=65536 status=none\n",
+        "    /bin/cp \"$PPT_BIN\" \"$dev/pp_table\"\n",
+        "    if [ -w \"$dev/pp_od_clk_voltage\" ]; then\n",
+        "      printf 'r\n' > \"$dev/pp_od_clk_voltage\" 2>/dev/null || true\n",
+        "      printf 'c\n' > \"$dev/pp_od_clk_voltage\" 2>/dev/null || true\n",
+        "    fi\n",
         "  fi\n",
         "done\n"
     );
     let tmp_apply = "/tmp/navitune-apply-ppt.sh";
     std::fs::write(tmp_apply, apply_sh).map_err(|e| format!("Failed writing temp apply script: {}", e))?;
-
-    let udev_rule = "ACTION==\"add|change\", SUBSYSTEM==\"drm\", KERNEL==\"card[0-9]*\", DRIVERS==\"amdgpu\", RUN+=\"/usr/local/sbin/navitune-apply-ppt.sh\"\n";
-    let tmp_udev = "/tmp/99-navitune-pptable.rules";
-    std::fs::write(tmp_udev, udev_rule).map_err(|e| format!("Failed writing temp udev rule: {}", e))?;
 
     let unit = concat!(
         "[Unit]\n",
@@ -291,6 +291,7 @@ pub(crate) fn install_linux_ppt(ppt_bytes: &[u8], selected_label: &str) -> Resul
         "After=graphical.target\n\n",
         "[Service]\n",
         "Type=oneshot\n",
+        "ExecStartPre=/bin/sleep 3\n",
         "ExecStart=/usr/local/sbin/navitune-apply-ppt.sh\n",
         "RemainAfterExit=yes\n\n",
         "[Install]\n",
@@ -309,8 +310,8 @@ pub(crate) fn install_linux_ppt(ppt_bytes: &[u8], selected_label: &str) -> Resul
     );
 
     let script = format!(
-        "mkdir -p /etc/xppt /usr/local/sbin && install -m 0644 {} /etc/xppt/pp_table.bin && install -m 0755 {} /usr/local/sbin/navitune-apply-ppt.sh && install -m 0644 {} /etc/udev/rules.d/99-navitune-pptable.rules && install -m 0644 {} /etc/systemd/system/xppt-pptable.service && udevadm control --reload-rules && systemctl daemon-reload && systemctl enable xppt-pptable.service && {}",
-        tmp_bin, tmp_apply, tmp_udev, tmp_unit, grub_snippet
+        "mkdir -p /etc/xppt /usr/local/sbin && install -m 0644 {} /etc/xppt/pp_table.bin && install -m 0755 {} /usr/local/sbin/navitune-apply-ppt.sh && install -m 0644 {} /etc/systemd/system/xppt-pptable.service && udevadm control --reload-rules && systemctl daemon-reload && systemctl enable xppt-pptable.service && {}",
+        tmp_bin, tmp_apply, tmp_unit, grub_snippet
     );
 
     std::thread::spawn(move || {
