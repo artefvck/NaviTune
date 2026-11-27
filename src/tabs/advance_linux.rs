@@ -38,6 +38,16 @@ impl PowerPlayApp {
                     ui.monospace(format!("{}/device/pp_table", card_id));
                     ui.colored_label(egui::Color32::from_rgb(80, 210, 120), "READY");
                     ui.end_row();
+                    let (mask_detail, mask_badge, mask_color) = check_linux_ppfeaturemask();
+                    ui.label("ppfeaturemask");
+                    ui.monospace(mask_detail);
+                    ui.colored_label(mask_color, mask_badge);
+                    ui.end_row();
+                    let (svc_detail, svc_badge, svc_color) = check_linux_systemd_service();
+                    ui.label("Boot Service");
+                    ui.monospace(svc_detail);
+                    ui.colored_label(svc_color, svc_badge);
+                    ui.end_row();
                     let (sync_detail, sync_badge, sync_color) = check_linux_ppt_sync(&sel_lbl);
                     ui.label("Config Sync");
                     ui.monospace(sync_detail);
