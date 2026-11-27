@@ -132,7 +132,13 @@ pub(super) fn cmd_apply_cfg(cfg_path: &str, sysfs_target: &str) -> Result<(), St
         .map_err(|e| format!("Failed reading sysfs '{}': {}", sysfs_target, e))?;
     let mut app = PowerPlayApp::default();
     app.load_bytes_for_path(std::path::Path::new("pp_table.bin"), cur_ppt.clone(), sysfs_target)?;
+    let orig_mem_freq = app.mem_dpm_freq;
     let n_keys = crate::io_ppt::apply_tuning_cfg_to_app(&mut app, &cfg_txt)?;
+    if app.mem_dpm_freq != orig_mem_freq {
+        eprintln!("Warning: preserving native VBIOS mem_dpm_freq {:?} during live sysfs patch to prevent GDDR6 PHY hang", orig_mem_freq);
+        app.mem_dpm_freq = orig_mem_freq;
+        app.sync_fields_to_buffer();
+    }
     if app.raw_buffer.len() != cur_ppt.len() {
         return Err(format!("Patched buffer size mismatch ({} vs {} B)", app.raw_buffer.len(), cur_ppt.len()));
     }
