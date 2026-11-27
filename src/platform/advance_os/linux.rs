@@ -391,11 +391,14 @@ pub(crate) fn read_linux_power_profiles(selected_label: &str) -> (Vec<(u32, Stri
     let mut active_summary = "UNKNOWN".to_string();
     for line in txt.lines() {
         let trimmed = line.trim();
-        let Some((idx_str, rest)) = trimmed.split_once(':') else { continue; };
-        let Ok(idx) = idx_str.trim().parse::<u32>() else { continue; };
+        let before_colon = trimmed.split(':').next().unwrap_or(trimmed);
+        let mut tokens = before_colon.split_whitespace();
+        let Some(idx_tok) = tokens.next() else { continue; };
+        let Ok(idx) = idx_tok.parse::<u32>() else { continue; };
+        let Some(name_tok) = tokens.next() else { continue; };
         let is_active = trimmed.contains('*');
-        let raw_name = rest.split_whitespace().next().unwrap_or("PROFILE");
-        let clean_name = raw_name.trim_end_matches('*').to_string();
+        let clean_name = name_tok.trim_matches('*').to_string();
+        if clean_name.is_empty() { continue; }
         if is_active {
             active_summary = format!("{} ({}) — driver default", clean_name, idx);
         }
