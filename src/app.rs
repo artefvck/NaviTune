@@ -128,7 +128,7 @@ impl Default for PowerPlayApp {
 impl PowerPlayApp {
 
     /// Menyalin hanya nilai tuning dari profil donor tanpa menimpa struktur header biner asli.
-    pub fn apply_tuning_values_only(&mut self, donor_bytes: &[u8]) -> Result<String, String> {
+    pub fn apply_tuning_values_only(&mut self, donor_path: &std::path::Path, donor_bytes: &[u8]) -> Result<String, String> {
         if self.raw_buffer.is_empty() {
             return Err("Load your GPU's native VBIOS (.rom) or select GPU Path first.".into());
         }
@@ -137,7 +137,8 @@ impl PowerPlayApp {
             return Err("Active buffer is not a valid AMD PowerPlayTable.".into());
         }
         let mut donor = Self::default();
-        donor.load_bytes_for_path(std::path::Path::new("donor.bin"), donor_bytes.to_vec(), "donor")?;
+        let label = donor_path.file_name().unwrap_or_default().to_string_lossy().into_owned();
+        donor.load_bytes_for_path(donor_path, donor_bytes.to_vec(), &label)?;
         let donor_arch = crate::ppt_arch::PptArch::detect(&donor.raw_buffer);
         if donor.raw_buffer.is_empty() || donor_arch == crate::ppt_arch::PptArch::Unknown {
             return Err("Donor profile does not contain a valid AMD PowerPlayTable.".into());

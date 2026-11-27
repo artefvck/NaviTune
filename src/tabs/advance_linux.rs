@@ -70,12 +70,13 @@ impl PowerPlayApp {
                         &[("PowerPlay / VBIOS", &["mpt", "rom", "bin", "ppt", "plist", "reg"])],
                     ) {
                         match crate::io::read_bounded(&path) {
-                            Ok(bytes) => match self.apply_tuning_values_only(&bytes) {
+                            Ok(bytes) => match self.apply_tuning_values_only(&path, &bytes) {
                                 Ok(msg) => {
+                                    ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("ppt_dirty"), true));
                                     self.status_msg = msg;
                                 }
                                 Err(e) => {
-                                    self.status_msg = e;
+                                    self.show_error("Import Tuning Values Error", &e);
                                 }
                             },
                             Err(e) => {
