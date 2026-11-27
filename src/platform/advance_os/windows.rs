@@ -214,35 +214,25 @@ fn is_linux_effective_root() -> bool {
 
 #[cfg(target_os = "linux")]
 pub(crate) fn detect_linux_card(selected_label: &str) -> String {
-    if let Some(c) = selected_label
-        .split('(')
-        .nth(1)
-        .and_then(|x| x.split_whitespace().next())
-        .filter(|x| x.starts_with("card") && x[4..].chars().all(|c| c.is_ascii_digit()))
-    {
-        return c.to_string();
+    for tok in selected_label.split(|c: char| !c.is_ascii_alphanumeric()) {
+        if tok.starts_with("card") && tok.len() > 4 && tok[4..].chars().all(|c| c.is_ascii_digit()) {
+            return tok.to_string();
+        }
     }
-    if let Ok(entries) = std::fs::read_dir("/sys/class/drm") {
-        let mut cards: Vec<String> = entries
+    if let Ok(rd) = std::fs::read_dir("/sys/class/drm") {
+        let mut cards: Vec<String> = rd
             .flatten()
-            .filter_map(|e| {
-                let n = e.file_name().to_string_lossy().into_owned();
-                if n.starts_with("card")
-                    && !n.contains('-')
-                    && std::fs::read_to_string(e.path().join("device/vendor"))
-                        .unwrap_or_default()
-                        .trim()
-                        .eq_ignore_ascii_case("0x1002")
-                {
-                    Some(n)
-                } else {
-                    None
-                }
-            })
+            .filter_map(|e| e.file_name().into_string().ok())
+            .filter(|n| n.starts_with("card") && n.len() > 4 && n[4..].chars().all(|c| c.is_ascii_digit()))
+            .filter(|n| std::path::Path::new(&format!("/sys/class/drm/{}/device/pp_table", n)).exists())
             .collect();
         cards.sort();
-        if let Some(first) = cards.into_iter().next() {
-            return first;
+        if let Some(first_amd) = cards.into_iter().find(|n| {
+            std::fs::read_to_string(format!("/sys/class/drm/{}/device/vendor", n))
+                .map(|v| v.trim().eq_ignore_ascii_case("0x1002"))
+                .unwrap_or(false)
+        }) {
+            return first_amd;
         }
     }
     "card0".to_string()
@@ -253,30 +243,15 @@ pub(crate) fn install_linux_ppt(ppt_bytes: &[u8], selected_label: &str) -> Resul
     use std::process::Command;
     let card = detect_linux_card(selected_label);
     let sysfs_ppt = format!("/sys/class/drm/{}/device/pp_table", card);
-    if !std::path::Path::new(&sysfs_ppt).exists() {
-        return Err(format!(
-            "{} not found.
-Add amdgpu.ppfeaturemask=0xffffffff to GRUB_CMDLINE_LINUX_DEFAULT in /etc/default/grub, run sudo update-grub, and reboot.",
-            sysfs_ppt
-        ));
+    let tmp_bin = "/tmp/xppt_pp_table.bin";
+    std::fs::write(tmp_bin, ppt_bytes).map_err(|e| format!("Failed writing temp file: {}", e))?;
+
+    if crate::ppt_arch::PptArch::detect(ppt_bytes) == crate::ppt_arch::PptArch::Unknown {
+        return Err("Refusing to install: buffer is not a valid AMD PowerPlayTable".into());
     }
-    let pid = std::process::id();
-    let tmp_bin = format!("/tmp/navitune_pp_table_{}.bin", pid);
-    let tmp_unit = format!("/tmp/navitune-pptable-{}.service", pid);
-    std::fs::write(&tmp_bin, ppt_bytes).map_err(|e| format!("Failed writing temp file: {}", e))?;
+
     let unit = format!(
-        "[Unit]
-Description=Apply NaviTune Soft PowerPlay Table
-After=systemd-modules-load.service
-
-[Service]
-Type=oneshot
-ExecStart=/bin/sh -c '[ -w {0} ] && cat /etc/xppt/pp_table.bin > {0}'
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-",
+        "[Unit]\nDescription=Apply NaviTune Soft PowerPlay Table\nAfter=systemd-udev-settle.service\nWants=systemd-udev-settle.service\nBefore=display-manager.service\n\n[Service]\nType=oneshot\nExecStart=/usr/bin/dd if=/etc/xppt/pp_table.bin of={} bs=65536\nRemainAfterExit=yes\n\n[Install]\nWantedBy=multi-user.target\n",
         sysfs_ppt
     );
     if let Err(e) = std::fs::write(&tmp_unit, unit) {
@@ -284,8 +259,8 @@ WantedBy=multi-user.target
         return Err(format!("Failed writing temp unit: {}", e));
     }
     let script = format!(
-        "set -e; mkdir -p /etc/xppt; install -m 0644 {0} /etc/xppt/pp_table.bin; install -m 0644 {1} /etc/systemd/system/xppt-pptable.service; systemctl daemon-reload; systemctl enable xppt-pptable.service; cat /etc/xppt/pp_table.bin > {2}; cmp -s /etc/xppt/pp_table.bin {2}",
-        tmp_bin, tmp_unit, sysfs_ppt
+        "mkdir -p /etc/xppt && install -m 0644 {} /etc/xppt/pp_table.bin && install -m 0644 {} /etc/systemd/system/xppt-pptable.service && systemctl daemon-reload && systemctl enable xppt-pptable.service && /usr/bin/dd if=/etc/xppt/pp_table.bin of={} bs=65536 && cmp -s /etc/xppt/pp_table.bin {}",
+        tmp_bin, tmp_unit, sysfs_ppt, sysfs_ppt
     );
     let out = if is_linux_effective_root() {
         Command::new("sh").args(["-c", &script]).output()
