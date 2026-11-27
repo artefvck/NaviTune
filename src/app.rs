@@ -126,6 +126,73 @@ impl Default for PowerPlayApp {
 }
 
 impl PowerPlayApp {
+
+    /// Menyalin hanya nilai tuning (clocks, voltages, limits, fan, curve) dari profil referensi
+    /// ke atas buffer PPTable/VBIOS yang sedang aktif tanpa menimpa struktur header/subtable biner asli.
+    #[allow(clippy::clone_on_copy)]
+    pub fn apply_tuning_values_only(&mut self, donor_bytes: &[u8]) -> Result<String, String> {
+        if self.raw_buffer.is_empty() {
+            return Err("Load your GPU's native VBIOS (.rom) or Read Live GPU first before importing tuning values.".into());
+        }
+        let target_arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
+        if target_arch == crate::ppt_arch::PptArch::Unknown {
+            return Err("Active buffer is not a valid AMD PowerPlayTable.".into());
+        }
+
+        let mut donor = Self::default();
+        donor.load_bytes_for_path(std::path::Path::new("donor.bin"), donor_bytes.to_vec(), "donor")?;
+        let donor_arch = crate::ppt_arch::PptArch::detect(&donor.raw_buffer);
+        if donor.raw_buffer.is_empty() || donor_arch == crate::ppt_arch::PptArch::Unknown {
+            return Err("Donor profile does not contain a valid AMD PowerPlayTable.".into());
+        }
+        if donor_arch != target_arch {
+            return Err(format!(
+                "Architecture mismatch: active GPU is {:?} but donor profile is {:?}.",
+                target_arch, donor_arch
+            ));
+        }
+
+        self.modal_error_title = donor.modal_error_title.clone();
+        self.modal_error_msg = donor.modal_error_msg.clone();
+        self.gpu_clock_limit = donor.gpu_clock_limit.clone();
+        self.min_fan_speed = donor.min_fan_speed.clone();
+        self.fan_curve = donor.fan_curve.clone();
+        self.smu_features = donor.smu_features.clone();
+        self.auto_undervolt_gpu = donor.auto_undervolt_gpu.clone();
+        self.oc_gfx_clock = donor.oc_gfx_clock.clone();
+        self.oc_fan_rpm = donor.oc_fan_rpm.clone();
+        self.oc_mem_timing_ctrl = donor.oc_mem_timing_ctrl.clone();
+        self.pm_quiet = donor.pm_quiet.clone();
+        self.ac_quiet = donor.ac_quiet.clone();
+        self.volt_gfx = donor.volt_gfx.clone();
+        self.ulv_gfx = donor.ulv_gfx.clone();
+        self.vmin_lh_gfx = donor.vmin_lh_gfx.clone();
+        self.mem_dpm_volt = donor.mem_dpm_volt.clone();
+        self.freq_gfx = donor.freq_gfx.clone();
+        self.freq_dcefclk = donor.freq_dcefclk.clone();
+        self.freq_dtbclk = donor.freq_dtbclk.clone();
+        self.pcie_gen_speed = donor.pcie_gen_speed.clone();
+        self.static_volt_a = donor.static_volt_a.clone();
+        self.static_off_a = donor.static_off_a.clone();
+        self.dcbtc_gfx_en = donor.dcbtc_gfx_en.clone();
+        self.dcbtc_min = donor.dcbtc_min.clone();
+        self.fan_pwm_min = donor.fan_pwm_min.clone();
+        self.fan_mode = donor.fan_mode.clone();
+        self.fan_target_temp = donor.fan_target_temp.clone();
+        self.fan_stop_temp = donor.fan_stop_temp.clone();
+        self.od_fan_temp = donor.od_fan_temp.clone();
+        self.fan_curve_temp = donor.fan_curve_temp.clone();
+        self.temp_limits = donor.temp_limits.clone();
+        self.power_limit_ac = donor.power_limit_ac.clone();
+
+        self.load_ppt_file();
+        Ok(format!(
+            "Applied tuning parameters onto native {:?} table ({} B) — binary structure preserved",
+            target_arch,
+            self.raw_buffer.len()
+        ))
+    }
+
     /// Counts how many bytes in `raw_buffer` differ from `baseline_buffer` (plus length delta).
     pub(crate) fn modified_byte_count(&self) -> usize {
         let shared = self.raw_buffer.len().min(self.baseline_buffer.len());

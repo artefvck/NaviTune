@@ -64,7 +64,27 @@ impl PowerPlayApp {
                 ui.label(format!("Export pp_table binary or copy sysfs command for /sys/class/drm/{}/device/pp_table:", active_card));
                 ui.add_space(8.0);
                 ui.horizontal_wrapped(|ui| {
-                    if ui.button("Install").clicked() {
+                    if ui.button("Import Tuning Values Only...").on_hover_text("Copy only clocks, voltages, power limits & fan curve from a donor .mpt/.rom/.plist onto the currently loaded native GPU table without overwriting binary subtable structures").clicked() {
+                    if let Some(path) = rfd::FileDialog::new()
+                        .set_title("Select Donor Profile (.mpt, .rom, .bin, .plist)")
+                        .add_filter("PowerPlay / VBIOS", &["mpt", "rom", "bin", "ppt", "plist", "reg"])
+                        .pick_file() {
+                        match crate::io::read_bounded(&path) {
+                            Ok(bytes) => match self.apply_tuning_values_only(&bytes) {
+                                Ok(msg) => {
+                                    self.status_msg = msg;
+                                }
+                                Err(e) => {
+                                    self.status_msg = e;
+                                }
+                            },
+                            Err(e) => {
+                                self.status_msg = format!("Failed reading donor file: {}", e);
+                            }
+                        }
+                    }
+                }
+                if ui.button("Install").clicked() {
                         self.sync_fields_to_buffer();
                         let prev = self.selected_gpu;
                         let lbl = self.gpus.get(prev).cloned().unwrap_or_default();
