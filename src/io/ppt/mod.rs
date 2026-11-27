@@ -331,8 +331,14 @@ impl PowerPlayApp {
         }
         t.features_to_run = mask;
 
-        t.od_gfx_min[0] = self.oc_gfx_clock[0] as u32; t.od_gfx_max[0] = self.oc_gfx_clock[1] as u32;
-        t.od_mem_min[0] = self.oc_mem_clock[0] as u32; t.od_mem_max[0] = self.oc_mem_clock[1] as u32;
+        t.od_gfx_min[0] = self.oc_gfx_clock[0] as u32;
+        if t.od_gfx_min[1] > 0 { t.od_gfx_min[1] = self.oc_gfx_clock[0] as u32; }
+        t.od_gfx_max[0] = self.oc_gfx_clock[1] as u32;
+        if t.od_gfx_max[1] > 0 { t.od_gfx_max[1] = self.oc_gfx_clock[1] as u32; }
+        t.od_mem_min[0] = self.oc_mem_clock[0] as u32;
+        if t.od_mem_min[1] > 0 { t.od_mem_min[1] = self.oc_mem_clock[0] as u32; }
+        t.od_mem_max[0] = self.oc_mem_clock[1] as u32;
+        if t.od_mem_max[1] > 0 { t.od_mem_max[1] = self.oc_mem_clock[1] as u32; }
         t.od_pwr_min = self.oc_power_limit[0] as u32; t.od_pwr_max = self.oc_power_limit[1] as u32;
         t.od_fan_min = self.oc_fan_rpm[0] as u32; t.od_fan_max = self.oc_fan_rpm[1] as u32;
         t.od_acoustic_min = self.oc_fan_acoustic_rpm[0] as u32; t.od_acoustic_max = self.oc_fan_acoustic_rpm[1] as u32;
@@ -373,7 +379,7 @@ impl PowerPlayApp {
             t.mem_clk_div[i] = self.mem_dpm_freq[i][1] as u8;
         }
 
-        t.freq_gfx_min = self.freq_gfx[0] as u16; t.freq_gfx_max = self.freq_gfx[1] as u16; t.freq_gfx_max_mirror = self.freq_gfx[1] as u16;
+        t.freq_gfx_min = self.freq_gfx[0] as u16; t.freq_gfx_max = self.freq_gfx[1] as u16; t.freq_gfx_min_mirror = self.freq_gfx[0] as u16; t.freq_gfx_max_mirror = self.freq_gfx[1] as u16;
         t.freq_soc = [self.freq_soc[0] as u16, self.freq_soc[1] as u16];
         t.freq_vclk = [self.freq_vclk[0] as u16, self.freq_vclk[1] as u16];
         t.freq_dclk = [self.freq_dclk[0] as u16, self.freq_dclk[1] as u16];
