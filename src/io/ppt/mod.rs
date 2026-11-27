@@ -503,115 +503,222 @@ impl PowerPlayApp {
 
 pub fn format_tuning_cfg(app: &crate::PowerPlayApp) -> String {
     let arch = crate::ppt_arch::PptArch::detect(&app.raw_buffer);
-    let mem_freqs: Vec<String> = app.mem_dpm_freq.iter().map(|d| d[0].to_string()).collect();
-    let temps: Vec<String> = app.temp_limits.iter().map(|t| t.to_string()).collect();
-    format!(
-        "# NaviTune PowerPlay Override Config (.cfg)\n\
-# Applied in-place onto live /sys/class/drm/cardX/device/pp_table without replacing native VBIOS headers\n\
-arch={:?}\n\
-oc_gfx_clock={},{}\n\
-oc_mem_clock={},{}\n\
-oc_power_limit={},{}\n\
-power_limit_w={}\n\
-tdc_gfx={}\n\
-tdc_soc={}\n\
-volt_gfx={},{}\n\
-volt_soc={},{}\n\
-freq_gfx={},{}\n\
-freq_soc={},{}\n\
-freq_fclk={},{}\n\
-mem_dpm_freq={}\n\
-fan_pwm_min={}\n\
-fan_acoustic_limit={}\n\
-fan_throttling_rpm={}\n\
-fan_max_rpm={}\n\
-fan_target_temp={}\n\
-fan_zero_rpm_enable={}\n\
-fan_stop_temp={}\n\
-fan_start_temp={}\n\
-temp_limits={}\n",
-        arch,
-        app.oc_gfx_clock[0], app.oc_gfx_clock[1],
-        app.oc_mem_clock[0], app.oc_mem_clock[1],
-        app.oc_power_limit[0], app.oc_power_limit[1],
-        app.power_limit_w,
-        app.tdc_gfx,
-        app.tdc_soc,
-        app.volt_gfx[0], app.volt_gfx[1],
-        app.volt_soc[0], app.volt_soc[1],
-        app.freq_gfx[0], app.freq_gfx[1],
-        app.freq_soc[0], app.freq_soc[1],
-        app.freq_fclk[0], app.freq_fclk[1],
-        mem_freqs.join(","),
-        app.fan_pwm_min,
-        app.fan_acoustic_limit,
-        app.fan_throttling_rpm,
-        app.fan_max_rpm,
-        app.fan_target_temp,
-        u8::from(app.fan_zero_rpm_enable),
-        app.fan_stop_temp,
-        app.fan_start_temp,
-        temps.join(","),
-    )
+    let mut smu_mask = 0u64;
+    for (bit, &en) in app.smu_features.iter().enumerate() {
+        if en { smu_mask |= 1u64 << bit; }
+    }
+    let od_flags = [
+        app.gpu_clock_limit, app.gpu_clock_curve, app.memory_clock_limit, app.zero_rpm,
+        app.min_fan_speed, app.fan_target_temp_limit, app.operating_temp_limit, app.fan_acoustic_rpm,
+        app.fan_curve, app.power_limit_feat, app.timing_tuning, app.power_mode,
+        app.auto_undervolt_gpu, app.auto_overclock_gpu, app.auto_overclock_mem, app.auto_fan_acoustic_limit,
+    ].iter().map(|&b| u8::from(b).to_string()).collect::<Vec<_>>().join(",");
+    let mem_freqs = app.mem_dpm_freq.iter().map(|d| d[0].to_string()).collect::<Vec<_>>().join(",");
+    let mem_divs = app.mem_dpm_freq.iter().map(|d| d[1].to_string()).collect::<Vec<_>>().join(",");
+    let mem_vddci = app.mem_dpm_volt.iter().map(|v| v[0].to_string()).collect::<Vec<_>>().join(",");
+    let mem_mvdd = app.mem_dpm_volt.iter().map(|v| v[1].to_string()).collect::<Vec<_>>().join(",");
+    let fan_ct = app.fan_curve_temp.iter().map(|t| t.to_string()).collect::<Vec<_>>().join(",");
+    let fan_cp = app.fan_curve_pwm.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(",");
+    let temps = app.temp_limits.iter().map(|t| t.to_string()).collect::<Vec<_>>().join(",");
+    let pwr_ac = app.power_limit_ac.iter().map(|w| w.to_string()).collect::<Vec<_>>().join(",");
+
+    [
+        format!("arch={:?}", arch),
+        format!("od_feature_flags={}", od_flags),
+        format!("smu_features_mask=0x{:016X}", smu_mask),
+        format!("oc_gfx_clock={},{}", app.oc_gfx_clock[0], app.oc_gfx_clock[1]),
+        format!("oc_mem_clock={},{}", app.oc_mem_clock[0], app.oc_mem_clock[1]),
+        format!("oc_power_limit={},{}", app.oc_power_limit[0], app.oc_power_limit[1]),
+        format!("oc_fan_rpm={},{}", app.oc_fan_rpm[0], app.oc_fan_rpm[1]),
+        format!("oc_fan_acoustic_rpm={},{}", app.oc_fan_acoustic_rpm[0], app.oc_fan_acoustic_rpm[1]),
+        format!("oc_mem_timing_ctrl={}", app.oc_mem_timing_ctrl),
+        format!("oc_power_mode_ctrl={}", app.oc_power_mode_ctrl),
+        format!("oc_zero_rpm_ctrl={}", app.oc_zero_rpm_ctrl),
+        format!("pm_quiet={},{}", app.pm_quiet[0], app.pm_quiet[1]),
+        format!("pm_balanced={},{}", app.pm_balanced[0], app.pm_balanced[1]),
+        format!("pm_turbo={},{}", app.pm_turbo[0], app.pm_turbo[1]),
+        format!("pm_rage={},{}", app.pm_rage[0], app.pm_rage[1]),
+        format!("ac_quiet={},{}", app.ac_quiet[0], app.ac_quiet[1]),
+        format!("ac_balanced={},{}", app.ac_balanced[0], app.ac_balanced[1]),
+        format!("ac_turbo={},{}", app.ac_turbo[0], app.ac_turbo[1]),
+        format!("ac_rage={},{}", app.ac_rage[0], app.ac_rage[1]),
+        format!("power_limit_w={}", app.power_limit_w),
+        format!("power_limit_ac={}", pwr_ac),
+        format!("tdc_gfx={}", app.tdc_gfx),
+        format!("tdc_soc={}", app.tdc_soc),
+        format!("volt_gfx={},{}", app.volt_gfx[0], app.volt_gfx[1]),
+        format!("volt_soc={},{}", app.volt_soc[0], app.volt_soc[1]),
+        format!("ulv_gfx={},{}", app.ulv_gfx[0], app.ulv_gfx[1]),
+        format!("ulv_soc={},{}", app.ulv_soc[0], app.ulv_soc[1]),
+        format!("tvmin_gfx={},{}", app.tvmin_gfx[0], app.tvmin_gfx[1]),
+        format!("tvmin_soc={},{}", app.tvmin_soc[0], app.tvmin_soc[1]),
+        format!("vmin_lh_gfx={},{}", app.vmin_lh_gfx[0], app.vmin_lh_gfx[1]),
+        format!("vmin_lh_soc={},{}", app.vmin_lh_soc[0], app.vmin_lh_soc[1]),
+        format!("mem_dpm_freq={}", mem_freqs),
+        format!("mem_dpm_div={}", mem_divs),
+        format!("mem_dpm_vddci={}", mem_vddci),
+        format!("mem_dpm_mvdd={}", mem_mvdd),
+        format!("freq_gfx={},{}", app.freq_gfx[0], app.freq_gfx[1]),
+        format!("freq_soc={},{}", app.freq_soc[0], app.freq_soc[1]),
+        format!("freq_vclk={},{}", app.freq_vclk[0], app.freq_vclk[1]),
+        format!("freq_dclk={},{}", app.freq_dclk[0], app.freq_dclk[1]),
+        format!("freq_dcefclk={},{}", app.freq_dcefclk[0], app.freq_dcefclk[1]),
+        format!("freq_dispclk={},{}", app.freq_dispclk[0], app.freq_dispclk[1]),
+        format!("freq_pixclk={},{}", app.freq_pixclk[0], app.freq_pixclk[1]),
+        format!("freq_phyclk={},{}", app.freq_phyclk[0], app.freq_phyclk[1]),
+        format!("freq_dtbclk={},{}", app.freq_dtbclk[0], app.freq_dtbclk[1]),
+        format!("freq_fclk={},{}", app.freq_fclk[0], app.freq_fclk[1]),
+        format!("fclk_boost_freq={}", app.fclk_boost_freq),
+        format!("pcie_gen_speed={},{}", app.pcie_gen_speed[0], app.pcie_gen_speed[1]),
+        format!("pcie_lane_count={},{}", app.pcie_lane_count[0], app.pcie_lane_count[1]),
+        format!("lclk_mhz={},{}", app.lclk_mhz[0], app.lclk_mhz[1]),
+        format!("static_volt_a={:.6},{:.6}", app.static_volt_a[0], app.static_volt_a[1]),
+        format!("static_volt_b={:.6},{:.6}", app.static_volt_b[0], app.static_volt_b[1]),
+        format!("static_volt_c={:.6},{:.6}", app.static_volt_c[0], app.static_volt_c[1]),
+        format!("static_off_a={:.6},{:.6}", app.static_off_a[0], app.static_off_a[1]),
+        format!("static_off_b={:.6},{:.6}", app.static_off_b[0], app.static_off_b[1]),
+        format!("static_off_c={:.6},{:.6}", app.static_off_c[0], app.static_off_c[1]),
+        format!("dcbtc_en={},{}", u8::from(app.dcbtc_gfx_en), u8::from(app.dcbtc_soc_en)),
+        format!("dcbtc_min={:.4},{:.4}", app.dcbtc_min[0], app.dcbtc_min[1]),
+        format!("dcbtc_max={:.4},{:.4}", app.dcbtc_max[0], app.dcbtc_max[1]),
+        format!("dcbtc_gb={:.4},{:.4}", app.dcbtc_gb[0], app.dcbtc_gb[1]),
+        format!("dctol={},{}", app.dctol[0], app.dctol[1]),
+        format!("fan_pwm_min={}", app.fan_pwm_min),
+        format!("fan_acoustic_limit={}", app.fan_acoustic_limit),
+        format!("fan_throttling_rpm={}", app.fan_throttling_rpm),
+        format!("fan_max_rpm={}", app.fan_max_rpm),
+        format!("fan_mode={}", app.fan_mode),
+        format!("fan_hyst_ctrl={}", app.fan_hyst_ctrl),
+        format!("fan_target_temp={}", app.fan_target_temp),
+        format!("fan_target_gfx_clock={}", app.fan_target_gfx_clock),
+        format!("fan_zero_rpm_enable={}", u8::from(app.fan_zero_rpm_enable)),
+        format!("fan_stop_temp={}", app.fan_stop_temp),
+        format!("fan_start_temp={}", app.fan_start_temp),
+        format!("od_fan_temp={},{}", app.od_fan_temp[0], app.od_fan_temp[1]),
+        format!("od_fan_speed={},{}", app.od_fan_speed[0], app.od_fan_speed[1]),
+        format!("fan_curve_temp={}", fan_ct),
+        format!("fan_curve_pwm={}", fan_cp),
+        format!("temp_limits={}", temps),
+    ].join("\n") + "\n"
 }
 
 pub fn apply_tuning_cfg_to_app(app: &mut crate::PowerPlayApp, cfg_text: &str) -> Result<usize, String> {
-    let parse_pair = |v: &str| -> Option<[i32; 2]> {
-        let mut it = v.split(',').filter_map(|s| s.trim().parse::<i32>().ok());
+    let p_i32 = |v: &str| -> Option<[i32; 2]> {
+        let mut it = v.split(',').filter_map(|x| x.trim().parse::<i32>().ok());
         Some([it.next()?, it.next()?])
     };
-    let mut applied = 0usize;
-    for raw_line in cfg_text.lines() {
-        let line = raw_line.trim();
-        if line.is_empty() || line.starts_with('#') || line.starts_with(';') {
-            continue;
+    let p_f64 = |v: &str| -> Option<[f64; 2]> {
+        let mut it = v.split(',').filter_map(|x| x.trim().parse::<f64>().ok());
+        Some([it.next()?, it.next()?])
+    };
+    let fill_slice = |v: &str, dst: &mut [i32]| {
+        for (i, tok) in v.split(',').take(dst.len()).enumerate() {
+            if let Ok(n) = tok.trim().parse::<i32>() { dst[i] = n; }
         }
+    };
+    let mut applied = 0usize;
+    for raw in cfg_text.lines() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') || line.starts_with(';') { continue; }
         let Some((k, v)) = line.split_once('=') else { continue; };
-        let key = k.trim();
-        let val = v.trim();
+        let (key, val) = (k.trim(), v.trim());
         match key {
-            "oc_gfx_clock" => if let Some(p) = parse_pair(val) { app.oc_gfx_clock = p; applied += 1; },
-            "oc_mem_clock" => if let Some(p) = parse_pair(val) { app.oc_mem_clock = p; applied += 1; },
-            "oc_power_limit" => if let Some(p) = parse_pair(val) { app.oc_power_limit = p; applied += 1; },
-            "power_limit_w" => if let Ok(n) = val.parse::<i32>() { app.power_limit_w = n; applied += 1; },
-            "tdc_gfx" => if let Ok(n) = val.parse::<i32>() { app.tdc_gfx = n; applied += 1; },
-            "tdc_soc" => if let Ok(n) = val.parse::<i32>() { app.tdc_soc = n; applied += 1; },
-            "volt_gfx" => if let Some(p) = parse_pair(val) { app.volt_gfx = p; applied += 1; },
-            "volt_soc" => if let Some(p) = parse_pair(val) { app.volt_soc = p; applied += 1; },
-            "freq_gfx" => if let Some(p) = parse_pair(val) { app.freq_gfx = p; applied += 1; },
-            "freq_soc" => if let Some(p) = parse_pair(val) { app.freq_soc = p; applied += 1; },
-            "freq_fclk" => if let Some(p) = parse_pair(val) { app.freq_fclk = p; applied += 1; },
-            "mem_dpm_freq" => {
-                for (i, tok) in val.split(',').take(4).enumerate() {
-                    if let Ok(n) = tok.trim().parse::<i32>() {
-                        app.mem_dpm_freq[i][0] = n;
-                    }
+            "od_feature_flags" => {
+                let f: Vec<bool> = val.split(',').filter_map(|x| x.trim().parse::<u8>().ok()).map(|n| n != 0).collect();
+                if f.len() >= 16 {
+                    app.gpu_clock_limit = f[0]; app.gpu_clock_curve = f[1]; app.memory_clock_limit = f[2]; app.zero_rpm = f[3];
+                    app.min_fan_speed = f[4]; app.fan_target_temp_limit = f[5]; app.operating_temp_limit = f[6]; app.fan_acoustic_rpm = f[7];
+                    app.fan_curve = f[8]; app.power_limit_feat = f[9]; app.timing_tuning = f[10]; app.power_mode = f[11];
+                    app.auto_undervolt_gpu = f[12]; app.auto_overclock_gpu = f[13]; app.auto_overclock_mem = f[14]; app.auto_fan_acoustic_limit = f[15];
+                    applied += 1;
                 }
-                applied += 1;
             }
-            "fan_pwm_min" => if let Ok(n) = val.parse::<i32>() { app.fan_pwm_min = n; applied += 1; },
-            "fan_acoustic_limit" => if let Ok(n) = val.parse::<i32>() { app.fan_acoustic_limit = n; applied += 1; },
-            "fan_throttling_rpm" => if let Ok(n) = val.parse::<i32>() { app.fan_throttling_rpm = n; applied += 1; },
-            "fan_max_rpm" => if let Ok(n) = val.parse::<i32>() { app.fan_max_rpm = n; applied += 1; },
-            "fan_target_temp" => if let Ok(n) = val.parse::<i32>() { app.fan_target_temp = n; applied += 1; },
+            "smu_features_mask" => {
+                let hex = val.strip_prefix("0x").or_else(|| val.strip_prefix("0X")).unwrap_or(val);
+                if let Ok(m) = u64::from_str_radix(hex, 16) {
+                    for (bit, slot) in app.smu_features.iter_mut().enumerate() { *slot = (m & (1u64 << bit)) != 0; }
+                    applied += 1;
+                }
+            }
+            "oc_gfx_clock" => if let Some(x) = p_i32(val) { app.oc_gfx_clock = x; applied += 1; },
+            "oc_mem_clock" => if let Some(x) = p_i32(val) { app.oc_mem_clock = x; applied += 1; },
+            "oc_power_limit" => if let Some(x) = p_i32(val) { app.oc_power_limit = x; applied += 1; },
+            "oc_fan_rpm" => if let Some(x) = p_i32(val) { app.oc_fan_rpm = x; applied += 1; },
+            "oc_fan_acoustic_rpm" => if let Some(x) = p_i32(val) { app.oc_fan_acoustic_rpm = x; applied += 1; },
+            "oc_mem_timing_ctrl" => if let Ok(n) = val.parse() { app.oc_mem_timing_ctrl = n; applied += 1; },
+            "oc_power_mode_ctrl" => if let Ok(n) = val.parse() { app.oc_power_mode_ctrl = n; applied += 1; },
+            "oc_zero_rpm_ctrl" => if let Ok(n) = val.parse() { app.oc_zero_rpm_ctrl = n; applied += 1; },
+            "pm_quiet" => if let Some(x) = p_i32(val) { app.pm_quiet = x; applied += 1; },
+            "pm_balanced" => if let Some(x) = p_i32(val) { app.pm_balanced = x; applied += 1; },
+            "pm_turbo" => if let Some(x) = p_i32(val) { app.pm_turbo = x; applied += 1; },
+            "pm_rage" => if let Some(x) = p_i32(val) { app.pm_rage = x; applied += 1; },
+            "ac_quiet" => if let Some(x) = p_i32(val) { app.ac_quiet = x; applied += 1; },
+            "ac_balanced" => if let Some(x) = p_i32(val) { app.ac_balanced = x; applied += 1; },
+            "ac_turbo" => if let Some(x) = p_i32(val) { app.ac_turbo = x; applied += 1; },
+            "ac_rage" => if let Some(x) = p_i32(val) { app.ac_rage = x; applied += 1; },
+            "power_limit_w" => if let Ok(n) = val.parse() { app.power_limit_w = n; applied += 1; },
+            "power_limit_ac" => { fill_slice(val, &mut app.power_limit_ac); applied += 1; },
+            "tdc_gfx" => if let Ok(n) = val.parse() { app.tdc_gfx = n; applied += 1; },
+            "tdc_soc" => if let Ok(n) = val.parse() { app.tdc_soc = n; applied += 1; },
+            "volt_gfx" => if let Some(x) = p_i32(val) { app.volt_gfx = x; applied += 1; },
+            "volt_soc" => if let Some(x) = p_i32(val) { app.volt_soc = x; applied += 1; },
+            "ulv_gfx" => if let Some(x) = p_i32(val) { app.ulv_gfx = x; applied += 1; },
+            "ulv_soc" => if let Some(x) = p_i32(val) { app.ulv_soc = x; applied += 1; },
+            "tvmin_gfx" => if let Some(x) = p_i32(val) { app.tvmin_gfx = x; applied += 1; },
+            "tvmin_soc" => if let Some(x) = p_i32(val) { app.tvmin_soc = x; applied += 1; },
+            "vmin_lh_gfx" => if let Some(x) = p_i32(val) { app.vmin_lh_gfx = x; applied += 1; },
+            "vmin_lh_soc" => if let Some(x) = p_i32(val) { app.vmin_lh_soc = x; applied += 1; },
+            "mem_dpm_freq" => { for (i, t) in val.split(',').take(4).enumerate() { if let Ok(n) = t.trim().parse() { app.mem_dpm_freq[i][0] = n; } } applied += 1; },
+            "mem_dpm_div" => { for (i, t) in val.split(',').take(4).enumerate() { if let Ok(n) = t.trim().parse() { app.mem_dpm_freq[i][1] = n; } } applied += 1; },
+            "mem_dpm_vddci" => { for (i, t) in val.split(',').take(4).enumerate() { if let Ok(n) = t.trim().parse() { app.mem_dpm_volt[i][0] = n; } } applied += 1; },
+            "mem_dpm_mvdd" => { for (i, t) in val.split(',').take(4).enumerate() { if let Ok(n) = t.trim().parse() { app.mem_dpm_volt[i][1] = n; } } applied += 1; },
+            "freq_gfx" => if let Some(x) = p_i32(val) { app.freq_gfx = x; applied += 1; },
+            "freq_soc" => if let Some(x) = p_i32(val) { app.freq_soc = x; applied += 1; },
+            "freq_vclk" => if let Some(x) = p_i32(val) { app.freq_vclk = x; applied += 1; },
+            "freq_dclk" => if let Some(x) = p_i32(val) { app.freq_dclk = x; applied += 1; },
+            "freq_dcefclk" => if let Some(x) = p_i32(val) { app.freq_dcefclk = x; applied += 1; },
+            "freq_dispclk" => if let Some(x) = p_i32(val) { app.freq_dispclk = x; applied += 1; },
+            "freq_pixclk" => if let Some(x) = p_i32(val) { app.freq_pixclk = x; applied += 1; },
+            "freq_phyclk" => if let Some(x) = p_i32(val) { app.freq_phyclk = x; applied += 1; },
+            "freq_dtbclk" => if let Some(x) = p_i32(val) { app.freq_dtbclk = x; applied += 1; },
+            "freq_fclk" => if let Some(x) = p_i32(val) { app.freq_fclk = x; applied += 1; },
+            "fclk_boost_freq" => if let Ok(n) = val.parse() { app.fclk_boost_freq = n; applied += 1; },
+            "pcie_gen_speed" => if let Some(x) = p_i32(val) { app.pcie_gen_speed = x; applied += 1; },
+            "pcie_lane_count" => if let Some(x) = p_i32(val) { app.pcie_lane_count = x; applied += 1; },
+            "lclk_mhz" => if let Some(x) = p_i32(val) { app.lclk_mhz = x; applied += 1; },
+            "static_volt_a" => if let Some(x) = p_f64(val) { app.static_volt_a = x; applied += 1; },
+            "static_volt_b" => if let Some(x) = p_f64(val) { app.static_volt_b = x; applied += 1; },
+            "static_volt_c" => if let Some(x) = p_f64(val) { app.static_volt_c = x; applied += 1; },
+            "static_off_a" => if let Some(x) = p_f64(val) { app.static_off_a = x; applied += 1; },
+            "static_off_b" => if let Some(x) = p_f64(val) { app.static_off_b = x; applied += 1; },
+            "static_off_c" => if let Some(x) = p_f64(val) { app.static_off_c = x; applied += 1; },
+            "dcbtc_en" => if let Some(x) = p_i32(val) { app.dcbtc_gfx_en = x[0] != 0; app.dcbtc_soc_en = x[1] != 0; applied += 1; },
+            "dcbtc_min" => if let Some(x) = p_f64(val) { app.dcbtc_min = x; applied += 1; },
+            "dcbtc_max" => if let Some(x) = p_f64(val) { app.dcbtc_max = x; applied += 1; },
+            "dcbtc_gb" => if let Some(x) = p_f64(val) { app.dcbtc_gb = x; applied += 1; },
+            "dctol" => if let Some(x) = p_i32(val) { app.dctol = x; applied += 1; },
+            "fan_pwm_min" => if let Ok(n) = val.parse() { app.fan_pwm_min = n; applied += 1; },
+            "fan_acoustic_limit" => if let Ok(n) = val.parse() { app.fan_acoustic_limit = n; applied += 1; },
+            "fan_throttling_rpm" => if let Ok(n) = val.parse() { app.fan_throttling_rpm = n; applied += 1; },
+            "fan_max_rpm" => if let Ok(n) = val.parse() { app.fan_max_rpm = n; applied += 1; },
+            "fan_mode" => if let Ok(n) = val.parse() { app.fan_mode = n; applied += 1; },
+            "fan_hyst_ctrl" => if let Ok(n) = val.parse() { app.fan_hyst_ctrl = n; applied += 1; },
+            "fan_target_temp" => if let Ok(n) = val.parse() { app.fan_target_temp = n; applied += 1; },
+            "fan_target_gfx_clock" => if let Ok(n) = val.parse() { app.fan_target_gfx_clock = n; applied += 1; },
             "fan_zero_rpm_enable" => if let Ok(n) = val.parse::<i32>() { app.fan_zero_rpm_enable = n != 0; applied += 1; },
-            "fan_stop_temp" => if let Ok(n) = val.parse::<i32>() { app.fan_stop_temp = n; applied += 1; },
-            "fan_start_temp" => if let Ok(n) = val.parse::<i32>() { app.fan_start_temp = n; applied += 1; },
-            "temp_limits" => {
-                for (i, tok) in val.split(',').take(9).enumerate() {
-                    if let Ok(n) = tok.trim().parse::<i32>() {
-                        app.temp_limits[i] = n;
-                    }
-                }
-                applied += 1;
-            }
+            "fan_stop_temp" => if let Ok(n) = val.parse() { app.fan_stop_temp = n; applied += 1; },
+            "fan_start_temp" => if let Ok(n) = val.parse() { app.fan_start_temp = n; applied += 1; },
+            "od_fan_temp" => if let Some(x) = p_i32(val) { app.od_fan_temp = x; applied += 1; },
+            "od_fan_speed" => if let Some(x) = p_i32(val) { app.od_fan_speed = x; applied += 1; },
+            "fan_curve_temp" => { fill_slice(val, &mut app.fan_curve_temp); applied += 1; },
+            "fan_curve_pwm" => { fill_slice(val, &mut app.fan_curve_pwm); applied += 1; },
+            "temp_limits" => { fill_slice(val, &mut app.temp_limits); applied += 1; },
             _ => {}
         }
     }
     app.sync_fields_to_buffer();
     Ok(applied)
 }
-
 
 #[cfg(test)]
 mod rdna2_sync_roundtrip_tests {
