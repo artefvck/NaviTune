@@ -67,13 +67,16 @@ sudo apt install ./dist/navitune_1.0.0_amd64.deb
 navitune
 ```
 
-## 6. Direct RAM Write, Power Profiles & Donor Tuning Import
+## 6. Human-Readable `.cfg` In-Place Patching, Direct RAM Write & Power Profiles
 
 In **More -> 3. Advance -> Linux**:
-- **Write to GPU (sysfs)**: Validates that the active buffer size matches `/sys/class/drm/cardX/device/pp_table` and writes the synced `PPTable` directly into kernel RAM via an elevated helper (`cp`). Changes take effect immediately without rebooting and automatically revert to factory VBIOS on reboot unless **Install** (`systemd` + `udev`) is enabled.
-- **Power Profile (`pp_power_profile_mode`)**: Reads the kernel `amdgpu` DPM heuristic profiles (`BOOTUP_DEFAULT`, `3D_FULL_SCREEN`, `POWER_SAVING`, `VIDEO`, `VR`, `COMPUTE`, `CUSTOM`) directly from `sysfs` and allows switching profiles live from the Linux Status table.
-- **Import Tuning Values Only...**: Imports clocks, voltages, power limits, and fan curves from a donor `.mpt`, `.rom`, `.bin`, `.plist`, or `.reg` profile onto the currently loaded native GPU table while preserving the native binary header and sub-table layout.
+- **Install (`.cfg` In-Place Patch + `systemd` Service)**: Instead of overwriting `/sys/class/drm/cardX/device/pp_table` with a static binary blob, NaviTune exports all 1:1 UI tuning variables into `/etc/navitune/ppt_override.cfg`. On boot, `xppt-pptable.service` runs `/usr/local/sbin/navitune-apply-ppt.sh`, which:
+  1. Checks `/proc/cmdline` for emergency bypass flags (`noppt`, `single`, `recovery`, `nomodeset`).
+  2. Waits via `loginctl` until a real desktop user session (`UID >= 1000`, skipping the `gdm` / `sddm` / `lightdm` login greeter) is active so the login screen never freezes during display modesetting.
+  3. Runs `navitune --apply-cfg /etc/navitune/ppt_override.cfg --target /sys/class/drm/cardX/device/pp_table` to patch the live kernel `pp_table` in-place while preserving native VBIOS headers and cold-boot GDDR6 training parameters, then automatically synchronizes `pp_od_clk_voltage` (`OD_SCLK` / `OD_MCLK`).
+- **Write to GPU (sysfs)**: Validates buffer size parity and writes the active `PPTable` directly into kernel RAM via an elevated `setsid` terminal session with automatic `OD_SCLK` synchronization.
+- **Power Profile (`pp_power_profile_mode`)**: Reads the kernel `amdgpu` DPM heuristic profiles (`BOOTUP_DEFAULT`, `3D_FULL_SCREEN`, `POWER_SAVING`, `VIDEO`, `VR`, `COMPUTE`, `CUSTOM`) directly from `sysfs` and allows switching profiles live.
 
-### RDNA 2 Undervolt & 500–800 MHz Clock-Lock Troubleshooting
-- **Always save a stock backup first**: After a fresh boot, select your GPU from the top dropdown (`Select GPU Path...`) and click **Save** (`stock_pp_table.bin`) before writing to `sysfs`, so you can restore factory defaults without rebooting.
-- **Avoid overly aggressive `Vmax` or `PPT0` drops**: On RDNA 2 (`Navi 21/22/23`), lowering `max_voltage_gfx` too far below the VBIOS V/F curve or setting `SocketPowerLimitAc` (`PPT0`) too low causes SMU to clamp `SCLK` at `500–800 MHz` under 3D load. Reduce `GFX Vmax` incrementally (`-25` to `-40 mV` from stock) and keep `PPT0` near `85%–95%` of stock TBP while verifying boost clocks with `glmark2` and `pp_dpm_sclk`.
+### RDNA 2 (`Navi 23`) Undervolt, GDDR6 Training & 500 MHz Clock-Lock Findings
+- **Never alter `mem_dpm_freq` (`UCLK DPM 0..3`) during runtime `sysfs` patching**: On RDNA 2 (`Navi 23`), GDDR6 PHY link training happens once during cold VBIOS initialization (`875 MHz` on RX 6600). Changing `mem_dpm_freq` at runtime causes SMU to lose GDDR6 PHY sync (resulting in a system freeze or a `500 MHz` SCLK failsafe lock). `navitune --apply-cfg` automatically preserves the live VBIOS `mem_dpm_freq` during runtime injection.
+- **AVFS / DCBTC Droop Window (`GFX Vmax` vs `MCLK 875 MHz`)**: When `UCLK` runs at peak `DPM 3` (`875 MHz`) within a `100 W` (`PPT0`) / `100 A` (`TDC GFX`) envelope, keeping `GFX Vmax` at stock `1150 mV` alongside a runtime-patched table can exceed the `DCBTC` droop guardband and trigger SMU's `500 MHz` discrete fallback. Lowering `GFX Vmax` to `1050–1100 mV` keeps the quadratic AVFS curve (`qStaticVoltageOffset`) inside the valid `DCBTC` window, unlocking full boost (`2400+ MHz`) at low power and temperatures.
