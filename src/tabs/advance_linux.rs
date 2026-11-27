@@ -112,9 +112,20 @@ impl PowerPlayApp {
                     if ui.button("Export pp_table (.bin)").clicked() {
                         self.save_ppt_file_with_default("pp_table.bin");
                     }
-                    if ui.button("Copy sysfs Apply Command").clicked() {
-                        ui.ctx().copy_text(format!("sudo dd if=pp_table.bin of=/sys/class/drm/{}/device/pp_table bs=65536", active_card));
-                        self.status_msg = "Copied Linux sysfs pp_table apply command to clipboard".into();
+                    if ui.button("Write to GPU (sysfs)")
+                        .on_hover_text("Write synced PowerPlayTable directly to /sys/class/drm/cardX/device/pp_table (temporary until reboot)")
+                        .clicked()
+                    {
+                        self.sync_fields_to_buffer();
+                        let sel_lbl = self.gpus.get(self.selected_gpu).cloned().unwrap_or_default();
+                        match write_linux_sysfs_ppt(&self.raw_buffer, &sel_lbl) {
+                            Ok(msg) => {
+                                crate::ui_theme::log_debug("LINUX_SYSFS", &msg);
+                                self.status_msg = msg;
+                                self.refresh_ioreg_gpus();
+                            }
+                            Err(err) => self.show_error("Linux sysfs Write Error", &err),
+                        }
                     }
                 });
             });
