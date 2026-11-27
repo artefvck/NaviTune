@@ -113,6 +113,92 @@ pub(crate) fn delete_ppt_from_windows_registry(_selected_label: &str) -> Result<
     Err("Direct regedit delete is only available when running on Windows.".into())
 }
 
+#[cfg(target_os = "windows")]
+pub(crate) fn restart_windows_gpu_driver(selected_label: &str) -> Result<String, String> {
+    use std::os::windows::process::CommandExt;
+    use std::process::Command;
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+    let base = r"HKLM\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}";
+    let sub = resolve_windows_amd_subkey(selected_label);
+    let full_key = format!(r"{}\{}", base, sub);
+
+    let target_match_id = crate::platform::run_cmd_bounded(
+        Command::new("reg")
+            .creation_flags(CREATE_NO_WINDOW)
+            .args(["query", &full_key, "/v", "MatchingDeviceId"]),
+        1500,
+    )
+    .ok()
+    .and_then(|out| {
+        String::from_utf8_lossy(&out.stdout)
+            .lines()
+            .find(|l| l.contains("MatchingDeviceId"))
+            .and_then(|l| l.split_whitespace().last())
+            .map(|s| s.to_ascii_uppercase())
+    })
+    .unwrap_or_default();
+
+    let enum_out = crate::platform::run_cmd_bounded(
+        Command::new("pnputil")
+            .creation_flags(CREATE_NO_WINDOW)
+            .args(["/enum-devices", "/class", "Display", "/connected"]),
+        3000,
+    )
+    .map_err(|e| format!("Failed to launch pnputil.exe: {}", e))?;
+
+    let enum_txt = String::from_utf8_lossy(&enum_out.stdout);
+    let mut chosen_instance: Option<String> = None;
+    let mut fallback_amd_instance: Option<String> = None;
+
+    for line in enum_txt.lines() {
+        let trimmed = line.trim();
+        if let Some((_, val)) = trimmed.split_once(':') {
+            let id = val.trim();
+            let upper = id.to_ascii_uppercase();
+            if upper.starts_with(r"PCI\VEN_1002") {
+                if !target_match_id.is_empty() && upper.starts_with(&target_match_id) {
+                    chosen_instance = Some(id.to_string());
+                    break;
+                }
+                if fallback_amd_instance.is_none() {
+                    fallback_amd_instance = Some(id.to_string());
+                }
+            }
+        }
+    }
+
+    let instance_id = chosen_instance
+        .or(fallback_amd_instance)
+        .ok_or_else(|| "No active AMD Display adapter found via pnputil".to_string())?;
+
+    let restart_out = crate::platform::run_cmd_bounded(
+        Command::new("pnputil")
+            .creation_flags(CREATE_NO_WINDOW)
+            .args(["/restart-device", &instance_id]),
+        8000,
+    )
+    .map_err(|e| format!("Failed to execute pnputil /restart-device: {}", e))?;
+
+    if restart_out.status.success() {
+        Ok(format!("Restarted AMD GPU driver ({})", instance_id))
+    } else {
+        let stderr = String::from_utf8_lossy(&restart_out.stderr).trim().to_string();
+        let stdout = String::from_utf8_lossy(&restart_out.stdout).trim().to_string();
+        let detail = if !stderr.is_empty() { stderr } else { stdout };
+        Err(if detail.is_empty() {
+            "pnputil /restart-device failed (run NaviTune as Administrator)".into()
+        } else {
+            format!("pnputil /restart-device failed: {}", detail)
+        })
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+pub(crate) fn restart_windows_gpu_driver(_selected_label: &str) -> Result<String, String> {
+    Err("GPU driver restart is only available when running on Windows.".into())
+}
+
 #[cfg(target_os = "linux")]
 fn is_linux_effective_root() -> bool {
     std::fs::read_to_string("/proc/self/status")
