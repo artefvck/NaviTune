@@ -87,6 +87,23 @@ impl PowerPlayApp {
                             Err(err) => self.show_error("Windows Registry Delete Error", &err),
                         }
                     }
+                    if ui.button("Restart GPU Driver").clicked() {
+                        let prev_sel = self.selected_gpu;
+                        let sel_lbl = self.gpus.get(prev_sel).cloned().unwrap_or_default();
+                        match restart_windows_gpu_driver(&sel_lbl) {
+                            Ok(msg) => {
+                                crate::ui_theme::log_debug("WIN_DRV", &msg);
+                                self.status_msg = msg;
+                                self.refresh_ioreg_gpus();
+                                if prev_sel < self.ioreg_entries.len() {
+                                    self.selected_gpu = prev_sel;
+                                } else if !self.ioreg_entries.is_empty() {
+                                    self.selected_gpu = 0;
+                                }
+                            }
+                            Err(err) => self.show_error("Windows GPU Driver Restart Error", &err),
+                        }
+                    }
                     if ui.button("Export Windows .reg / .mpt").clicked() {
                         self.save_ppt_file_with_default("custom_ppt.reg");
                     }
