@@ -33,10 +33,18 @@ impl PowerPlayApp {
                     ui.monospace(format!("{} / {}", gfxoff as u8, baco as u8));
                     ui.colored_label(egui::Color32::from_rgb(130, 180, 255), if gfxoff { "Power Saving" } else { "Compute" });
                     ui.end_row();
-                    let card_id = sel_lbl.split("(").nth(1).and_then(|s| s.split_whitespace().next()).filter(|s| s.starts_with("card")).unwrap_or("card0");
+                    #[cfg(target_os = "linux")]
+                    let card_id = detect_linux_card(&sel_lbl);
+                    #[cfg(not(target_os = "linux"))]
+                    let card_id = "card0".to_string();
+                    let sysfs_target = format!("/sys/class/drm/{}/device/pp_table", card_id);
+                    let sysfs_ok = !cfg!(target_os = "linux") || std::path::Path::new(&sysfs_target).exists();
                     ui.label("sysfs Target");
-                    ui.monospace(format!("{}/device/pp_table", card_id));
-                    ui.colored_label(egui::Color32::from_rgb(80, 210, 120), "READY");
+                    ui.monospace(&sysfs_target);
+                    ui.colored_label(
+                        if sysfs_ok { egui::Color32::from_rgb(80, 210, 120) } else { egui::Color32::from_rgb(245, 185, 65) },
+                        if sysfs_ok { "READY" } else { "SET PPFEATUREMASK" },
+                    );
                     ui.end_row();
                     let (sync_detail, sync_badge, sync_color) = check_linux_ppt_sync(&sel_lbl);
                     ui.label("Config Sync");
@@ -45,28 +53,37 @@ impl PowerPlayApp {
                     ui.end_row();
                 });
             });
-        
+
             draw_card(ui, "Linux sysfs Export", |ui| {
-                ui.label("Export pp_table binary or copy sysfs command for /sys/class/drm/card0/device/pp_table:");
+                #[cfg(target_os = "linux")]
+                let card_id = detect_linux_card(&sel_lbl);
+                #[cfg(not(target_os = "linux"))]
+                let card_id = "card0".to_string();
+                let sysfs_target = format!("/sys/class/drm/{}/device/pp_table", card_id);
+                ui.label(format!("Export pp_table binary or apply directly to {}:", sysfs_target));
                 ui.add_space(8.0);
                 ui.horizontal_wrapped(|ui| {
                     if ui.button("Install").clicked() {
                         self.sync_fields_to_buffer();
-                        let sel_lbl = self.gpus.get(self.selected_gpu).cloned().unwrap_or_default();
-                        match install_linux_ppt(&self.raw_buffer, &sel_lbl) {
+                        let prev = self.selected_gpu;
+                        let lbl = self.gpus.get(prev).cloned().unwrap_or_default();
+                        match install_linux_ppt(&self.raw_buffer, &lbl) {
                             Ok(msg) => {
                                 self.status_msg = msg;
                                 self.refresh_ioreg_gpus();
+                                if prev < self.ioreg_entries.len() { self.selected_gpu = prev; }
                             }
                             Err(err) => self.show_error("Linux Install Error", &err),
                         }
                     }
                     if ui.button("Uninstall").clicked() {
-                        let sel_lbl = self.gpus.get(self.selected_gpu).cloned().unwrap_or_default();
-                        match uninstall_linux_ppt(&sel_lbl) {
+                        let prev = self.selected_gpu;
+                        let lbl = self.gpus.get(prev).cloned().unwrap_or_default();
+                        match uninstall_linux_ppt(&lbl) {
                             Ok(msg) => {
                                 self.status_msg = msg;
                                 self.refresh_ioreg_gpus();
+                                if prev < self.ioreg_entries.len() { self.selected_gpu = prev; }
                             }
                             Err(err) => self.show_error("Linux Uninstall Error", &err),
                         }
@@ -75,11 +92,10 @@ impl PowerPlayApp {
                         self.save_ppt_file_with_default("pp_table.bin");
                     }
                     if ui.button("Copy sysfs Apply Command").clicked() {
-                        ui.ctx().copy_text("sudo cp pp_table.bin /sys/class/drm/card0/device/pp_table".to_string());
-                        self.status_msg = "Copied Linux sysfs pp_table apply command to clipboard".into();
+                        ui.ctx().copy_text(format!("sudo tee {} < pp_table.bin > /dev/null", sysfs_target));
+                        self.status_msg = format!("Copied sysfs apply command for {} to clipboard", sysfs_target);
                     }
                 });
             });
-        
     }
 }

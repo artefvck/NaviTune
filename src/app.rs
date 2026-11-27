@@ -82,7 +82,7 @@ impl Default for PowerPlayApp {
             telemetry_stop: None,
             telemetry_data: std::sync::Arc::new(std::sync::Mutex::new(crate::gpu_telemetry::GpuTelemetry::default())),
             active_tab: Tab::Features,
-            advance_os_tab: AdvanceOsTab::MacOS, raw_buffer: Vec::new(),
+            advance_os_tab: if cfg!(target_os = "linux") { AdvanceOsTab::Linux } else if cfg!(target_os = "windows") { AdvanceOsTab::Windows } else { AdvanceOsTab::MacOS }, raw_buffer: Vec::new(),
             baseline_buffer: Vec::new(),
             show_save_diff_modal: false,
             baseline_gen: 0,

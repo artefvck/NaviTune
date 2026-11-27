@@ -1,3 +1,4 @@
+#[cfg(target_os = "macos")]
 use std::process::Command;
 
 #[derive(Clone, Debug)]
@@ -216,8 +217,15 @@ pub fn scan_ioreg_gpus() -> Vec<IoregGpuEntry> {
                         .find(|l| l.starts_with("PCI_SLOT_NAME="))
                         .map(|l| l.trim_start_matches("PCI_SLOT_NAME="))
                         .unwrap_or(&name);
+                    let did_raw = std::fs::read_to_string(dev_dir.join("device")).unwrap_or_default();
+                    let did_str = did_raw.trim().trim_start_matches("0x").trim_start_matches("0X");
+                    let did_tag = if did_str.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" [DID 0x{}]", did_str.to_ascii_uppercase())
+                    };
                     results.push(IoregGpuEntry {
-                        label: format!("AMD Radeon GPU ({} / {})", name, slot),
+                        label: format!("AMD Radeon GPU{} ({} / {})", did_tag, name, slot),
                         ppt_bytes: bytes,
                     });
                 }

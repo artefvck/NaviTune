@@ -114,14 +114,52 @@ pub(crate) fn delete_ppt_from_windows_registry(_selected_label: &str) -> Result<
 }
 
 #[cfg(target_os = "linux")]
+fn is_linux_effective_root() -> bool {
+    std::fs::read_to_string("/proc/self/status")
+        .ok()
+        .and_then(|st| {
+            st.lines()
+                .find(|l| l.starts_with("Uid:"))
+                .and_then(|l| l.split_whitespace().nth(2))
+                .map(|u| u == "0")
+        })
+        .unwrap_or(false)
+}
+
+#[cfg(target_os = "linux")]
 pub(crate) fn detect_linux_card(selected_label: &str) -> String {
-    selected_label
+    if let Some(c) = selected_label
         .split('(')
         .nth(1)
-        .and_then(|s| s.split_whitespace().next())
-        .filter(|s| s.starts_with("card") && s[4..].chars().all(|c| c.is_ascii_digit()))
-        .unwrap_or("card0")
-        .to_string()
+        .and_then(|x| x.split_whitespace().next())
+        .filter(|x| x.starts_with("card") && x[4..].chars().all(|c| c.is_ascii_digit()))
+    {
+        return c.to_string();
+    }
+    if let Ok(entries) = std::fs::read_dir("/sys/class/drm") {
+        let mut cards: Vec<String> = entries
+            .flatten()
+            .filter_map(|e| {
+                let n = e.file_name().to_string_lossy().into_owned();
+                if n.starts_with("card")
+                    && !n.contains('-')
+                    && std::fs::read_to_string(e.path().join("device/vendor"))
+                        .unwrap_or_default()
+                        .trim()
+                        .eq_ignore_ascii_case("0x1002")
+                {
+                    Some(n)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        cards.sort();
+        if let Some(first) = cards.into_iter().next() {
+            return first;
+        }
+    }
+    "card0".to_string()
 }
 
 #[cfg(target_os = "linux")]
@@ -129,32 +167,57 @@ pub(crate) fn install_linux_ppt(ppt_bytes: &[u8], selected_label: &str) -> Resul
     use std::process::Command;
     let card = detect_linux_card(selected_label);
     let sysfs_ppt = format!("/sys/class/drm/{}/device/pp_table", card);
-    let tmp_bin = "/tmp/xppt_pp_table.bin";
-    std::fs::write(tmp_bin, ppt_bytes).map_err(|e| format!("Failed writing temp file: {}", e))?;
-
+    if !std::path::Path::new(&sysfs_ppt).exists() {
+        return Err(format!(
+            "{} not found.
+Add amdgpu.ppfeaturemask=0xffffffff to GRUB_CMDLINE_LINUX_DEFAULT in /etc/default/grub, run sudo update-grub, and reboot.",
+            sysfs_ppt
+        ));
+    }
+    let pid = std::process::id();
+    let tmp_bin = format!("/tmp/navitune_pp_table_{}.bin", pid);
+    let tmp_unit = format!("/tmp/navitune-pptable-{}.service", pid);
+    std::fs::write(&tmp_bin, ppt_bytes).map_err(|e| format!("Failed writing temp file: {}", e))?;
     let unit = format!(
-        "[Unit]\nDescription=Apply NaviTune Soft PowerPlay Table\nAfter=systemd-modules-load.service\n\n[Service]\nType=oneshot\nExecStart=/bin/sh -c 'cat /etc/xppt/pp_table.bin > {}'\nRemainAfterExit=yes\n\n[Install]\nWantedBy=multi-user.target\n",
+        "[Unit]
+Description=Apply NaviTune Soft PowerPlay Table
+After=systemd-modules-load.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c '[ -w {0} ] && cat /etc/xppt/pp_table.bin > {0}'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+",
         sysfs_ppt
     );
-    let tmp_unit = "/tmp/xppt-pptable.service";
-    std::fs::write(tmp_unit, unit).map_err(|e| format!("Failed writing temp unit: {}", e))?;
-
+    if let Err(e) = std::fs::write(&tmp_unit, unit) {
+        let _ = std::fs::remove_file(&tmp_bin);
+        return Err(format!("Failed writing temp unit: {}", e));
+    }
     let script = format!(
-        "mkdir -p /etc/xppt && cp {} /etc/xppt/pp_table.bin && cp {} /etc/systemd/system/xppt-pptable.service && systemctl daemon-reload && systemctl enable xppt-pptable.service && cat /etc/xppt/pp_table.bin > {} && cmp -s /etc/xppt/pp_table.bin {}",
-        tmp_bin, tmp_unit, sysfs_ppt, sysfs_ppt
+        "set -e; mkdir -p /etc/xppt; install -m 0644 {0} /etc/xppt/pp_table.bin; install -m 0644 {1} /etc/systemd/system/xppt-pptable.service; systemctl daemon-reload; systemctl enable xppt-pptable.service; cat /etc/xppt/pp_table.bin > {2}; cmp -s /etc/xppt/pp_table.bin {2}",
+        tmp_bin, tmp_unit, sysfs_ppt
     );
-
-    let is_root = std::fs::metadata("/root").map(|_| true).unwrap_or(false) && std::env::var("USER").unwrap_or_default() == "root";
-    let status = if is_root {
-        Command::new("sh").args(["-c", &script]).status()
+    let out = if is_linux_effective_root() {
+        Command::new("sh").args(["-c", &script]).output()
     } else {
-        Command::new("pkexec").args(["sh", "-c", &script]).status()
-    }.map_err(|e| format!("Failed to execute privilege helper: {}", e))?;
-
-    if status.success() {
+        Command::new("pkexec").args(["sh", "-c", &script]).output()
+    };
+    let _ = std::fs::remove_file(&tmp_bin);
+    let _ = std::fs::remove_file(&tmp_unit);
+    let out = out.map_err(|e| format!("Failed to execute pkexec: {}", e))?;
+    if out.status.success() {
         Ok(format!("Installed & applied PP_PhmSoftPowerPlayTable ({} B) to {} + systemd service", ppt_bytes.len(), sysfs_ppt))
     } else {
-        Err("Install failed (ensure amdgpu.ppfeaturemask=0xffffffff is set and authentication succeeded)".into())
+        let err = String::from_utf8_lossy(&out.stderr).trim().to_string();
+        Err(if err.is_empty() {
+            "Install failed (ensure amdgpu.ppfeaturemask=0xffffffff is set and polkit auth succeeded)".into()
+        } else {
+            format!("Linux install failed: {}", err)
+        })
     }
 }
 
@@ -167,18 +230,21 @@ pub(crate) fn uninstall_linux_ppt(selected_label: &str) -> Result<String, String
         "systemctl disable --now xppt-pptable.service 2>/dev/null || true; rm -f /etc/systemd/system/xppt-pptable.service /etc/xppt/pp_table.bin; systemctl daemon-reload; [ -w {} ] && echo auto > {} || true",
         dpm_lvl, dpm_lvl
     );
-
-    let is_root = std::env::var("USER").unwrap_or_default() == "root";
-    let status = if is_root {
-        Command::new("sh").args(["-c", &script]).status()
+    let out = if is_linux_effective_root() {
+        Command::new("sh").args(["-c", &script]).output()
     } else {
-        Command::new("pkexec").args(["sh", "-c", &script]).status()
-    }.map_err(|e| format!("Failed to execute privilege helper: {}", e))?;
-
-    if status.success() {
+        Command::new("pkexec").args(["sh", "-c", &script]).output()
+    }
+    .map_err(|e| format!("Failed to execute pkexec: {}", e))?;
+    if out.status.success() {
         Ok(format!("Uninstalled xppt-pptable.service & reverted {} (reboot to fully reload stock VBIOS table)", card))
     } else {
-        Err("Uninstall failed or authentication cancelled".into())
+        let err = String::from_utf8_lossy(&out.stderr).trim().to_string();
+        Err(if err.is_empty() {
+            "Uninstall failed or authentication cancelled".into()
+        } else {
+            format!("Uninstall failed: {}", err)
+        })
     }
 }
 
