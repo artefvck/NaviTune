@@ -26,6 +26,9 @@ In **More -> 3. Advance -> Linux**:
 - **Uninstall**: Disables `xppt-pptable.service`, removes `/etc/xppt/pp_table.bin`, and resets `power_dpm_force_performance_level` to `auto` (reboot to reload stock VBIOS tables).
 - **Config Sync**: Verifies byte-for-byte parity between the editor buffer and the live `sysfs` `pp_table`.
 
+
+> **Note on `sysfs` `pp_table` writes:** Because `amdgpu`'s `pp_table` node requires a single contiguous `write()` syscall of the exact table size (e.g., `2470 B`) and does not support truncation, use `sudo dd if=pp_table.bin of=/sys/class/drm/cardX/device/pp_table bs=65536` rather than `cp` or `>`. Changes written via `sysfs` live purely in kernel RAM and automatically revert to stock VBIOS on reboot unless `xppt-pptable.service` is installed.
+
 ## 3. Live Hardware Telemetry (`sysfs` & `hwmon`)
 
 NaviTune polls AMD GPU sensors directly from `/sys/class/drm/cardX/device/`:
