@@ -1,3 +1,4 @@
+pub mod classic;
 pub mod calc;
 pub mod advance_linux;
 pub mod advance_macos;
