@@ -30,10 +30,7 @@ impl PowerPlayApp {
                 self.status_msg = "Copied full Inspect report to clipboard.".to_string();
             }
             if ui.button("Export Inspect (.txt)").clicked() {
-                if let Some(path) = rfd::FileDialog::new()
-                    .set_file_name("navitune_inspect.txt")
-                    .add_filter("Text Report (*.txt)", &["txt"])
-                    .save_file()
+                if let Some(path) = crate::io::save_file_dialog("Save File", Some("navitune_inspect.txt"), &[("Text Report (*.txt)", &["txt"])])
                 {
                     match crate::io::write_atomic(&path, full_report.as_bytes()) {
                         Ok(_) => self.status_msg = format!("Exported Inspect report to {}", path.display()),

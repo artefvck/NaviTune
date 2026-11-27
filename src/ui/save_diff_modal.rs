@@ -176,9 +176,7 @@ impl PowerPlayApp {
                 ui.add_space(10.0);
                 ui.horizontal(|ui| {
                     if ui.button("Export PPTable (.bin)").clicked() {
-                        if let Some(path) = rfd::FileDialog::new()
-                            .set_file_name("pp_table_patched.bin")
-                            .save_file()
+                        if let Some(path) = crate::io::save_file_dialog("Save File", Some("pp_table_patched.bin"), &[])
                         {
                             if let Err(e) = std::fs::write(&path, &self.raw_buffer) {
                                 self.status_msg = format!("Save error: {}", e);
@@ -195,9 +193,7 @@ impl PowerPlayApp {
                                 Ok(patched_rom) => {
                                     match crate::ui_theme::verify_atombios_rom(&orig_rom, &patched_rom, off, self.raw_buffer.len()) {
                                         Ok((blk, csum, diff_cnt)) => {
-                                            if let Some(path) = rfd::FileDialog::new()
-                                                .set_file_name("vbios_patched.rom")
-                                                .save_file()
+                                            if let Some(path) = crate::io::save_file_dialog("Save File", Some("vbios_patched.rom"), &[])
                                             {
                                                 if let Err(e) = crate::io::write_atomic(&path, &patched_rom) {
                                                     self.status_msg = format!("ROM write error: {}", e);

@@ -52,7 +52,7 @@ Version: ${VERSION}
 Section: utils
 Priority: optional
 Architecture: ${DEB_ARCH}
-Depends: libc6, libgcc-s1, libgtk-3-0, libxcb1, libxkbcommon0, policykit-1 | pkexec
+Depends: libc6, libgcc-s1, libgtk-3-0, libxcb1, libxkbcommon0, zenity | kdialog, policykit-1 | pkexec
 Maintainer: NaviTune Contributors
 Description: AMD Radeon PowerPlay Table & VBIOS Editor
  Inspect, edit, validate, and export AMD Polaris, Vega, and RDNA 1-3 PowerPlay Tables.

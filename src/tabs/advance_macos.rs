@@ -113,10 +113,7 @@ impl PowerPlayApp {
                     }
                     if ui.button("Export .plist").clicked() {
                         self.sync_fields_to_buffer();
-                        if let Some(path) = rfd::FileDialog::new()
-                            .set_file_name("DeviceProperties.plist")
-                            .add_filter("OpenCore Property List (*.plist)", &["plist"])
-                            .save_file()
+                        if let Some(path) = crate::io::save_file_dialog("Save File", Some("DeviceProperties.plist"), &[("OpenCore Property List (*.plist)", &["plist"])])
                         {
                             let acpi_path = detect_live_acpi_gpu_path(&sel_lbl);
                             let plist = crate::export_formats::format_opencore_plist_with_key(&self.raw_buffer, &acpi_path, key_lbl);
@@ -128,9 +125,7 @@ impl PowerPlayApp {
                     }
                     if ui.button("Export Injector .kext").clicked() {
                         self.sync_fields_to_buffer();
-                        if let Some(path) = rfd::FileDialog::new()
-                            .set_file_name("RadeonPowerPlayInjector.kext")
-                            .save_file()
+                        if let Some(path) = crate::io::save_file_dialog("Save File", Some("RadeonPowerPlayInjector.kext"), &[])
                         {
                             match export_macos_injector_kext(&self.raw_buffer, &path) {
                                 Ok(msg) => self.status_msg = msg,
@@ -166,11 +161,7 @@ impl PowerPlayApp {
                                 ui.horizontal(|ui| {
                                     if ui.button("Save .aml / .dsl...").clicked() {
                                         aml_modal_open = false;
-                                        if let Some(path) = rfd::FileDialog::new()
-                                            .set_file_name("SSDT-sPPT.aml")
-                                            .add_filter("Compiled ACPI Table (*.aml)", &["aml"])
-                                            .add_filter("ACPI Source Language (*.dsl)", &["dsl"])
-                                            .save_file()
+                                        if let Some(path) = crate::io::save_file_dialog("Save File", Some("SSDT-sPPT.aml"), &[("Compiled ACPI Table (*.aml)", &["aml"]), ("ACPI Source Language (*.dsl)", &["dsl"])])
                                         {
                                             let acpi_path = detect_live_acpi_gpu_path(&sel_lbl);
                                             let dsl = format_opencore_acpi_dsl(&self.raw_buffer, &acpi_path, dis_pc, dis_ulps);

@@ -5,7 +5,6 @@ mod vega;
 
 use crate::pptable_rdna2::AtomSmcDpmInfoV4_9;
 use crate::PowerPlayApp;
-use rfd::FileDialog;
 
 impl PowerPlayApp {
 
@@ -86,10 +85,7 @@ impl PowerPlayApp {
     }
 
     pub fn load_ppt_file(&mut self) {
-        if let Some(path) = FileDialog::new()
-            .add_filter("All PowerPlay & UPP Dumps", &["bin", "rom", "reg", "mpt", "plist", "pp_table", "ppt", "dat"])
-            .add_filter("All Files (*)", &["*"])
-            .pick_file()
+        if let Some(path) = crate::io::pick_file_dialog("Open File", &[("All PowerPlay & UPP Dumps", &["bin", "rom", "reg", "mpt", "plist", "pp_table", "ppt", "dat"]), ("All Files (*)", &["*"])])
         {
             let raw = match crate::io::read_bounded(&path) {
                 Ok(d) => d,
@@ -436,15 +432,7 @@ impl PowerPlayApp {
             self.show_error("Nothing to Save", "Please load a PowerPlay table (.bin, .rom, .reg, .mpt) or select a GPU from ioreg first.");
             return;
         }
-        if let Some(path) = FileDialog::new()
-            .set_file_name(default_name)
-            .add_filter("PowerPlay Binary (*.bin)", &["bin"])
-            .add_filter("Patched VBIOS ROM (*.rom)", &["rom"])
-            .add_filter("Windows Registry (*.reg)", &["reg"])
-            .add_filter("MorePowerTool Profile (*.mpt)", &["mpt"])
-            .add_filter("OpenCore DeviceProperties (*.plist)", &["plist"])
-            .add_filter("macOS Injector Kext (*.kext)", &["kext"])
-            .save_file()
+        if let Some(path) = crate::io::save_file_dialog("Save File", Some(default_name), &[("PowerPlay Binary (*.bin)", &["bin"]), ("Patched VBIOS ROM (*.rom)", &["rom"]), ("Windows Registry (*.reg)", &["reg"]), ("MorePowerTool Profile (*.mpt)", &["mpt"]), ("OpenCore DeviceProperties (*.plist)", &["plist"]), ("macOS Injector Kext (*.kext)", &["kext"])])
         {
             self.sync_fields_to_buffer();
             let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("bin").to_ascii_lowercase();
