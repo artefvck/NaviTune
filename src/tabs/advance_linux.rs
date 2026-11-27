@@ -119,7 +119,7 @@ impl PowerPlayApp {
                 if ui.button("Install").clicked() {
                         self.sync_fields_to_buffer();
                         let sel_lbl = self.gpus.get(self.selected_gpu).cloned().unwrap_or_default();
-                        match install_linux_ppt(&self.raw_buffer, &sel_lbl) {
+                        match install_linux_ppt(self, &sel_lbl) {
                             Ok(msg) => {
                                 self.status_msg = msg;
                                 self.refresh_ioreg_gpus();

@@ -248,68 +248,49 @@ pub(crate) fn write_linux_sysfs_ppt(_ppt_bytes: &[u8], _selected_label: &str, _g
 }
 
 #[cfg(target_os = "linux")]
-pub(crate) fn install_linux_ppt(ppt_bytes: &[u8], selected_label: &str) -> Result<String, String> {
-    if crate::ppt_arch::PptArch::detect(ppt_bytes) == crate::ppt_arch::PptArch::Unknown {
+pub(crate) fn install_linux_ppt(app: &crate::PowerPlayApp, selected_label: &str) -> Result<String, String> {
+    if crate::ppt_arch::PptArch::detect(&app.raw_buffer) == crate::ppt_arch::PptArch::Unknown {
         return Err("Refusing to install: buffer is not a valid AMD PowerPlayTable".into());
     }
 
     let card = detect_linux_card(selected_label);
-    let tmp_bin = "/tmp/xppt_pp_table.bin";
-    std::fs::write(tmp_bin, ppt_bytes).map_err(|e| format!("Failed writing temp file: {}", e))?;
+    let cfg_text = crate::io_ppt::format_tuning_cfg(app);
+    let tmp_cfg = "/tmp/navitune_ppt_override.cfg";
+    std::fs::write(tmp_cfg, &cfg_text).map_err(|e| format!("Failed writing temp config: {}", e))?;
 
-    let apply_sh = format!(
-        "#!/usr/bin/env bash\n\
-set -euo pipefail\n\
-# Safety bypass: skip if booted with 'noppt', 'single', 'recovery', or 'nomodeset'\n\
-if grep -Eq '(^| )(noppt|single|recovery|nomodeset)( |$)' /proc/cmdline; then exit 0; fi\n\
-MASK_FILE=/sys/module/amdgpu/parameters/ppfeaturemask\n\
-[ -r \"$MASK_FILE\" ] || exit 0\n\
-MASK=$(cat \"$MASK_FILE\")\n\
-if (( (MASK & 0x4000) == 0 )); then exit 0; fi\n\
-for dev in /sys/class/drm/card[0-9]*/device; do\n\
-  [ -f \"$dev/vendor\" ] || continue\n\
-  grep -qi '^0x1002$' \"$dev/vendor\" || continue\n\
-  if [ -w \"$dev/pp_od_clk_voltage\" ]; then\n\
-    {od_lines}\
-    printf 'c\n' > \"$dev/pp_od_clk_voltage\" 2>/dev/null || true\n\
-  fi\n\
-  {pwr_line}\
-done\n",
-        od_lines = {
-            let mut lines = String::new();
-            if ppt_bytes.len() >= 0x532 && ppt_bytes.get(2).copied().unwrap_or(0) >= 0x0F {
-                let g0 = u16::from_le_bytes([ppt_bytes[0x52E], ppt_bytes[0x52F]]);
-                let g1 = u16::from_le_bytes([ppt_bytes[0x530], ppt_bytes[0x531]]);
-                if g0 > 0 && g1 >= g0 {
-                    lines.push_str(&format!("printf 's 0 {}\n' > \"$dev/pp_od_clk_voltage\" 2>/dev/null || true\n    ", g0));
-                    lines.push_str(&format!("printf 's 1 {}\n' > \"$dev/pp_od_clk_voltage\" 2>/dev/null || true\n    ", g1));
-                }
-            }
-            lines
-        },
-        pwr_line = {
-            if ppt_bytes.len() >= 0x330 && ppt_bytes.get(2).copied().unwrap_or(0) >= 0x0F {
-                let w = u16::from_le_bytes([ppt_bytes[0x32E], ppt_bytes[0x32F]]) as u64;
-                if w >= 50 {
-                    format!("for cap in \"$dev\"/hwmon/hwmon*/power1_cap; do [ -w \"$cap\" ] && echo {} > \"$cap\" 2>/dev/null || true; done\n", w * 1_000_000)
-                } else {
-                    String::new()
-                }
-            } else {
-                String::new()
-            }
-        }
+    let apply_sh = concat!(
+        "#!/usr/bin/env bash\n",
+        "set -euo pipefail\n",
+        "if grep -Eq '(^| )(noppt|single|recovery|nomodeset)( |$)' /proc/cmdline; then exit 0; fi\n",
+        "CFG_FILE=/etc/navitune/ppt_override.cfg\n",
+        "[ -f \"$CFG_FILE\" ] || exit 0\n",
+        "MASK_FILE=/sys/module/amdgpu/parameters/ppfeaturemask\n",
+        "[ -r \"$MASK_FILE\" ] || exit 0\n",
+        "MASK=$(cat \"$MASK_FILE\")\n",
+        "if (( (MASK & 0x4000) == 0 )); then exit 0; fi\n",
+        "# Wait up to 60s until a desktop compositor is active so GDM login screen is never interrupted\n",
+        "for _ in $(seq 1 60); do\n",
+        "  if pgrep -x 'gnome-shell|kwin_wayland|kwin_x11|xfce4-session|cinnamon|mate-session|sway|hyprland|Xorg' >/dev/null 2>&1; then\n",
+        "    sleep 2\n",
+        "    break\n",
+        "  fi\n",
+        "  sleep 1\n",
+        "done\n",
+        "for dev in /sys/class/drm/card[0-9]*/device; do\n",
+        "  [ -f \"$dev/vendor\" ] && [ -w \"$dev/pp_table\" ] || continue\n",
+        "  grep -qi '^0x1002$' \"$dev/vendor\" || continue\n",
+        "  /usr/bin/navitune --apply-cfg \"$CFG_FILE\" --target \"$dev/pp_table\"\n",
+        "done\n"
     );
     let tmp_apply = "/tmp/navitune-apply-ppt.sh";
     std::fs::write(tmp_apply, apply_sh).map_err(|e| format!("Failed writing temp apply script: {}", e))?;
 
     let unit = concat!(
         "[Unit]\n",
-        "Description=Apply NaviTune Soft PowerPlay Table after amdgpu DRM init\n",
+        "Description=Patch NaviTune .cfg Tuning onto Live AMD PPTable after Desktop Session Init\n",
         "After=graphical.target\n\n",
         "[Service]\n",
         "Type=oneshot\n",
-        "ExecStartPre=/bin/sleep 3\n",
         "ExecStart=/usr/local/sbin/navitune-apply-ppt.sh\n",
         "RemainAfterExit=yes\n\n",
         "[Install]\n",
@@ -328,17 +309,17 @@ done\n",
     );
 
     let script = format!(
-        "mkdir -p /etc/xppt /usr/local/sbin && install -m 0644 {} /etc/xppt/pp_table.bin && install -m 0755 {} /usr/local/sbin/navitune-apply-ppt.sh && install -m 0644 {} /etc/systemd/system/xppt-pptable.service && udevadm control --reload-rules && systemctl daemon-reload && systemctl enable xppt-pptable.service && {}",
-        tmp_bin, tmp_apply, tmp_unit, grub_snippet
+        "mkdir -p /etc/navitune /usr/local/sbin && rm -f /etc/udev/rules.d/99-navitune-pptable.rules /etc/xppt/pp_table.bin && install -m 0644 {} /etc/navitune/ppt_override.cfg && install -m 0755 {} /usr/local/sbin/navitune-apply-ppt.sh && install -m 0644 {} /etc/systemd/system/xppt-pptable.service && udevadm control --reload-rules && systemctl daemon-reload && systemctl enable xppt-pptable.service && {}",
+        tmp_cfg, tmp_apply, tmp_unit, grub_snippet
     );
 
     std::thread::spawn(move || {
-        let _ = run_privileged_in_terminal_or_pkexec("NaviTune — Install Safe udev + systemd PowerPlayTable", &script);
+        let _ = run_privileged_in_terminal_or_pkexec("NaviTune — Install .cfg Override + systemd Service", &script);
     });
 
     Ok(format!(
-        "Terminal opened to install /etc/xppt/pp_table.bin ({} B) + udev/systemd for {} — REBOOT after terminal completes",
-        ppt_bytes.len(), card
+        "Terminal opened to install /etc/navitune/ppt_override.cfg for {} (in-place patch after desktop login)",
+        card
     ))
 }
 
@@ -346,27 +327,20 @@ done\n",
 pub(crate) fn uninstall_linux_ppt(selected_label: &str) -> Result<String, String> {
     let card = detect_linux_card(selected_label);
     let dpm_lvl = format!("/sys/class/drm/{}/device/power_dpm_force_performance_level", card);
-    let grub_clean = concat!(
-        r#"if [ -f /etc/default/grub ] && grep -q 'amdgpu\.ppfeaturemask=0xffffffff' /etc/default/grub; then "#,
-        r#"sed -i 's/ *amdgpu\.ppfeaturemask=0xffffffff//g' /etc/default/grub; "#,
-        r#"if command -v update-grub >/dev/null 2>&1; then update-grub; "#,
-        r#"elif command -v grub2-mkconfig >/dev/null 2>&1; then grub2-mkconfig -o /boot/grub2/grub.cfg; fi; "#,
-        r#"fi"#
-    );
     let script = format!(
-        "systemctl disable --now xppt-pptable.service 2>/dev/null || true; rm -f /etc/systemd/system/xppt-pptable.service /etc/udev/rules.d/99-navitune-pptable.rules /usr/local/sbin/navitune-apply-ppt.sh /etc/xppt/pp_table.bin; udevadm control --reload-rules 2>/dev/null || true; systemctl daemon-reload; {}; [ -w {} ] && echo auto > {} || true",
-        grub_clean, dpm_lvl, dpm_lvl
+        "systemctl disable --now xppt-pptable.service 2>/dev/null || true; rm -rf /etc/systemd/system/xppt-pptable.service /etc/udev/rules.d/99-navitune-pptable.rules /usr/local/sbin/navitune-apply-ppt.sh /etc/navitune /etc/xppt; udevadm control --reload-rules 2>/dev/null || true; systemctl daemon-reload; [ -w {} ] && echo auto > {} || true",
+        dpm_lvl, dpm_lvl
     );
 
     std::thread::spawn(move || {
-        let _ = run_privileged_in_terminal_or_pkexec("NaviTune — Uninstall Linux PowerPlayTable & Restore GRUB", &script);
+        let _ = run_privileged_in_terminal_or_pkexec("NaviTune — Uninstall Linux .cfg Override", &script);
     });
 
-    Ok(format!("Terminal opened to uninstall udev rule, service & GRUB mask for {}", card))
+    Ok(format!("Terminal opened to uninstall /etc/navitune/ppt_override.cfg for {}", card))
 }
 
 #[cfg(not(target_os = "linux"))]
-pub(crate) fn install_linux_ppt(_ppt_bytes: &[u8], _selected_label: &str) -> Result<String, String> {
+pub(crate) fn install_linux_ppt(_app: &crate::PowerPlayApp, _selected_label: &str) -> Result<String, String> {
     Err("Linux sysfs/systemd install is only available when running on Linux.".into())
 }
 
@@ -379,38 +353,52 @@ pub(crate) fn uninstall_linux_ppt(_selected_label: &str) -> Result<String, Strin
 pub(crate) fn check_linux_ppt_sync(selected_label: &str) -> (String, &'static str, egui::Color32) {
     let card = detect_linux_card(selected_label);
     let sysfs_path = format!("/sys/class/drm/{}/device/pp_table", card);
-    let etc_path = "/etc/xppt/pp_table.bin";
-    let etc_bytes = std::fs::read(etc_path).ok();
-    let sysfs_bytes = std::fs::read(&sysfs_path).ok();
-
-    match (etc_bytes, sysfs_bytes) {
-        (None, _) => (
-            "No /etc/xppt/pp_table.bin".into(),
+    let cfg_path = "/etc/navitune/ppt_override.cfg";
+    let Ok(cfg_txt) = std::fs::read_to_string(cfg_path) else {
+        return (
+            "No /etc/navitune/ppt_override.cfg".into(),
             "NOT INSTALLED",
             egui::Color32::from_rgb(150, 160, 180),
-        ),
-        (Some(_), None) => (
+        );
+    };
+    let Ok(sysfs_bytes) = std::fs::read(&sysfs_path) else {
+        return (
             format!("{} unreadable", sysfs_path),
             "SYSFS MISSING",
             egui::Color32::from_rgb(245, 75, 95),
-        ),
-        (Some(eb), Some(sb)) if eb == sb => (
-            format!("{} == {} ({} B)", sysfs_path, etc_path, sb.len()),
+        );
+    };
+    let mut live_app = crate::PowerPlayApp::default();
+    if live_app.load_bytes_for_path(std::path::Path::new("pp_table.bin"), sysfs_bytes, &sysfs_path).is_err() {
+        return ("Failed parsing live sysfs pp_table".into(), "ERROR", egui::Color32::from_rgb(245, 75, 95));
+    }
+    let mut expected_app = live_app.clone_tunables_snapshot();
+    if crate::io_ppt::apply_tuning_cfg_to_app(&mut expected_app, &cfg_txt).is_err() {
+        return ("Invalid /etc/navitune/ppt_override.cfg".into(), "CFG ERROR", egui::Color32::from_rgb(245, 75, 95));
+    }
+    if live_app.freq_gfx == expected_app.freq_gfx
+        && live_app.volt_gfx == expected_app.volt_gfx
+        && live_app.power_limit_w == expected_app.power_limit_w
+        && live_app.fan_target_temp == expected_app.fan_target_temp
+    {
+        (
+            format!("{} matches {} ({}..{} MHz, {} mV)", sysfs_path, cfg_path, live_app.freq_gfx[0], live_app.freq_gfx[1], live_app.volt_gfx[1]),
             "VERIFIED MATCH",
             egui::Color32::from_rgb(80, 210, 120),
-        ),
-        (Some(eb), Some(sb)) => (
-            format!("sysfs={} B vs etc={} B", sb.len(), eb.len()),
-            "MISMATCH (NOT APPLIED)",
-            egui::Color32::from_rgb(245, 75, 95),
-        ),
+        )
+    } else {
+        (
+            format!("sysfs ({:?} MHz, {} mV) != cfg ({:?} MHz, {} mV)", live_app.freq_gfx, live_app.volt_gfx[1], expected_app.freq_gfx, expected_app.volt_gfx[1]),
+            "PENDING REBOOT",
+            egui::Color32::from_rgb(245, 185, 65),
+        )
     }
 }
 
 #[cfg(not(target_os = "linux"))]
 pub(crate) fn check_linux_ppt_sync(_selected_label: &str) -> (String, &'static str, egui::Color32) {
     (
-        "/etc/xppt/pp_table.bin".into(),
+        "/etc/navitune/ppt_override.cfg".into(),
         "LINUX ONLY",
         egui::Color32::from_rgb(150, 160, 180),
     )
