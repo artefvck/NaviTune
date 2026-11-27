@@ -203,6 +203,7 @@ impl eframe::App for PowerPlayApp {
                     });
                     if ui.add_sized([82.0, 25.0], egui::Button::new("Reset All")).clicked() {
                         self.reset_all_values();
+                crate::ui::theme::append_debug_log("RESET", "User clicked Reset All");
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.button("Exit").clicked() {

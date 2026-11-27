@@ -135,7 +135,9 @@ pub(super) fn cmd_apply_cfg(cfg_path: &str, sysfs_target: &str) -> Result<(), St
     let orig_mem_freq = app.mem_dpm_freq;
     let n_keys = crate::io_ppt::apply_tuning_cfg_to_app(&mut app, &cfg_txt)?;
     if app.mem_dpm_freq != orig_mem_freq {
-        eprintln!("Warning: preserving native VBIOS mem_dpm_freq {:?} during live sysfs patch to prevent GDDR6 PHY hang", orig_mem_freq);
+        let warn_msg = format!("Preserved native VBIOS mem_dpm_freq {:?} during live sysfs patch (GDDR6 PHY guard)", orig_mem_freq);
+        eprintln!("Warning: {}", warn_msg);
+        crate::ui::theme::append_debug_log("WARN", &warn_msg);
         app.mem_dpm_freq = orig_mem_freq;
         app.sync_fields_to_buffer();
     }
@@ -158,6 +160,8 @@ pub(super) fn cmd_apply_cfg(cfg_path: &str, sysfs_target: &str) -> Result<(), St
             let _ = std::fs::write(&od_path, "c\n");
         }
     }
-    println!("Patched {} ({} B, {} .cfg keys) -> {}", sysfs_target, app.raw_buffer.len(), n_keys, cfg_path);
+    let ok_msg = format!("Applied .cfg ({} keys) in-place to {} ({} B | GFX {}..{} MHz, {}..{} mV, {} W)", n_keys, sysfs_target, app.raw_buffer.len(), app.freq_gfx[0], app.freq_gfx[1], app.volt_gfx[0], app.volt_gfx[1], app.power_limit_w);
+    println!("{}", ok_msg);
+    crate::ui::theme::append_debug_log("LINUX_CFG", &ok_msg);
     Ok(())
 }

@@ -503,6 +503,30 @@ pub fn verify_atombios_rom(
     Ok((block_size, patched_rom[0x21], changed))
 }
 
+pub fn append_debug_log(tag: &str, msg: &str) {
+    use std::io::Write;
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
+    let dir = std::path::PathBuf::from(home).join(".config").join("navitune");
+    let _ = std::fs::create_dir_all(&dir);
+    let path = dir.join("debug.log");
+    if let Ok(meta) = std::fs::metadata(&path) {
+        if meta.len() > 512 * 1024 {
+            let _ = std::fs::write(&path, "");
+        }
+    }
+    let ts = std::process::Command::new("date")
+        .args(["-u", "+%Y-%m-%d %H:%M:%SZ"])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .unwrap_or_else(|| "0000-00-00 00:00:00Z".into());
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+        let _ = writeln!(f, "[{}] [{:<13}] {}", ts, tag, msg);
+    }
+}
+
+
 #[cfg(test)]
 mod theme_palette_tests {
     use super::tinted_badge_fill;
