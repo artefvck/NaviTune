@@ -9,7 +9,7 @@ Cross-platform desktop GUI and headless CLI tool for inspecting, auditing, and t
 - **Cross-Platform OS Integration**:
   - **macOS (Hackintosh / eGPU)**: Export OpenCore `DeviceProperties` `.plist` (`PP,PhmSoftPowerPlayTable`), copy Base64 or continuous no-space Hex (`ProperTree` / `OCC`), generate codeless injector `.kext` bundles, or compile ACPI `SSDT-sPPT.aml`.
   - **Windows**: Native UAC Administrator manifest (`requireAdministrator`), console-free GUI release builds with `AttachConsole` CLI fallback, real-time AMD ADL (`atiadlxx.dll`) + PDH sensor telemetry, direct Registry (`HKLM` `PP_PhmSoftPowerPlayTable`) write/delete, and MorePowerTool `.mpt` (with PCI Device ID header) & `.reg` import/export.
-  - **Linux**: Read/write `amdgpu` `sysfs` `pp_table` overrides with `POWER_CONTAINMENT`, `DPM_GFXCLK`, `GFXOFF`, and `BACO` status checks.
+    - **Linux (Ubuntu / Debian)**: Read/write `amdgpu` `sysfs` `pp_table` overrides with `systemd` boot persistence (`xppt-pptable.service`), `ppfeaturemask` (`0x4000`) & `Config Sync` checks, `hwmon` (`amdgpu`) sensor + Zero RPM telemetry, portal-safe `zenity`/`kdialog` file dialogs, and `.deb` packaging (`build_linux.sh`).
 - **Headless CLI (`navitune`)**: Inspect, audit UI-vs-struct offset parity, diff two ROMs/tables, and apply calibrated presets (`quiet-undervolt`, `balanced-oc`, `auto-fix`) directly from the terminal.
 
 ## Quick Start
@@ -44,6 +44,8 @@ Platform packaging scripts are included in the repository root (`build_macos.sh`
 ## Documentation
 - [User Guide](doc/USER_GUIDE.md) — Loading ROMs/profiles, factory baseline tracking, Safe Tune, and Pre-Save Diff
 - [Architecture Overview](doc/ARCHITECTURE.md) — Single-source-of-truth offset maps and module boundaries
+- [Cross-OS Installation & Deployment Guide](doc/CROSS_OS_INSTALL.md) — Step-by-step setup for Linux (`.deb`/`systemd`), Windows (UAC/Registry), and macOS (OpenCore/`.kext`/`.aml`)
+- [Linux & Ubuntu Integration Guide](doc/LINUX_GUIDE.md) — `amdgpu.ppfeaturemask`, `systemd` service, `hwmon` telemetry & `.deb` packaging
 - [Deployment & Cross-Platform Build](doc/DEPLOYMENT.md) — Packaging `.app`, Linux binaries, and Windows `.exe`
 - Silicon Binary Layouts: [Polaris](doc/POLARIS_PPTABLE.md) · [Vega 10 & 20](doc/VEGA_PPTABLE.md) · [RDNA 1](doc/RDNA1_PPTABLE.md) · [RDNA 2](doc/RDNA2_PPTABLE.md) · [RDNA 3](doc/RDNA3_PPTABLE.md)
 

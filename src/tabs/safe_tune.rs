@@ -130,9 +130,15 @@ impl PowerPlayApp {
         }
 
         let (disp_gen, disp_lanes) = arch.decode_pcie_link(self.pcie_gen_speed[1], self.pcie_lane_count[1]);
-        let pcie_sev = if disp_gen > 4 || disp_lanes > expected_lanes { 2 } else if disp_gen < 4 || disp_lanes < expected_lanes { 1 } else { 0 };
+        let lane_enum_bad = !(1..=6).contains(&self.pcie_lane_count[0]) || !(1..=6).contains(&self.pcie_lane_count[1]);
+        let pcie_sev = if lane_enum_bad || disp_gen > 4 || disp_lanes > expected_lanes { 2 } else if disp_gen < 4 || disp_lanes < expected_lanes { 1 } else { 0 };
         if arch.has_pcie_and_lclk_limits() && (self.pcie_gen_speed[1] > 0 || self.pcie_lane_count[1] > 0) {
-        checks.push(("PCIe Bus", "Link Gen & Lane Width", format!("Gen {} x{} lanes", disp_gen, disp_lanes), format!("Gen 4 x{} lanes (Silicon Native)", expected_lanes), pcie_sev, "Navi 21/22/31/32 use PCIe 4.0 x16; Navi 23/33 use x8; Navi 24 uses x4."));
+            let actual_str = if lane_enum_bad {
+                format!("Invalid Lane Enum ({}/{}) -> decoded x{}", self.pcie_lane_count[0], self.pcie_lane_count[1], disp_lanes)
+            } else {
+                format!("Gen {} x{} lanes", disp_gen, disp_lanes)
+            };
+            checks.push(("PCIe Bus", "Link Gen & Lane Width", actual_str, format!("Gen 4 x{} lanes (Silicon Native)", expected_lanes), pcie_sev, "PCIe Lanes uses SMU enum 1..=6 (1=x1, 2=x2, 3=x4, 4=x8, 5=x12, 6=x16). Navi 23/33 native max is code 4 (x8)."));
         }
 
         let prot_ok = arch.smu_protection_bits().iter().all(|&b| self.smu_features.get(b).copied().unwrap_or(true));

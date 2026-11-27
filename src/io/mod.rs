@@ -38,3 +38,113 @@ pub(crate) fn read_bounded(path: &std::path::Path) -> std::io::Result<Vec<u8>> {
     }
     std::fs::read(path)
 }
+
+#[cfg(target_os = "linux")]
+fn linux_zenity_or_kdialog_pick(title: &str, filters: &[(&str, &[&str])]) -> Option<Option<std::path::PathBuf>> {
+    use std::process::Command;
+    if let Ok(out) = Command::new("zenity")
+        .arg("--file-selection")
+        .arg(format!("--title={}", title))
+        .args(filters.iter().map(|(name, exts)| {
+            let pat = exts.iter().map(|e| format!("*.{}", e)).collect::<Vec<_>>().join(" ");
+            format!("--file-filter={} | {}", name, pat)
+        }))
+        .arg("--file-filter=All Files | *")
+        .output()
+    {
+        if out.status.success() {
+            let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            return Some(if path.is_empty() { None } else { Some(std::path::PathBuf::from(path)) });
+        }
+        if out.status.code() == Some(1) {
+            return Some(None);
+        }
+    }
+    if let Ok(out) = Command::new("kdialog")
+        .arg("--getopenfilename")
+        .arg(".")
+        .arg(format!("--title={}", title))
+        .output()
+    {
+        if out.status.success() {
+            let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            return Some(if path.is_empty() { None } else { Some(std::path::PathBuf::from(path)) });
+        }
+        if out.status.code() == Some(1) {
+            return Some(None);
+        }
+    }
+    None
+}
+
+#[cfg(target_os = "linux")]
+fn linux_zenity_or_kdialog_save(title: &str, default_name: Option<&str>, filters: &[(&str, &[&str])]) -> Option<Option<std::path::PathBuf>> {
+    use std::process::Command;
+    let mut cmd = Command::new("zenity");
+    cmd.arg("--file-selection")
+        .arg("--save")
+        .arg("--confirm-overwrite")
+        .arg(format!("--title={}", title));
+    if let Some(name) = default_name {
+        cmd.arg(format!("--filename={}", name));
+    }
+    for (name, exts) in filters {
+        let pat = exts.iter().map(|e| format!("*.{}", e)).collect::<Vec<_>>().join(" ");
+        cmd.arg(format!("--file-filter={} | {}", name, pat));
+    }
+    cmd.arg("--file-filter=All Files | *");
+    if let Ok(out) = cmd.output() {
+        if out.status.success() {
+            let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            return Some(if path.is_empty() { None } else { Some(std::path::PathBuf::from(path)) });
+        }
+        if out.status.code() == Some(1) {
+            return Some(None);
+        }
+    }
+    let mut kcmd = Command::new("kdialog");
+    kcmd.arg("--getsavefilename")
+        .arg(default_name.unwrap_or("."))
+        .arg(format!("--title={}", title));
+    if let Ok(out) = kcmd.output() {
+        if out.status.success() {
+            let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            return Some(if path.is_empty() { None } else { Some(std::path::PathBuf::from(path)) });
+        }
+        if out.status.code() == Some(1) {
+            return Some(None);
+        }
+    }
+    None
+}
+
+pub fn pick_file_dialog(title: &str, filters: &[(&str, &[&str])]) -> Option<std::path::PathBuf> {
+    #[cfg(target_os = "linux")]
+    if let Some(res) = linux_zenity_or_kdialog_pick(title, filters) {
+        return res;
+    }
+    let mut dlg = rfd::FileDialog::new().set_title(title);
+    for (name, exts) in filters {
+        dlg = dlg.add_filter(*name, exts);
+    }
+    dlg.pick_file()
+}
+
+pub fn save_file_dialog(
+    title: &str,
+    default_name: Option<&str>,
+    filters: &[(&str, &[&str])],
+) -> Option<std::path::PathBuf> {
+    #[cfg(target_os = "linux")]
+    if let Some(res) = linux_zenity_or_kdialog_save(title, default_name, filters) {
+        return res;
+    }
+    let mut dlg = rfd::FileDialog::new().set_title(title);
+    if let Some(name) = default_name {
+        dlg = dlg.set_file_name(name);
+    }
+    for (name, exts) in filters {
+        dlg = dlg.add_filter(*name, exts);
+    }
+    dlg.save_file()
+}

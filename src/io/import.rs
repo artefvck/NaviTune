@@ -92,6 +92,12 @@ pub fn parse_mpt_ppt(raw: &[u8]) -> Result<Vec<u8>, String> {
             }
         }
     }
+    if raw.len() >= 4
+        && u16::from_le_bytes([raw[0], raw[1]]) as usize == raw.len()
+        && crate::pptable_rdna1::PptArch::detect(raw) != crate::pptable_rdna1::PptArch::Unknown
+    {
+        return Ok(raw.to_vec());
+    }
     Err("Could not find <PowerPlayTable> or <SoftPowerPlayTable> payload in .mpt file".into())
 }
 

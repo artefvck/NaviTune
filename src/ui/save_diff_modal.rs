@@ -175,18 +175,12 @@ impl PowerPlayApp {
 
                 ui.add_space(10.0);
                 ui.horizontal(|ui| {
-                    if ui.button("Export PPTable (.bin)").clicked() {
-                        if let Some(path) = rfd::FileDialog::new()
-                            .set_file_name("pp_table_patched.bin")
-                            .save_file()
-                        {
-                            if let Err(e) = std::fs::write(&path, &self.raw_buffer) {
-                                self.status_msg = format!("Save error: {}", e);
-                            } else {
-                                self.baseline_buffer = self.raw_buffer.clone();
-                                self.status_msg = format!("Saved {} B -> {}", self.raw_buffer.len(), path.display());
-                                close_modal = true;
-                            }
+                    if ui.button("Save As (.bin/.mpt/.reg/.plist/.rom)...").clicked() {
+                        let before = self.status_msg.clone();
+                        self.save_ppt_file_with_default("pp_table_patched.bin");
+                        if self.status_msg != before && self.status_msg.starts_with("Saved to ") {
+                            self.baseline_buffer = self.raw_buffer.clone();
+                            close_modal = true;
                         }
                     }
                     if let (Some(orig_rom), Some(off)) = (self.vbios_buffer.clone(), self.vbios_ppt_offset) {
@@ -195,10 +189,11 @@ impl PowerPlayApp {
                                 Ok(patched_rom) => {
                                     match crate::ui_theme::verify_atombios_rom(&orig_rom, &patched_rom, off, self.raw_buffer.len()) {
                                         Ok((blk, csum, diff_cnt)) => {
-                                            if let Some(path) = rfd::FileDialog::new()
-                                                .set_file_name("vbios_patched.rom")
-                                                .save_file()
-                                            {
+                                            if let Some(path) = crate::io::save_file_dialog(
+                                                "Save Patched VBIOS ROM",
+                                                Some("vbios_patched.rom"),
+                                                &[("Patched VBIOS ROM (*.rom)", &["rom"])],
+                                            ) {
                                                 if let Err(e) = crate::io::write_atomic(&path, &patched_rom) {
                                                     self.status_msg = format!("ROM write error: {}", e);
                                                 } else if std::fs::read(&path).ok().as_deref() != Some(patched_rom.as_slice()) {
@@ -213,7 +208,10 @@ impl PowerPlayApp {
                                                     self.show_error(
                                                         "VBIOS ROM Verified & Saved",
                                                         &format!(
-                                                            "File: {}\n{}\n\nChecksum ATOMBIOS (0x21) valid dan read-back disk cocok 100%.",
+                                                            "File: {}
+{}
+
+Checksum ATOMBIOS (0x21) valid dan read-back disk cocok 100%.",
                                                             path.display(),
                                                             tag
                                                         ),

@@ -172,10 +172,7 @@ impl eframe::App for PowerPlayApp {
                             if ui.button("OpenCore DeviceProperties (.plist)").clicked() {
                                 self.sync_fields_to_buffer();
                                 let sel_lbl = self.gpus.get(self.selected_gpu).cloned().unwrap_or_default();
-                                if let Some(path) = rfd::FileDialog::new()
-                                    .set_file_name("DeviceProperties.plist")
-                                    .add_filter("OpenCore Property List (*.plist)", &["plist"])
-                                    .save_file()
+                                if let Some(path) = crate::io::save_file_dialog("Save File", Some("DeviceProperties.plist"), &[("OpenCore Property List (*.plist)", &["plist"])])
                                 {
                                     let acpi_path = crate::advance_os::detect_live_acpi_gpu_path(&sel_lbl);
                                     let plist = crate::export_formats::format_opencore_plist_with_key(&self.raw_buffer, &acpi_path, "PP,PhmSoftPowerPlayTable");
@@ -188,9 +185,7 @@ impl eframe::App for PowerPlayApp {
                             }
                             if ui.button("macOS Injector (.kext)").clicked() {
                                 self.sync_fields_to_buffer();
-                                if let Some(path) = rfd::FileDialog::new()
-                                    .set_file_name("RadeonPowerPlayInjector.kext")
-                                    .save_file()
+                                if let Some(path) = crate::io::save_file_dialog("Save File", Some("RadeonPowerPlayInjector.kext"), &[])
                                 {
                                     match crate::advance_os::export_macos_injector_kext(&self.raw_buffer, &path) {
                                         Ok(msg) => self.status_msg = msg,

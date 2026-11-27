@@ -33,10 +33,20 @@ impl PowerPlayApp {
                     ui.monospace(format!("{} / {}", gfxoff as u8, baco as u8));
                     ui.colored_label(egui::Color32::from_rgb(130, 180, 255), if gfxoff { "Power Saving" } else { "Compute" });
                     ui.end_row();
-                    let card_id = sel_lbl.split("(").nth(1).and_then(|s| s.split_whitespace().next()).filter(|s| s.starts_with("card")).unwrap_or("card0");
+                    let card_id = sel_lbl.split("(").nth(1).and_then(|s| s.split_whitespace().next()).filter(|s| s.starts_with("card")).map(str::to_string).unwrap_or_else(|| "card0".to_string());
                     ui.label("sysfs Target");
                     ui.monospace(format!("{}/device/pp_table", card_id));
                     ui.colored_label(egui::Color32::from_rgb(80, 210, 120), "READY");
+                    ui.end_row();
+                    let (mask_detail, mask_badge, mask_color) = check_linux_ppfeaturemask();
+                    ui.label("ppfeaturemask");
+                    ui.monospace(mask_detail);
+                    ui.colored_label(mask_color, mask_badge);
+                    ui.end_row();
+                    let (svc_detail, svc_badge, svc_color) = check_linux_systemd_service();
+                    ui.label("Boot Service");
+                    ui.monospace(svc_detail);
+                    ui.colored_label(svc_color, svc_badge);
                     ui.end_row();
                     let (sync_detail, sync_badge, sync_color) = check_linux_ppt_sync(&sel_lbl);
                     ui.label("Config Sync");
@@ -47,7 +57,12 @@ impl PowerPlayApp {
             });
         
             draw_card(ui, "Linux sysfs Export", |ui| {
-                ui.label("Export pp_table binary or copy sysfs command for /sys/class/drm/card0/device/pp_table:");
+                let active_card = self.gpus.get(self.selected_gpu)
+                    .and_then(|s| s.split('(').nth(1))
+                    .and_then(|s| s.split_whitespace().next())
+                    .filter(|s| s.starts_with("card"))
+                    .map(str::to_string).unwrap_or_else(|| "card0".to_string());
+                ui.label(format!("Export pp_table binary or copy sysfs command for /sys/class/drm/{}/device/pp_table:", active_card));
                 ui.add_space(8.0);
                 ui.horizontal_wrapped(|ui| {
                     if ui.button("Install").clicked() {
@@ -75,7 +90,7 @@ impl PowerPlayApp {
                         self.save_ppt_file_with_default("pp_table.bin");
                     }
                     if ui.button("Copy sysfs Apply Command").clicked() {
-                        ui.ctx().copy_text("sudo cp pp_table.bin /sys/class/drm/card0/device/pp_table".to_string());
+                        ui.ctx().copy_text(format!("sudo dd if=pp_table.bin of=/sys/class/drm/{}/device/pp_table bs=65536", active_card));
                         self.status_msg = "Copied Linux sysfs pp_table apply command to clipboard".into();
                     }
                 });
