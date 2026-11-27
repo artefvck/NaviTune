@@ -56,6 +56,82 @@ static PENDING_DIALOG_RESULT: std::sync::Mutex<Option<(FileDialogAction, std::pa
 static DIALOG_IN_FLIGHT: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 
+
+#[cfg(target_os = "linux")]
+fn linux_spawned_zenity_or_kdialog_pick(title: &str, filters: &[(&str, &[&str])]) -> Option<Option<std::path::PathBuf>> {
+    use std::process::Command;
+    let mut zcmd = Command::new("zenity");
+    zcmd.arg("--file-selection").arg(format!("--title={}", title));
+    for (name, exts) in filters {
+        if !exts.is_empty() && *exts != ["*"] {
+            let pat = exts.iter().map(|e| format!("*.{}", e)).collect::<Vec<_>>().join(" ");
+            zcmd.arg(format!("--file-filter={} | {}", name, pat));
+        } else {
+            zcmd.arg(format!("--file-filter={} | *", name));
+        }
+    }
+    if let Ok(out) = zcmd.output() {
+        if out.status.success() {
+            let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            return Some(if path.is_empty() { None } else { Some(std::path::PathBuf::from(path)) });
+        }
+        if out.status.code() == Some(1) {
+            return Some(None);
+        }
+    }
+    let mut kcmd = Command::new("kdialog");
+    kcmd.args(["--getopenfilename", ".", "--title", title]);
+    if let Ok(out) = kcmd.output() {
+        if out.status.success() {
+            let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            return Some(if path.is_empty() { None } else { Some(std::path::PathBuf::from(path)) });
+        }
+        if out.status.code() == Some(1) {
+            return Some(None);
+        }
+    }
+    None
+}
+
+#[cfg(target_os = "linux")]
+fn linux_spawned_zenity_or_kdialog_save(title: &str, default_name: Option<&str>, filters: &[(&str, &[&str])]) -> Option<Option<std::path::PathBuf>> {
+    use std::process::Command;
+    let mut zcmd = Command::new("zenity");
+    zcmd.arg("--file-selection").arg("--save").arg("--confirm-overwrite").arg(format!("--title={}", title));
+    if let Some(def) = default_name {
+        zcmd.arg(format!("--filename={}", def));
+    }
+    for (name, exts) in filters {
+        if !exts.is_empty() && *exts != ["*"] {
+            let pat = exts.iter().map(|e| format!("*.{}", e)).collect::<Vec<_>>().join(" ");
+            zcmd.arg(format!("--file-filter={} | {}", name, pat));
+        } else {
+            zcmd.arg(format!("--file-filter={} | *", name));
+        }
+    }
+    if let Ok(out) = zcmd.output() {
+        if out.status.success() {
+            let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            return Some(if path.is_empty() { None } else { Some(std::path::PathBuf::from(path)) });
+        }
+        if out.status.code() == Some(1) {
+            return Some(None);
+        }
+    }
+    let mut kcmd = Command::new("kdialog");
+    kcmd.args(["--getsavefilename", default_name.unwrap_or("."), "--title", title]);
+    if let Ok(out) = kcmd.output() {
+        if out.status.success() {
+            let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            return Some(if path.is_empty() { None } else { Some(std::path::PathBuf::from(path)) });
+        }
+        if out.status.code() == Some(1) {
+            return Some(None);
+        }
+    }
+    None
+}
+
 pub fn spawn_pick_file_dialog(
     action: FileDialogAction,
     title: &str,
@@ -71,12 +147,24 @@ pub fn spawn_pick_file_dialog(
         .map(|(n, exts)| (n.to_string(), exts.iter().map(|e| e.to_string()).collect()))
         .collect();
     std::thread::spawn(move || {
+        #[allow(unused_mut)]
         let mut dlg = rfd::FileDialog::new().set_title(&title_s);
         for (name, exts) in &owned_filters {
             let ext_refs: Vec<&str> = exts.iter().map(|s| s.as_str()).collect();
             dlg = dlg.add_filter(name, &ext_refs);
         }
-        if let Some(path) = dlg.pick_file() {
+        #[cfg(target_os = "linux")]
+        let picked = {
+            let refs: Vec<(&str, Vec<&str>)> = owned_filters.iter().map(|(n, exts)| (n.as_str(), exts.iter().map(|e| e.as_str()).collect())).collect();
+            let slice_refs: Vec<(&str, &[&str])> = refs.iter().map(|(n, v)| (*n, v.as_slice())).collect();
+            match linux_spawned_zenity_or_kdialog_pick(&title_s, &slice_refs) {
+                Some(res) => res,
+                None => dlg.pick_file(),
+            }
+        };
+        #[cfg(not(target_os = "linux"))]
+        let picked = dlg.pick_file();
+        if let Some(path) = picked {
             if let Ok(mut guard) = PENDING_DIALOG_RESULT.lock() {
                 *guard = Some((action, path));
             }
@@ -102,6 +190,7 @@ pub fn spawn_save_file_dialog(
         .map(|(n, exts)| (n.to_string(), exts.iter().map(|e| e.to_string()).collect()))
         .collect();
     std::thread::spawn(move || {
+        #[allow(unused_mut)]
         let mut dlg = rfd::FileDialog::new().set_title(&title_s);
         if let Some(ref name) = def_s {
             dlg = dlg.set_file_name(name);
@@ -110,7 +199,18 @@ pub fn spawn_save_file_dialog(
             let ext_refs: Vec<&str> = exts.iter().map(|s| s.as_str()).collect();
             dlg = dlg.add_filter(name, &ext_refs);
         }
-        if let Some(path) = dlg.save_file() {
+        #[cfg(target_os = "linux")]
+        let saved = {
+            let refs: Vec<(&str, Vec<&str>)> = owned_filters.iter().map(|(n, exts)| (n.as_str(), exts.iter().map(|e| e.as_str()).collect())).collect();
+            let slice_refs: Vec<(&str, &[&str])> = refs.iter().map(|(n, v)| (*n, v.as_slice())).collect();
+            match linux_spawned_zenity_or_kdialog_save(&title_s, def_s.as_deref(), &slice_refs) {
+                Some(res) => res,
+                None => dlg.save_file(),
+            }
+        };
+        #[cfg(not(target_os = "linux"))]
+        let saved = dlg.save_file();
+        if let Some(path) = saved {
             if let Ok(mut guard) = PENDING_DIALOG_RESULT.lock() {
                 *guard = Some((action, path));
             }
