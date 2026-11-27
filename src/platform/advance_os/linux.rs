@@ -113,30 +113,74 @@ pub(crate) fn detect_linux_card(selected_label: &str) -> String {
 }
 
 #[cfg(target_os = "linux")]
+fn is_ppfeaturemask_unlocked() -> bool {
+    let Ok(raw) = std::fs::read_to_string("/sys/module/amdgpu/parameters/ppfeaturemask") else {
+        return false;
+    };
+    let raw = raw.trim();
+    let parsed = if let Some(hex) = raw.strip_prefix("0x").or_else(|| raw.strip_prefix("0X")) {
+        u64::from_str_radix(hex, 16).ok()
+    } else {
+        raw.parse::<u64>().ok()
+    };
+    parsed.map(|m| (m & 0x4000) != 0).unwrap_or(false)
+}
+
+#[cfg(target_os = "linux")]
 pub(crate) fn install_linux_ppt(ppt_bytes: &[u8], selected_label: &str) -> Result<String, String> {
     use std::process::Command;
+    if crate::ppt_arch::PptArch::detect(ppt_bytes) == crate::ppt_arch::PptArch::Unknown {
+        return Err("Refusing to install: buffer is not a valid AMD PowerPlayTable".into());
+    }
+
     let card = detect_linux_card(selected_label);
     let sysfs_ppt = format!("/sys/class/drm/{}/device/pp_table", card);
     let tmp_bin = "/tmp/xppt_pp_table.bin";
     std::fs::write(tmp_bin, ppt_bytes).map_err(|e| format!("Failed writing temp file: {}", e))?;
 
-    if crate::ppt_arch::PptArch::detect(ppt_bytes) == crate::ppt_arch::PptArch::Unknown {
-        return Err("Refusing to install: buffer is not a valid AMD PowerPlayTable".into());
-    }
-
     let unit = format!(
-        "[Unit]\nDescription=Apply NaviTune Soft PowerPlay Table\nAfter=systemd-udev-settle.service\nWants=systemd-udev-settle.service\nBefore=display-manager.service\n\n[Service]\nType=oneshot\nExecStart=/usr/bin/dd if=/etc/xppt/pp_table.bin of={} bs=65536\nRemainAfterExit=yes\n\n[Install]\nWantedBy=multi-user.target\n",
+        "[Unit]
+Description=Apply NaviTune Soft PowerPlay Table
+After=systemd-udev-settle.service
+Wants=systemd-udev-settle.service
+Before=display-manager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/dd if=/etc/xppt/pp_table.bin of={} bs=65536
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+",
         sysfs_ppt
     );
     let tmp_unit = "/tmp/xppt-pptable.service";
     std::fs::write(tmp_unit, unit).map_err(|e| format!("Failed writing temp unit: {}", e))?;
 
-    let script = format!(
-        "mkdir -p /etc/xppt && install -m 0644 {} /etc/xppt/pp_table.bin && install -m 0644 {} /etc/systemd/system/xppt-pptable.service && systemctl daemon-reload && systemctl enable xppt-pptable.service && /usr/bin/dd if=/etc/xppt/pp_table.bin of={} bs=65536 && cmp -s /etc/xppt/pp_table.bin {}",
-        tmp_bin, tmp_unit, sysfs_ppt, sysfs_ppt
+    let already_unlocked = is_ppfeaturemask_unlocked();
+    let grub_snippet = concat!(
+        r#"if [ -f /etc/default/grub ] && ! grep -q 'amdgpu\.ppfeaturemask=' /etc/default/grub; then "#,
+        r#"cp -n /etc/default/grub /etc/default/grub.navitune.bak 2>/dev/null || true; "#,
+        r#"sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"/GRUB_CMDLINE_LINUX_DEFAULT="\1 amdgpu.ppfeaturemask=0xffffffff"/' /etc/default/grub; "#,
+        r#"if command -v update-grub >/dev/null 2>&1; then update-grub; "#,
+        r#"elif command -v grub2-mkconfig >/dev/null 2>&1; then grub2-mkconfig -o /boot/grub2/grub.cfg; fi; "#,
+        r#"fi"#
     );
 
-    let is_root = std::fs::metadata("/root").map(|_| true).unwrap_or(false) && std::env::var("USER").unwrap_or_default() == "root";
+    let script = if already_unlocked {
+        format!(
+            "mkdir -p /etc/xppt && install -m 0644 {} /etc/xppt/pp_table.bin && install -m 0644 {} /etc/systemd/system/xppt-pptable.service && systemctl daemon-reload && systemctl enable xppt-pptable.service && {} && /usr/bin/dd if=/etc/xppt/pp_table.bin of={} bs=65536 && cmp -s /etc/xppt/pp_table.bin {}",
+            tmp_bin, tmp_unit, grub_snippet, sysfs_ppt, sysfs_ppt
+        )
+    } else {
+        format!(
+            "mkdir -p /etc/xppt && install -m 0644 {} /etc/xppt/pp_table.bin && install -m 0644 {} /etc/systemd/system/xppt-pptable.service && systemctl daemon-reload && systemctl enable xppt-pptable.service && {}",
+            tmp_bin, tmp_unit, grub_snippet
+        )
+    };
+
+    let is_root = std::env::var("USER").unwrap_or_default() == "root";
     let status = if is_root {
         Command::new("sh").args(["-c", &script]).status()
     } else {
@@ -144,9 +188,13 @@ pub(crate) fn install_linux_ppt(ppt_bytes: &[u8], selected_label: &str) -> Resul
     }.map_err(|e| format!("Failed to execute privilege helper: {}", e))?;
 
     if status.success() {
-        Ok(format!("Installed & applied PP_PhmSoftPowerPlayTable ({} B) to {} + systemd service", ppt_bytes.len(), sysfs_ppt))
+        if already_unlocked {
+            Ok(format!("Installed & applied PP_PhmSoftPowerPlayTable ({} B) to {} + systemd service", ppt_bytes.len(), sysfs_ppt))
+        } else {
+            Ok(format!("Installed xppt-pptable.service ({} B) + added amdgpu.ppfeaturemask=0xffffffff to GRUB — please REBOOT once to activate", ppt_bytes.len()))
+        }
     } else {
-        Err("Install failed (ensure amdgpu.ppfeaturemask=0xffffffff is set and authentication succeeded)".into())
+        Err("Install failed or authentication cancelled".into())
     }
 }
 
@@ -155,9 +203,16 @@ pub(crate) fn uninstall_linux_ppt(selected_label: &str) -> Result<String, String
     use std::process::Command;
     let card = detect_linux_card(selected_label);
     let dpm_lvl = format!("/sys/class/drm/{}/device/power_dpm_force_performance_level", card);
+    let grub_clean = concat!(
+        r#"if [ -f /etc/default/grub ] && grep -q 'amdgpu\.ppfeaturemask=0xffffffff' /etc/default/grub; then "#,
+        r#"sed -i 's/ *amdgpu\.ppfeaturemask=0xffffffff//g' /etc/default/grub; "#,
+        r#"if command -v update-grub >/dev/null 2>&1; then update-grub; "#,
+        r#"elif command -v grub2-mkconfig >/dev/null 2>&1; then grub2-mkconfig -o /boot/grub2/grub.cfg; fi; "#,
+        r#"fi"#
+    );
     let script = format!(
-        "systemctl disable --now xppt-pptable.service 2>/dev/null || true; rm -f /etc/systemd/system/xppt-pptable.service /etc/xppt/pp_table.bin; systemctl daemon-reload; [ -w {} ] && echo auto > {} || true",
-        dpm_lvl, dpm_lvl
+        "systemctl disable --now xppt-pptable.service 2>/dev/null || true; rm -f /etc/systemd/system/xppt-pptable.service /etc/xppt/pp_table.bin; systemctl daemon-reload; {}; [ -w {} ] && echo auto > {} || true",
+        grub_clean, dpm_lvl, dpm_lvl
     );
 
     let is_root = std::env::var("USER").unwrap_or_default() == "root";
@@ -168,7 +223,7 @@ pub(crate) fn uninstall_linux_ppt(selected_label: &str) -> Result<String, String
     }.map_err(|e| format!("Failed to execute privilege helper: {}", e))?;
 
     if status.success() {
-        Ok(format!("Uninstalled xppt-pptable.service & reverted {} (reboot to fully reload stock VBIOS table)", card))
+        Ok(format!("Uninstalled xppt-pptable.service & cleaned GRUB mask for {} (reboot to fully reload stock VBIOS table)", card))
     } else {
         Err("Uninstall failed or authentication cancelled".into())
     }
