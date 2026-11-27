@@ -177,17 +177,6 @@ impl PowerPlayApp {
             return;
         }
 
-        // Clean all UI fields to default before populating from the newly loaded table
-        let saved_vbios = self.vbios_buffer.take();
-        let saved_voff = self.vbios_ppt_offset.take();
-        let saved_file = self.loaded_file.take();
-        let saved_gpu = self.selected_gpu;
-        self.reset_all_values();
-        self.vbios_buffer = saved_vbios;
-        self.vbios_ppt_offset = saved_voff;
-        self.loaded_file = saved_file;
-        self.selected_gpu = saved_gpu;
-
         let Some(t) = AtomSmcDpmInfoV4_9::from_bytes(&b) else {
             self.show_error("Invalid RDNA 2 PPTable", &format!("Expected at least {} bytes (AtomSmcDpmInfoV4_9), got {} bytes.", std::mem::size_of::<crate::pptable_rdna2::AtomSmcDpmInfoV4_9>(), b.len()));
             return;
