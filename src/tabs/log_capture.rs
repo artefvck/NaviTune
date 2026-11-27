@@ -66,10 +66,7 @@ impl PowerPlayApp {
                 self.status_msg = "Copied Capture Log to clipboard.".to_string();
             }
             if ui.button("Export As...").clicked() {
-                if let Some(path) = rfd::FileDialog::new()
-                    .set_file_name("navitune_debug.log")
-                    .add_filter("Log / Text", &["log", "txt"])
-                    .save_file()
+                if let Some(path) = crate::io::save_file_dialog("Save File", Some("navitune_debug.log"), &[("Log / Text", &["log", "txt"])])
                 {
                     match std::fs::write(&path, &report_text) {
                         Ok(_) => self.status_msg = format!("Exported Capture Log to {}", path.display()),
