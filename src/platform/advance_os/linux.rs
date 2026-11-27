@@ -379,3 +379,62 @@ pub(crate) fn check_linux_ppt_sync(_selected_label: &str) -> (String, &'static s
         egui::Color32::from_rgb(150, 160, 180),
     )
 }
+
+#[cfg(target_os = "linux")]
+pub(crate) fn read_linux_power_profiles(selected_label: &str) -> (Vec<(u32, String, bool)>, String) {
+    let card = detect_linux_card(selected_label);
+    let path = format!("/sys/class/drm/{}/device/pp_power_profile_mode", card);
+    let Ok(txt) = std::fs::read_to_string(&path) else {
+        return (Vec::new(), "pp_power_profile_mode unreadable".into());
+    };
+    let mut profiles = Vec::new();
+    let mut active_summary = "UNKNOWN".to_string();
+    for line in txt.lines() {
+        let trimmed = line.trim();
+        let before_colon = trimmed.split(':').next().unwrap_or(trimmed);
+        let mut tokens = before_colon.split_whitespace();
+        let Some(idx_tok) = tokens.next() else { continue; };
+        let Ok(idx) = idx_tok.parse::<u32>() else { continue; };
+        let Some(name_tok) = tokens.next() else { continue; };
+        let is_active = trimmed.contains('*');
+        let clean_name = name_tok.trim_matches('*').to_string();
+        if clean_name.is_empty() { continue; }
+        if is_active {
+            active_summary = format!("{} ({}) — driver default", clean_name, idx);
+        }
+        profiles.push((idx, clean_name, is_active));
+    }
+    (profiles, active_summary)
+}
+
+#[cfg(not(target_os = "linux"))]
+pub(crate) fn read_linux_power_profiles(_selected_label: &str) -> (Vec<(u32, String, bool)>, String) {
+    (Vec::new(), "LINUX ONLY".into())
+}
+
+#[cfg(target_os = "linux")]
+pub(crate) fn set_linux_power_profile(selected_label: &str, profile_idx: u32, profile_name: &str) -> Result<String, String> {
+    let card = detect_linux_card(selected_label);
+    let dev_dir = format!("/sys/class/drm/{}/device", card);
+    let lvl_path = format!("{}/power_dpm_force_performance_level", dev_dir);
+    let prof_path = format!("{}/pp_power_profile_mode", dev_dir);
+    if !std::path::Path::new(&prof_path).exists() {
+        return Err(format!("{} not found", prof_path));
+    }
+    let cmd = if profile_idx == 0 {
+        format!("echo auto > {lvl} && echo 0 > {prof}", lvl = lvl_path, prof = prof_path)
+    } else {
+        format!("echo manual > {lvl} && echo {idx} > {prof}", lvl = lvl_path, idx = profile_idx, prof = prof_path)
+    };
+    let title = format!("NaviTune — Set {} Power Profile: {} ({})", card, profile_name, profile_idx);
+    std::thread::spawn(move || {
+        let _ = run_privileged_in_terminal_or_pkexec(&title, &cmd);
+    });
+    Ok(format!("Switching {} power profile to {} ({})...", card, profile_name, profile_idx))
+}
+
+#[cfg(not(target_os = "linux"))]
+pub(crate) fn set_linux_power_profile(_selected_label: &str, _profile_idx: u32, _profile_name: &str) -> Result<String, String> {
+    Err("Power profile switching is only available on Linux.".into())
+}
+
