@@ -4,7 +4,7 @@
 
 - **Top Card**: macOS `IORegistry` GPU selector dropdown, **`Theme`** customizer, and **`Low GPU Mode (Theme) | Disables drop-shadows & hover animations for ~0% idle GPU |
 | Live Telemetry`** sensor bar.
-- **Tab Strip**: `Features` · `OC Limits` · `Power` · `Frequency` · `Curve` · `Fan` · `Advance` · `Safe Tune` · `More` · `Log`.
+- **Tab Strip**: `Features` · `OC Limits` · `Power` · `Frequency` · `Curve` · `Fan` · `Calc` · `Classic` · `Advance` · `Safe Tune` · `More` · `Log`.
 - **Two-Column Cards**:
   - **Gray border**: Unmodified factory baseline.
   - **Disabled / Dimmed control**: Read-only guard (`0`-valued VBIOS field or `0x0` SMU mask) locked to prevent corrupting unused table space.
@@ -25,6 +25,8 @@
 | **Undervolt or change Power / TDC limits** | **`Power`** | Adjusts `SocketPowerLimitAc` (W), `TdcLimitGfx/Soc` (A), ULV floors, and `VDDCI`/`MVDD` voltages. |
 | **Adjust GFX, Memory (UCLK), or FCLK ranges** | **`Frequency`** | Sets min/max DPM frequencies and PCIe Gen/Lane limits. |
 | **Edit V/F Curve or Thermal Throttle Limits** | **`Curve`** | Drag points on the 2D V/F plot or edit quadratic curve coefficients and thermal limits (`°C`). |
+| **Simulate SMU V/F, DCBTC & PPT0 headroom** | **`Calc`** | Universal *what-if* calculator for AVFS `V(f)`, `DCBTC` droop, `FCLK >= 2x UCLK` & power budget. |
+| **Tune 3-point `Min/Mid/Max` V/F (`a,b,c`) + Fan** | **`Classic`** | Restores classic Adrenalin WattMan 3-point V/F curve solver (`a, b, c`) linked to 5-point Fan curve. |
 | **Configure Zero RPM or 5-point Fan Curve** | **`Fan`** | Sets `Stop Temp < Start Temp`, min PWM %, max RPM, and drags points on the 5-point fan plot. |
 | **Apply one-click safe presets / fix warnings** | **`Safe Tune`** | Applies **Quiet Undervolt**, **Balanced OC**, or **Auto-Fix Risks** for your detected silicon. |
 | **Inspect exact hex offsets & struct layout** | **`More`** → **`3. Native Offset`** / **`4. Struct Window`** | Filters and inspects every struct field and `0x` byte offset across all 6 architectures. |
