@@ -192,6 +192,41 @@ fn run_privileged_in_terminal_or_pkexec(title: &str, raw_cmd: &str) -> Result<bo
 }
 
 #[cfg(target_os = "linux")]
+pub(crate) fn write_linux_sysfs_ppt(ppt_bytes: &[u8], selected_label: &str) -> Result<String, String> {
+    if crate::ppt_arch::PptArch::detect(ppt_bytes) == crate::ppt_arch::PptArch::Unknown {
+        return Err("Refusing to write: buffer is not a valid AMD PowerPlayTable.".into());
+    }
+    let card = detect_linux_card(selected_label);
+    let sysfs_path = format!("/sys/class/drm/{}/device/pp_table", card);
+    if !std::path::Path::new(&sysfs_path).exists() {
+        return Err(format!("{} not found (is amdgpu loaded?)", sysfs_path));
+    }
+    let cur_bytes = std::fs::read(&sysfs_path)
+        .map_err(|e| format!("Failed reading {}: {}", sysfs_path, e))?;
+    if cur_bytes.len() != ppt_bytes.len() {
+        return Err(format!(
+            "Size mismatch: {} is {} B, active buffer is {} B.",
+            sysfs_path, cur_bytes.len(), ppt_bytes.len()
+        ));
+    }
+    let tmp_bin = "/tmp/navitune_live_pp_table.bin";
+    std::fs::write(tmp_bin, ppt_bytes).map_err(|e| format!("Write temp failed: {}", e))?;
+
+    let title = format!("NaviTune — Write PPTable to {}", card);
+    let cmd = format!("cp {tmp} {dst}; RC=$?; rm -f {tmp}; exit $RC", tmp = tmp_bin, dst = sysfs_path);
+    std::thread::spawn(move || {
+        let _ = run_privileged_in_terminal_or_pkexec(&title, &cmd);
+    });
+
+    Ok(format!("Terminal opened to write {} B PPTable to {} (RAM only — resets on reboot)", ppt_bytes.len(), sysfs_path))
+}
+
+#[cfg(not(target_os = "linux"))]
+pub(crate) fn write_linux_sysfs_ppt(_ppt_bytes: &[u8], _selected_label: &str) -> Result<String, String> {
+    Err("Direct sysfs pp_table write is only available on Linux.".into())
+}
+
+#[cfg(target_os = "linux")]
 pub(crate) fn install_linux_ppt(ppt_bytes: &[u8], selected_label: &str) -> Result<String, String> {
     if crate::ppt_arch::PptArch::detect(ppt_bytes) == crate::ppt_arch::PptArch::Unknown {
         return Err("Refusing to install: buffer is not a valid AMD PowerPlayTable".into());
