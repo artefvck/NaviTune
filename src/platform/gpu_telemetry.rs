@@ -130,7 +130,11 @@ pub fn poll_gpu_telemetry() -> GpuTelemetry {
                 let mut rpm = 0i64;
                 let mut pct = 0i64;
                 if let Ok(hwmons) = std::fs::read_dir(dev.join("hwmon")) {
-                    for hw in hwmons.flatten() {
+                    let amd_hw = hwmons.flatten().find(|hw| {
+                        let n = std::fs::read_to_string(hw.path().join("name")).unwrap_or_default();
+                        n.trim().is_empty() || n.trim() == "amdgpu"
+                    });
+                    if let Some(hw) = amd_hw {
                         let hp = hw.path();
                         let hw_name = std::fs::read_to_string(hp.join("name")).unwrap_or_default();
                         if !hw_name.trim().is_empty() && hw_name.trim() != "amdgpu" {
@@ -144,7 +148,6 @@ pub fn poll_gpu_telemetry() -> GpuTelemetry {
                         rpm = read_i64(&hp.join("fan1_input"));
                         let pwm = read_i64(&hp.join("pwm1"));
                         pct = if pwm > 0 { (pwm * 100) / 255 } else { 0 };
-                        break;
                     }
                 }
                 return GpuTelemetry {
