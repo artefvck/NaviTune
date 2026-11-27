@@ -113,6 +113,85 @@ pub(crate) fn detect_linux_card(selected_label: &str) -> String {
 }
 
 #[cfg(target_os = "linux")]
+fn run_privileged_in_terminal_or_pkexec(title: &str, raw_cmd: &str) -> Result<bool, String> {
+    use std::process::Command;
+
+    let is_root = std::env::var("USER").unwrap_or_default() == "root";
+    if is_root {
+        let st = Command::new("sh")
+            .args(["-c", raw_cmd])
+            .status()
+            .map_err(|e| format!("Failed to execute root shell: {}", e))?;
+        return Ok(st.success());
+    }
+
+    let script_path = "/tmp/navitune_priv_task.sh";
+    let status_path = "/tmp/navitune_priv_task.rc";
+    let _ = std::fs::remove_file(status_path);
+
+    let clean_title = title.replace('\'', "");
+    let quoted_cmd = format!("'{}'", raw_cmd.replace('\'', "'\\''"));
+    let wrapper = format!(
+        "#!/usr/bin/env bash\n\
+         echo '============================================================'\n\
+         echo '  {title}'\n\
+         echo '============================================================'\n\
+         echo ''\n\
+         sudo bash -c {quoted_cmd}\n\
+         RC=$?\n\
+         echo \"$RC\" > {status_path}\n\
+         echo ''\n\
+         if [ \"$RC\" -eq 0 ]; then\n\
+           echo '[OK] Operation completed successfully.'\n\
+         else\n\
+           echo \"[ERROR] Operation failed with exit code $RC.\"\n\
+         fi\n\
+         read -r -p 'Press Enter to close this window...' _\n\
+         exit $RC\n",
+        title = clean_title,
+        quoted_cmd = quoted_cmd,
+        status_path = status_path,
+    );
+    std::fs::write(script_path, wrapper).map_err(|e| format!("Failed writing helper script: {}", e))?;
+    let _ = Command::new("chmod").args(["+x", script_path]).status();
+
+    let candidates: &[(&str, &[&str])] = &[
+        ("gnome-terminal", &["--wait", "--title=NaviTune Privilege Task", "--", "bash", script_path]),
+        ("konsole", &["--nofork", "-e", "bash", script_path]),
+        ("xfce4-terminal", &["--disable-server", "-e", script_path]),
+        ("mate-terminal", &["--disable-factory", "-e", script_path]),
+        ("lxterminal", &["-e", script_path]),
+        ("alacritty", &["-e", "bash", script_path]),
+        ("kitty", &["bash", script_path]),
+        ("x-terminal-emulator", &["-e", script_path]),
+    ];
+
+    for (bin, args) in candidates {
+        let found = Command::new("which")
+            .arg(bin)
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+        if found {
+            let st = Command::new(bin)
+                .args(*args)
+                .status()
+                .map_err(|e| format!("Failed launching {}: {}", bin, e))?;
+            if let Ok(rc_txt) = std::fs::read_to_string(status_path) {
+                return Ok(rc_txt.trim() == "0");
+            }
+            return Ok(st.success());
+        }
+    }
+
+    let st = Command::new("pkexec")
+        .args(["bash", "-c", raw_cmd])
+        .status()
+        .map_err(|e| format!("Failed to execute pkexec: {}", e))?;
+    Ok(st.success())
+}
+
+#[cfg(target_os = "linux")]
 fn is_ppfeaturemask_unlocked() -> bool {
     let Ok(raw) = std::fs::read_to_string("/sys/module/amdgpu/parameters/ppfeaturemask") else {
         return false;
@@ -180,14 +259,9 @@ WantedBy=multi-user.target
         )
     };
 
-    let is_root = std::env::var("USER").unwrap_or_default() == "root";
-    let status = if is_root {
-        Command::new("sh").args(["-c", &script]).status()
-    } else {
-        Command::new("pkexec").args(["sh", "-c", &script]).status()
-    }.map_err(|e| format!("Failed to execute privilege helper: {}", e))?;
+    let ok = run_privileged_in_terminal_or_pkexec("NaviTune — Install Linux PowerPlayTable & GRUB Mask", &script)?;
 
-    if status.success() {
+    if ok {
         if already_unlocked {
             Ok(format!("Installed & applied PP_PhmSoftPowerPlayTable ({} B) to {} + systemd service", ppt_bytes.len(), sysfs_ppt))
         } else {
@@ -215,14 +289,9 @@ pub(crate) fn uninstall_linux_ppt(selected_label: &str) -> Result<String, String
         grub_clean, dpm_lvl, dpm_lvl
     );
 
-    let is_root = std::env::var("USER").unwrap_or_default() == "root";
-    let status = if is_root {
-        Command::new("sh").args(["-c", &script]).status()
-    } else {
-        Command::new("pkexec").args(["sh", "-c", &script]).status()
-    }.map_err(|e| format!("Failed to execute privilege helper: {}", e))?;
+    let ok = run_privileged_in_terminal_or_pkexec("NaviTune — Uninstall Linux PowerPlayTable & Restore GRUB", &script)?;
 
-    if status.success() {
+    if ok {
         Ok(format!("Uninstalled xppt-pptable.service & cleaned GRUB mask for {} (reboot to fully reload stock VBIOS table)", card))
     } else {
         Err("Uninstall failed or authentication cancelled".into())
