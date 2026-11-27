@@ -39,9 +39,10 @@ tar -czf "${TAR_PATH}" -C "${DIST_DIR}" "${APP_NAME}-${VERSION}-Linux-${ARCH}"
 DEB_PATH=""
 if command -v dpkg-deb >/dev/null 2>&1; then
     DEB_ARCH="$(dpkg --print-architecture 2>/dev/null || echo amd64)"
-    DEB_STAGE="${DIST_DIR}/${BIN_NAME}_${VERSION}_${DEB_ARCH}"
-    rm -rf "${DEB_STAGE}"
+    DEB_STAGE="$(mktemp -d)"
     mkdir -p "${DEB_STAGE}/DEBIAN" "${DEB_STAGE}/usr/bin" "${DEB_STAGE}/usr/share/applications"
+    chmod -R g-s "${DEB_STAGE}"
+    chmod 00755 "${DEB_STAGE}" "${DEB_STAGE}/DEBIAN" "${DEB_STAGE}/usr" "${DEB_STAGE}/usr/bin" "${DEB_STAGE}/usr/share" "${DEB_STAGE}/usr/share/applications"
     cp "target/release/${BIN_NAME}" "${DEB_STAGE}/usr/bin/${BIN_NAME}"
     chmod 0755 "${DEB_STAGE}/usr/bin/${BIN_NAME}"
     cp "${STAGE_DIR}/share/applications/navitune.desktop" "${DEB_STAGE}/usr/share/applications/navitune.desktop"
@@ -58,6 +59,7 @@ Description: AMD Radeon PowerPlay Table & VBIOS Editor
 CONTROL
     DEB_PATH="${DIST_DIR}/${BIN_NAME}_${VERSION}_${DEB_ARCH}.deb"
     rm -f "${DEB_PATH}"
+    chmod 0644 "${DEB_STAGE}/DEBIAN/control"
     dpkg-deb --build --root-owner-group "${DEB_STAGE}" "${DEB_PATH}"
     rm -rf "${DEB_STAGE}"
 fi
