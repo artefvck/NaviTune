@@ -303,16 +303,14 @@ pub(crate) fn install_linux_ppt(ppt_bytes: &[u8], selected_label: &str) -> Resul
         tmp_bin, tmp_apply, tmp_udev, tmp_unit, grub_snippet
     );
 
-    let ok = run_privileged_in_terminal_or_pkexec("NaviTune — Install Safe udev + systemd PowerPlayTable", &script)?;
+    std::thread::spawn(move || {
+        let _ = run_privileged_in_terminal_or_pkexec("NaviTune — Install Safe udev + systemd PowerPlayTable", &script);
+    });
 
-    if ok {
-        Ok(format!(
-            "Installed /etc/xppt/pp_table.bin ({} B) + udev amdgpu rule for {} — REBOOT to apply once amdgpu DRM finishes init",
-            ppt_bytes.len(), card
-        ))
-    } else {
-        Err("Install failed or authentication cancelled".into())
-    }
+    Ok(format!(
+        "Terminal opened to install /etc/xppt/pp_table.bin ({} B) + udev/systemd for {} — REBOOT after terminal completes",
+        ppt_bytes.len(), card
+    ))
 }
 
 #[cfg(target_os = "linux")]
@@ -331,13 +329,11 @@ pub(crate) fn uninstall_linux_ppt(selected_label: &str) -> Result<String, String
         grub_clean, dpm_lvl, dpm_lvl
     );
 
-    let ok = run_privileged_in_terminal_or_pkexec("NaviTune — Uninstall Linux PowerPlayTable & Restore GRUB", &script)?;
+    std::thread::spawn(move || {
+        let _ = run_privileged_in_terminal_or_pkexec("NaviTune — Uninstall Linux PowerPlayTable & Restore GRUB", &script);
+    });
 
-    if ok {
-        Ok(format!("Uninstalled udev rule, service & GRUB mask for {} (reboot to reload stock VBIOS table)", card))
-    } else {
-        Err("Uninstall failed or authentication cancelled".into())
-    }
+    Ok(format!("Terminal opened to uninstall udev rule, service & GRUB mask for {}", card))
 }
 
 #[cfg(not(target_os = "linux"))]
