@@ -192,52 +192,55 @@ fn run_privileged_in_terminal_or_pkexec(title: &str, raw_cmd: &str) -> Result<bo
 }
 
 #[cfg(target_os = "linux")]
-fn is_ppfeaturemask_unlocked() -> bool {
-    let Ok(raw) = std::fs::read_to_string("/sys/module/amdgpu/parameters/ppfeaturemask") else {
-        return false;
-    };
-    let raw = raw.trim();
-    let parsed = if let Some(hex) = raw.strip_prefix("0x").or_else(|| raw.strip_prefix("0X")) {
-        u64::from_str_radix(hex, 16).ok()
-    } else {
-        raw.parse::<u64>().ok()
-    };
-    parsed.map(|m| (m & 0x4000) != 0).unwrap_or(false)
-}
-
-#[cfg(target_os = "linux")]
 pub(crate) fn install_linux_ppt(ppt_bytes: &[u8], selected_label: &str) -> Result<String, String> {
-    use std::process::Command;
     if crate::ppt_arch::PptArch::detect(ppt_bytes) == crate::ppt_arch::PptArch::Unknown {
         return Err("Refusing to install: buffer is not a valid AMD PowerPlayTable".into());
     }
 
     let card = detect_linux_card(selected_label);
-    let sysfs_ppt = format!("/sys/class/drm/{}/device/pp_table", card);
     let tmp_bin = "/tmp/xppt_pp_table.bin";
     std::fs::write(tmp_bin, ppt_bytes).map_err(|e| format!("Failed writing temp file: {}", e))?;
 
-    let unit = format!(
-        "[Unit]
-Description=Apply NaviTune Soft PowerPlay Table
-After=systemd-udev-settle.service
-Wants=systemd-udev-settle.service
-Before=display-manager.service
+    let apply_sh = concat!(
+        "#!/usr/bin/env bash\n",
+        "set -euo pipefail\n",
+        "PPT_BIN=/etc/xppt/pp_table.bin\n",
+        "[ -f \"$PPT_BIN\" ] || exit 0\n",
+        "MASK_FILE=/sys/module/amdgpu/parameters/ppfeaturemask\n",
+        "[ -r \"$MASK_FILE\" ] || exit 0\n",
+        "MASK=$(cat \"$MASK_FILE\")\n",
+        "if (( (MASK & 0x4000) == 0 )); then exit 0; fi\n",
+        "for dev in /sys/class/drm/card[0-9]*/device; do\n",
+        "  [ -f \"$dev/vendor\" ] && [ -w \"$dev/pp_table\" ] || continue\n",
+        "  grep -qi '^0x1002$' \"$dev/vendor\" || continue\n",
+        "  CUR_SZ=$(wc -c < \"$dev/pp_table\" 2>/dev/null || echo 0)\n",
+        "  NEW_SZ=$(wc -c < \"$PPT_BIN\" 2>/dev/null || echo 0)\n",
+        "  if [ \"$CUR_SZ\" -gt 0 ] && [ \"$CUR_SZ\" -eq \"$NEW_SZ\" ]; then\n",
+        "    /usr/bin/dd if=\"$PPT_BIN\" of=\"$dev/pp_table\" bs=65536 status=none\n",
+        "  fi\n",
+        "done\n"
+    );
+    let tmp_apply = "/tmp/navitune-apply-ppt.sh";
+    std::fs::write(tmp_apply, apply_sh).map_err(|e| format!("Failed writing temp apply script: {}", e))?;
 
-[Service]
-Type=oneshot
-ExecStart=/usr/bin/dd if=/etc/xppt/pp_table.bin of={} bs=65536
-RemainAfterExit=yes
+    let udev_rule = "ACTION==\"add|change\", SUBSYSTEM==\"drm\", KERNEL==\"card[0-9]*\", DRIVERS==\"amdgpu\", RUN+=\"/usr/local/sbin/navitune-apply-ppt.sh\"\n";
+    let tmp_udev = "/tmp/99-navitune-pptable.rules";
+    std::fs::write(tmp_udev, udev_rule).map_err(|e| format!("Failed writing temp udev rule: {}", e))?;
 
-[Install]
-WantedBy=multi-user.target
-",
-        sysfs_ppt
+    let unit = concat!(
+        "[Unit]\n",
+        "Description=Apply NaviTune Soft PowerPlay Table after amdgpu DRM init\n",
+        "After=graphical.target\n\n",
+        "[Service]\n",
+        "Type=oneshot\n",
+        "ExecStart=/usr/local/sbin/navitune-apply-ppt.sh\n",
+        "RemainAfterExit=yes\n\n",
+        "[Install]\n",
+        "WantedBy=graphical.target\n"
     );
     let tmp_unit = "/tmp/xppt-pptable.service";
     std::fs::write(tmp_unit, unit).map_err(|e| format!("Failed writing temp unit: {}", e))?;
 
-    let already_unlocked = is_ppfeaturemask_unlocked();
     let grub_snippet = concat!(
         r#"if [ -f /etc/default/grub ] && ! grep -q 'amdgpu\.ppfeaturemask=' /etc/default/grub; then "#,
         r#"cp -n /etc/default/grub /etc/default/grub.navitune.bak 2>/dev/null || true; "#,
@@ -247,17 +250,16 @@ WantedBy=multi-user.target
         r#"fi"#
     );
 
-    let _ = (&sysfs_ppt, already_unlocked);
     let script = format!(
-        "mkdir -p /etc/xppt && install -m 0644 {} /etc/xppt/pp_table.bin && install -m 0644 {} /etc/systemd/system/xppt-pptable.service && systemctl daemon-reload && systemctl enable xppt-pptable.service && {}",
-        tmp_bin, tmp_unit, grub_snippet
+        "mkdir -p /etc/xppt /usr/local/sbin && install -m 0644 {} /etc/xppt/pp_table.bin && install -m 0755 {} /usr/local/sbin/navitune-apply-ppt.sh && install -m 0644 {} /etc/udev/rules.d/99-navitune-pptable.rules && install -m 0644 {} /etc/systemd/system/xppt-pptable.service && udevadm control --reload-rules && systemctl daemon-reload && systemctl enable xppt-pptable.service && {}",
+        tmp_bin, tmp_apply, tmp_udev, tmp_unit, grub_snippet
     );
 
-    let ok = run_privileged_in_terminal_or_pkexec("NaviTune — Install Linux PowerPlayTable & GRUB Mask", &script)?;
+    let ok = run_privileged_in_terminal_or_pkexec("NaviTune — Install Safe udev + systemd PowerPlayTable", &script)?;
 
     if ok {
         Ok(format!(
-            "Installed /etc/xppt/pp_table.bin ({} B) & enabled xppt-pptable.service for {} — REBOOT to apply safely before display manager starts",
+            "Installed /etc/xppt/pp_table.bin ({} B) + udev amdgpu rule for {} — REBOOT to apply once amdgpu DRM finishes init",
             ppt_bytes.len(), card
         ))
     } else {
@@ -267,7 +269,6 @@ WantedBy=multi-user.target
 
 #[cfg(target_os = "linux")]
 pub(crate) fn uninstall_linux_ppt(selected_label: &str) -> Result<String, String> {
-    use std::process::Command;
     let card = detect_linux_card(selected_label);
     let dpm_lvl = format!("/sys/class/drm/{}/device/power_dpm_force_performance_level", card);
     let grub_clean = concat!(
@@ -278,14 +279,14 @@ pub(crate) fn uninstall_linux_ppt(selected_label: &str) -> Result<String, String
         r#"fi"#
     );
     let script = format!(
-        "systemctl disable --now xppt-pptable.service 2>/dev/null || true; rm -f /etc/systemd/system/xppt-pptable.service /etc/xppt/pp_table.bin; systemctl daemon-reload; {}; [ -w {} ] && echo auto > {} || true",
+        "systemctl disable --now xppt-pptable.service 2>/dev/null || true; rm -f /etc/systemd/system/xppt-pptable.service /etc/udev/rules.d/99-navitune-pptable.rules /usr/local/sbin/navitune-apply-ppt.sh /etc/xppt/pp_table.bin; udevadm control --reload-rules 2>/dev/null || true; systemctl daemon-reload; {}; [ -w {} ] && echo auto > {} || true",
         grub_clean, dpm_lvl, dpm_lvl
     );
 
     let ok = run_privileged_in_terminal_or_pkexec("NaviTune — Uninstall Linux PowerPlayTable & Restore GRUB", &script)?;
 
     if ok {
-        Ok(format!("Uninstalled xppt-pptable.service & cleaned GRUB mask for {} (reboot to fully reload stock VBIOS table)", card))
+        Ok(format!("Uninstalled udev rule, service & GRUB mask for {} (reboot to reload stock VBIOS table)", card))
     } else {
         Err("Uninstall failed or authentication cancelled".into())
     }
