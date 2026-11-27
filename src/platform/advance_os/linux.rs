@@ -247,26 +247,19 @@ WantedBy=multi-user.target
         r#"fi"#
     );
 
-    let script = if already_unlocked {
-        format!(
-            "mkdir -p /etc/xppt && install -m 0644 {} /etc/xppt/pp_table.bin && install -m 0644 {} /etc/systemd/system/xppt-pptable.service && systemctl daemon-reload && systemctl enable xppt-pptable.service && {} && /usr/bin/dd if=/etc/xppt/pp_table.bin of={} bs=65536 && cmp -s /etc/xppt/pp_table.bin {}",
-            tmp_bin, tmp_unit, grub_snippet, sysfs_ppt, sysfs_ppt
-        )
-    } else {
-        format!(
-            "mkdir -p /etc/xppt && install -m 0644 {} /etc/xppt/pp_table.bin && install -m 0644 {} /etc/systemd/system/xppt-pptable.service && systemctl daemon-reload && systemctl enable xppt-pptable.service && {}",
-            tmp_bin, tmp_unit, grub_snippet
-        )
-    };
+    let _ = (&sysfs_ppt, already_unlocked);
+    let script = format!(
+        "mkdir -p /etc/xppt && install -m 0644 {} /etc/xppt/pp_table.bin && install -m 0644 {} /etc/systemd/system/xppt-pptable.service && systemctl daemon-reload && systemctl enable xppt-pptable.service && {}",
+        tmp_bin, tmp_unit, grub_snippet
+    );
 
     let ok = run_privileged_in_terminal_or_pkexec("NaviTune — Install Linux PowerPlayTable & GRUB Mask", &script)?;
 
     if ok {
-        if already_unlocked {
-            Ok(format!("Installed & applied PP_PhmSoftPowerPlayTable ({} B) to {} + systemd service", ppt_bytes.len(), sysfs_ppt))
-        } else {
-            Ok(format!("Installed xppt-pptable.service ({} B) + added amdgpu.ppfeaturemask=0xffffffff to GRUB — please REBOOT once to activate", ppt_bytes.len()))
-        }
+        Ok(format!(
+            "Installed /etc/xppt/pp_table.bin ({} B) & enabled xppt-pptable.service for {} — REBOOT to apply safely before display manager starts",
+            ppt_bytes.len(), card
+        ))
     } else {
         Err("Install failed or authentication cancelled".into())
     }
