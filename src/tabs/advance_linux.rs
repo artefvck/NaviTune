@@ -65,10 +65,10 @@ impl PowerPlayApp {
                 ui.add_space(8.0);
                 ui.horizontal_wrapped(|ui| {
                     if ui.button("Import Tuning Values Only...").on_hover_text("Copy only clocks, voltages, power limits & fan curve from a donor .mpt/.rom/.plist onto the currently loaded native GPU table without overwriting binary subtable structures").clicked() {
-                    if let Some(path) = rfd::FileDialog::new()
-                        .set_title("Select Donor Profile (.mpt, .rom, .bin, .plist)")
-                        .add_filter("PowerPlay / VBIOS", &["mpt", "rom", "bin", "ppt", "plist", "reg"])
-                        .pick_file() {
+                    if let Some(path) = crate::io::pick_file_dialog(
+                        "Select Donor Profile (.mpt, .rom, .bin, .plist)",
+                        &[("PowerPlay / VBIOS", &["mpt", "rom", "bin", "ppt", "plist", "reg"])],
+                    ) {
                         match crate::io::read_bounded(&path) {
                             Ok(bytes) => match self.apply_tuning_values_only(&bytes) {
                                 Ok(msg) => {
