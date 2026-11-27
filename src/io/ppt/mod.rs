@@ -419,6 +419,8 @@ impl PowerPlayApp {
             t.power_limit_ac[i] = self.power_limit_ac[i] as u16;
         }
         t.socket_power_limit_ac[0] = self.power_limit_w as u16;
+        t.tdc_limit_gfx = self.tdc_gfx.max(0) as u16;
+        t.tdc_limit_soc = self.tdc_soc.max(0) as u16;
     }
 
 
@@ -519,6 +521,8 @@ mod rdna2_sync_roundtrip_tests {
         app.temp_limits[1] = 108;
         app.temp_limits[2] = 102;
         app.power_limit_w = 235;
+        app.tdc_gfx = 115;
+        app.tdc_soc = 32;
         app.sync_fields_to_buffer();
 
         let mut app2 = PowerPlayApp::default();
@@ -527,5 +531,7 @@ mod rdna2_sync_roundtrip_tests {
         assert_eq!(app2.temp_limits[1], 108);
         assert_eq!(app2.temp_limits[2], 102);
         assert_eq!(app2.power_limit_w, 235);
+        assert_eq!(app2.tdc_gfx, 115);
+        assert_eq!(app2.tdc_soc, 32);
     }
 }
