@@ -212,7 +212,7 @@ pub(crate) fn write_linux_sysfs_ppt(ppt_bytes: &[u8], selected_label: &str) -> R
     let tmp_bin = "/tmp/navitune_live_pp_table.bin";
     std::fs::write(tmp_bin, ppt_bytes).map_err(|e| format!("Write temp failed: {}", e))?;
 
-    let cmd = format!("cp {tmp} {dst} && cmp -s {tmp} {dst}", tmp = tmp_bin, dst = sysfs_path);
+    let cmd = format!("cp {tmp} {dst}", tmp = tmp_bin, dst = sysfs_path);
     let ok = run_privileged_in_terminal_or_pkexec(&format!("NaviTune — Write PPTable to {}", card), &cmd)?;
     let _ = std::fs::remove_file(tmp_bin);
 
