@@ -20,6 +20,12 @@ impl Default for SmuCalcState {
 
 impl PowerPlayApp {
     pub fn draw_calc_tab(&mut self, ui: &mut egui::Ui) {
+        if self.raw_buffer.is_empty() {
+            crate::card_layout::draw_card(ui, "SMU V/F, DCBTC & Power Envelope Calculator", |ui| {
+                ui.label("No table loaded. Click Load or Select GPU Path... first to calculate SMU V/F, DCBTC, and power limits.");
+            });
+            return;
+        }
         let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
         let state_id = egui::Id::new("smu_calc_sim_state");
         let gen_id = egui::Id::new("smu_calc_last_gen");
