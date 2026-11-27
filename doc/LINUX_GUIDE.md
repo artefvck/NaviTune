@@ -66,3 +66,14 @@ This produces:
 sudo apt install ./dist/navitune_1.0.0_amd64.deb
 navitune
 ```
+
+## 6. Direct RAM Write, Power Profiles & Donor Tuning Import
+
+In **More -> 3. Advance -> Linux**:
+- **Write to GPU (sysfs)**: Validates that the active buffer size matches `/sys/class/drm/cardX/device/pp_table` and writes the synced `PPTable` directly into kernel RAM via an elevated helper (`cp`). Changes take effect immediately without rebooting and automatically revert to factory VBIOS on reboot unless **Install** (`systemd` + `udev`) is enabled.
+- **Power Profile (`pp_power_profile_mode`)**: Reads the kernel `amdgpu` DPM heuristic profiles (`BOOTUP_DEFAULT`, `3D_FULL_SCREEN`, `POWER_SAVING`, `VIDEO`, `VR`, `COMPUTE`, `CUSTOM`) directly from `sysfs` and allows switching profiles live from the Linux Status table.
+- **Import Tuning Values Only...**: Imports clocks, voltages, power limits, and fan curves from a donor `.mpt`, `.rom`, `.bin`, `.plist`, or `.reg` profile onto the currently loaded native GPU table while preserving the native binary header and sub-table layout.
+
+### RDNA 2 Undervolt & 500–800 MHz Clock-Lock Troubleshooting
+- **Always save a stock backup first**: After a fresh boot, select your GPU from the top dropdown (`Select GPU Path...`) and click **Save** (`stock_pp_table.bin`) before writing to `sysfs`, so you can restore factory defaults without rebooting.
+- **Avoid overly aggressive `Vmax` or `PPT0` drops**: On RDNA 2 (`Navi 21/22/23`), lowering `max_voltage_gfx` too far below the VBIOS V/F curve or setting `SocketPowerLimitAc` (`PPT0`) too low causes SMU to clamp `SCLK` at `500–800 MHz` under 3D load. Reduce `GFX Vmax` incrementally (`-25` to `-40 mV` from stock) and keep `PPT0` near `85%–95%` of stock TBP while verifying boost clocks with `glmark2` and `pp_dpm_sclk`.

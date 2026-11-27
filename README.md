@@ -9,7 +9,7 @@ Cross-platform desktop GUI and headless CLI tool for inspecting, auditing, and t
 - **Cross-Platform OS Integration**:
   - **macOS (Hackintosh / eGPU)**: Export OpenCore `DeviceProperties` `.plist` (`PP,PhmSoftPowerPlayTable`), copy Base64 or continuous no-space Hex (`ProperTree` / `OCC`), generate codeless injector `.kext` bundles, or compile ACPI `SSDT-sPPT.aml`.
   - **Windows**: Native UAC Administrator manifest (`requireAdministrator`), console-free GUI release builds with `AttachConsole` CLI fallback, real-time AMD ADL (`atiadlxx.dll`) + PDH sensor telemetry, direct Registry (`HKLM` `PP_PhmSoftPowerPlayTable`) write/delete, and MorePowerTool `.mpt` (with PCI Device ID header) & `.reg` import/export.
-    - **Linux (Ubuntu / Debian)**: Read/write `amdgpu` `sysfs` `pp_table` overrides with `systemd` boot persistence (`xppt-pptable.service`), `ppfeaturemask` (`0x4000`) & `Config Sync` checks, `hwmon` (`amdgpu`) sensor + Zero RPM telemetry, portal-safe `zenity`/`kdialog` file dialogs, and `.deb` packaging (`build_linux.sh`).
+    - **Linux (Ubuntu / Debian)**: Direct non-blocking `Write to GPU (sysfs)` RAM injection, live `pp_power_profile_mode` switcher (`3D_FULL_SCREEN`, `COMPUTE`, etc.), donor tuning import onto native tables, `systemd`/`udev` boot persistence (`xppt-pptable.service`), `ppfeaturemask` (`0x4000`) & `Config Sync` checks, `hwmon` (`amdgpu`) sensor + Zero RPM telemetry, portal-safe `zenity`/`kdialog` file dialogs, and `.deb` packaging (`build_linux.sh`).
 - **Headless CLI (`navitune`)**: Inspect, audit UI-vs-struct offset parity, diff two ROMs/tables, and apply calibrated presets (`quiet-undervolt`, `balanced-oc`, `auto-fix`) directly from the terminal.
 
 ## Quick Start
