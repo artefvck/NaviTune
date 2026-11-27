@@ -120,7 +120,7 @@ impl PowerPlayApp {
                     kv_row_2(ui, "GFX", "tvmin/hyst_gfx (0x3B2)", &mut self.tvmin_gfx, 62.0);
                     kv_row_2(ui, "Soc", "tvmin/hyst_soc (0x3B4)", &mut self.tvmin_soc, 62.0);
                     ui.add_space(4.0);
-                    kv_header_2(ui, "Low", "High", 62.0);
+                    kv_header_2(ui, "Low (mV)", "High (mV)", 62.0);
                     kv_row_2(ui, "GFX", "vmin_low/high_gfx (0x3B6)", &mut self.vmin_lh_gfx, 62.0);
                     kv_row_2(ui, "Soc", "vmin_low/high_soc (0x3BA)", &mut self.vmin_lh_soc, 62.0);
                 });

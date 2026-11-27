@@ -453,7 +453,7 @@ fn draw_tracked_drag<Num: egui::emath::Numeric + PartialEq + Copy + Send + Sync 
             " °C"
         } else if field_lbl.contains("(MHz)") || card_title.contains("(MHz)") || field_tag.contains("freq") || field_tag.contains("lclk") || field_tag.contains("od_gfx") || field_tag.contains("od_mem") || field_tag.contains("gfx_clock") || field_tag.contains("fclk_boost") {
             " MHz"
-        } else if field_lbl.contains("(mV)") || card_title.contains("(mV)") || field_tag.contains("volt") || field_tag.contains("ulv") || field_tag.contains("dcbtc") || field_tag.contains("dctol") {
+        } else if field_lbl.contains("(mV)") || card_title.contains("(mV)") || field_tag.contains("volt") || field_tag.contains("ulv") || field_tag.contains("vmin") || field_tag.contains("dcbtc") || field_tag.contains("dctol") {
             " mV"
         } else if field_lbl.contains("(W)") || field_tag.contains("power_limit") {
             " W"
