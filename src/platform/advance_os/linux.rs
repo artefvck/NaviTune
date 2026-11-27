@@ -192,7 +192,7 @@ fn run_privileged_in_terminal_or_pkexec(title: &str, raw_cmd: &str) -> Result<bo
 }
 
 #[cfg(target_os = "linux")]
-pub(crate) fn write_linux_sysfs_ppt(ppt_bytes: &[u8], selected_label: &str) -> Result<String, String> {
+pub(crate) fn write_linux_sysfs_ppt(ppt_bytes: &[u8], selected_label: &str, gfx_range: [i32; 2]) -> Result<String, String> {
     if crate::ppt_arch::PptArch::detect(ppt_bytes) == crate::ppt_arch::PptArch::Unknown {
         return Err("Refusing to write: buffer is not a valid AMD PowerPlayTable.".into());
     }
@@ -213,7 +213,18 @@ pub(crate) fn write_linux_sysfs_ppt(ppt_bytes: &[u8], selected_label: &str) -> R
     std::fs::write(tmp_bin, ppt_bytes).map_err(|e| format!("Write temp failed: {}", e))?;
 
     let title = format!("NaviTune — Write PPTable to {}", card);
-    let cmd = format!("cp {tmp} {dst}; RC=$?; rm -f {tmp}; exit $RC", tmp = tmp_bin, dst = sysfs_path);
+    let od_path = format!("/sys/class/drm/{}/device/pp_od_clk_voltage", card);
+    let od_sync = if gfx_range[0] > 0 && gfx_range[1] >= gfx_range[0] {
+        format!(
+            " && if [ -w {od} ]; then printf 's 0 %d\n' {g0} > {od} 2>/dev/null || true; printf 's 1 %d\n' {g1} > {od} 2>/dev/null || true; printf 'c\n' > {od} 2>/dev/null || true; fi",
+            od = od_path,
+            g0 = gfx_range[0],
+            g1 = gfx_range[1],
+        )
+    } else {
+        String::new()
+    };
+    let cmd = format!("cp {tmp} {dst}{od_sync}; RC=$?; rm -f {tmp}; exit $RC", tmp = tmp_bin, dst = sysfs_path, od_sync = od_sync);
     std::thread::spawn(move || {
         let _ = run_privileged_in_terminal_or_pkexec(&title, &cmd);
     });
@@ -222,7 +233,7 @@ pub(crate) fn write_linux_sysfs_ppt(ppt_bytes: &[u8], selected_label: &str) -> R
 }
 
 #[cfg(not(target_os = "linux"))]
-pub(crate) fn write_linux_sysfs_ppt(_ppt_bytes: &[u8], _selected_label: &str) -> Result<String, String> {
+pub(crate) fn write_linux_sysfs_ppt(_ppt_bytes: &[u8], _selected_label: &str, _gfx_range: [i32; 2]) -> Result<String, String> {
     Err("Direct sysfs pp_table write is only available on Linux.".into())
 }
 

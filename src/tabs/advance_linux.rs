@@ -153,7 +153,7 @@ impl PowerPlayApp {
                     {
                         self.sync_fields_to_buffer();
                         let sel_lbl = self.gpus.get(self.selected_gpu).cloned().unwrap_or_default();
-                        match write_linux_sysfs_ppt(&self.raw_buffer, &sel_lbl) {
+                        match write_linux_sysfs_ppt(&self.raw_buffer, &sel_lbl, self.freq_gfx) {
                             Ok(msg) => {
                                 crate::ui_theme::log_debug("LINUX_SYSFS", &msg);
                                 self.status_msg = msg;
