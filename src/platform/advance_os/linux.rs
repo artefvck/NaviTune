@@ -173,10 +173,20 @@ fn run_privileged_in_terminal_or_pkexec(title: &str, raw_cmd: &str) -> Result<bo
             .map(|o| o.status.success())
             .unwrap_or(false);
         if found {
-            let st = Command::new(bin)
+            use std::process::Stdio;
+            let mut cmd = Command::new("setsid");
+            cmd.arg("-w")
+                .arg(bin)
                 .args(*args)
-                .status()
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null());
+            let mut child = cmd
+                .spawn()
                 .map_err(|e| format!("Failed launching {}: {}", bin, e))?;
+            let st = child
+                .wait()
+                .map_err(|e| format!("Failed waiting {}: {}", bin, e))?;
             if let Ok(rc_txt) = std::fs::read_to_string(status_path) {
                 return Ok(rc_txt.trim() == "0");
             }
