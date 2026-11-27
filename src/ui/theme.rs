@@ -374,7 +374,7 @@ pub fn log_debug(tag: &str, msg: &str) {
     use std::io::Write;
     let ts = format_utc_now();
     if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
-        let _ = writeln!(f, "[{}] [{:<8}] {}", ts, tag, msg);
+        let _ = writeln!(f, "[{}] [{:<13}] {}", ts, tag, msg);
     }
 }
 
