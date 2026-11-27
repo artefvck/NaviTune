@@ -257,30 +257,48 @@ pub(crate) fn install_linux_ppt(ppt_bytes: &[u8], selected_label: &str) -> Resul
     let tmp_bin = "/tmp/xppt_pp_table.bin";
     std::fs::write(tmp_bin, ppt_bytes).map_err(|e| format!("Failed writing temp file: {}", e))?;
 
-    let apply_sh = concat!(
-        "#!/usr/bin/env bash\n",
-        "set -euo pipefail\n",
-        "# Safety bypass: skip if booted with 'noppt', 'single', 'recovery', or 'nomodeset'\n",
-        "if grep -Eq '(^| )(noppt|single|recovery|nomodeset)( |$)' /proc/cmdline; then exit 0; fi\n",
-        "PPT_BIN=/etc/xppt/pp_table.bin\n",
-        "[ -f \"$PPT_BIN\" ] || exit 0\n",
-        "MASK_FILE=/sys/module/amdgpu/parameters/ppfeaturemask\n",
-        "[ -r \"$MASK_FILE\" ] || exit 0\n",
-        "MASK=$(cat \"$MASK_FILE\")\n",
-        "if (( (MASK & 0x4000) == 0 )); then exit 0; fi\n",
-        "for dev in /sys/class/drm/card[0-9]*/device; do\n",
-        "  [ -f \"$dev/vendor\" ] && [ -w \"$dev/pp_table\" ] || continue\n",
-        "  grep -qi '^0x1002$' \"$dev/vendor\" || continue\n",
-        "  CUR_SZ=$(wc -c < \"$dev/pp_table\" 2>/dev/null || echo 0)\n",
-        "  NEW_SZ=$(wc -c < \"$PPT_BIN\" 2>/dev/null || echo 0)\n",
-        "  if [ \"$CUR_SZ\" -gt 0 ] && [ \"$CUR_SZ\" -eq \"$NEW_SZ\" ]; then\n",
-        "    /bin/cp \"$PPT_BIN\" \"$dev/pp_table\"\n",
-        "    if [ -w \"$dev/pp_od_clk_voltage\" ]; then\n",
-        "      printf 'r\n' > \"$dev/pp_od_clk_voltage\" 2>/dev/null || true\n",
-        "      printf 'c\n' > \"$dev/pp_od_clk_voltage\" 2>/dev/null || true\n",
-        "    fi\n",
-        "  fi\n",
-        "done\n"
+    let apply_sh = format!(
+        "#!/usr/bin/env bash\n\
+set -euo pipefail\n\
+# Safety bypass: skip if booted with 'noppt', 'single', 'recovery', or 'nomodeset'\n\
+if grep -Eq '(^| )(noppt|single|recovery|nomodeset)( |$)' /proc/cmdline; then exit 0; fi\n\
+MASK_FILE=/sys/module/amdgpu/parameters/ppfeaturemask\n\
+[ -r \"$MASK_FILE\" ] || exit 0\n\
+MASK=$(cat \"$MASK_FILE\")\n\
+if (( (MASK & 0x4000) == 0 )); then exit 0; fi\n\
+for dev in /sys/class/drm/card[0-9]*/device; do\n\
+  [ -f \"$dev/vendor\" ] || continue\n\
+  grep -qi '^0x1002$' \"$dev/vendor\" || continue\n\
+  if [ -w \"$dev/pp_od_clk_voltage\" ]; then\n\
+    {od_lines}\
+    printf 'c\n' > \"$dev/pp_od_clk_voltage\" 2>/dev/null || true\n\
+  fi\n\
+  {pwr_line}\
+done\n",
+        od_lines = {
+            let mut lines = String::new();
+            if ppt_bytes.len() >= 0x532 && ppt_bytes.get(2).copied().unwrap_or(0) >= 0x0F {
+                let g0 = u16::from_le_bytes([ppt_bytes[0x52E], ppt_bytes[0x52F]]);
+                let g1 = u16::from_le_bytes([ppt_bytes[0x530], ppt_bytes[0x531]]);
+                if g0 > 0 && g1 >= g0 {
+                    lines.push_str(&format!("printf 's 0 {}\n' > \"$dev/pp_od_clk_voltage\" 2>/dev/null || true\n    ", g0));
+                    lines.push_str(&format!("printf 's 1 {}\n' > \"$dev/pp_od_clk_voltage\" 2>/dev/null || true\n    ", g1));
+                }
+            }
+            lines
+        },
+        pwr_line = {
+            if ppt_bytes.len() >= 0x330 && ppt_bytes.get(2).copied().unwrap_or(0) >= 0x0F {
+                let w = u16::from_le_bytes([ppt_bytes[0x32E], ppt_bytes[0x32F]]) as u64;
+                if w >= 50 {
+                    format!("for cap in \"$dev\"/hwmon/hwmon*/power1_cap; do [ -w \"$cap\" ] && echo {} > \"$cap\" 2>/dev/null || true; done\n", w * 1_000_000)
+                } else {
+                    String::new()
+                }
+            } else {
+                String::new()
+            }
+        }
     );
     let tmp_apply = "/tmp/navitune-apply-ppt.sh";
     std::fs::write(tmp_apply, apply_sh).map_err(|e| format!("Failed writing temp apply script: {}", e))?;
