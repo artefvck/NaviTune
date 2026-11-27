@@ -44,6 +44,7 @@ Platform packaging scripts are included in the repository root (`build_macos.sh`
 ## Documentation
 - [User Guide](doc/USER_GUIDE.md) — Loading ROMs/profiles, factory baseline tracking, Safe Tune, and Pre-Save Diff
 - [Architecture Overview](doc/ARCHITECTURE.md) — Single-source-of-truth offset maps and module boundaries
+- [Cross-OS Installation & Deployment Guide](doc/CROSS_OS_INSTALL.md) — Step-by-step setup for Linux (`.deb`/`systemd`), Windows (UAC/Registry), and macOS (OpenCore/`.kext`/`.aml`)
 - [Linux & Ubuntu Integration Guide](doc/LINUX_GUIDE.md) — `amdgpu.ppfeaturemask`, `systemd` service, `hwmon` telemetry & `.deb` packaging
 - [Deployment & Cross-Platform Build](doc/DEPLOYMENT.md) — Packaging `.app`, Linux binaries, and Windows `.exe`
 - Silicon Binary Layouts: [Polaris](doc/POLARIS_PPTABLE.md) · [Vega 10 & 20](doc/VEGA_PPTABLE.md) · [RDNA 1](doc/RDNA1_PPTABLE.md) · [RDNA 2](doc/RDNA2_PPTABLE.md) · [RDNA 3](doc/RDNA3_PPTABLE.md)
