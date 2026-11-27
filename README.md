@@ -8,7 +8,7 @@ Cross-platform desktop GUI and headless CLI tool for inspecting, auditing, and t
 - **One-Click macOS RX 6600 (`Navi 23`) `500 MHz` Unlock & `Quick Export ▾`**: Built-in preset in **Advance -> macOS** that clears `VCN_PG` (Bit `22`) and sets the `AMDRadeonX6000`-compatible Navi 23 DPM envelope (`300..2350 MHz` DPM / `2450 MHz` OD GFX, `1050 mV`, `100 W` PPT, `100 A` TDC, safe fan hysteresis), paired with a bottom-bar **`Quick Export ▾`** menu for instant OpenCore `.plist`, Injector `.kext`, or Base64/Hex export.
 - **Cross-Platform OS Integration**:
   - **macOS (Hackintosh / eGPU)**: Export OpenCore `DeviceProperties` `.plist` (`PP,PhmSoftPowerPlayTable`), copy Base64 or continuous no-space Hex (`ProperTree` / `OCC`), generate codeless injector `.kext` bundles, or compile ACPI `SSDT-sPPT.aml`.
-  - **Windows**: Import/export MorePowerTool `.mpt` profiles and Windows Registry `.reg` (`PP_PhmSoftPowerPlayTable`) keys.
+  - **Windows**: Native UAC Administrator manifest (`requireAdministrator`), console-free GUI release builds with `AttachConsole` CLI fallback, real-time AMD ADL (`atiadlxx.dll`) + PDH sensor telemetry, direct Registry (`HKLM` `PP_PhmSoftPowerPlayTable`) write/delete, and MorePowerTool `.mpt` (with PCI Device ID header) & `.reg` import/export.
   - **Linux**: Read/write `amdgpu` `sysfs` `pp_table` overrides with `POWER_CONTAINMENT`, `DPM_GFXCLK`, `GFXOFF`, and `BACO` status checks.
 - **Headless CLI (`navitune`)**: Inspect, audit UI-vs-struct offset parity, diff two ROMs/tables, and apply calibrated presets (`quiet-undervolt`, `balanced-oc`, `auto-fix`) directly from the terminal.
 

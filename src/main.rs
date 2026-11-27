@@ -1,3 +1,4 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 pub mod platform;
 pub use arch::smu_features as smu_features;
 pub use io::import as import_formats;
