@@ -97,6 +97,10 @@ impl PowerPlayApp {
         checks.push(("Power", "PPT & TDC GFX / Soc", format!("{} W | {} A / {} A", self.power_limit_w, self.tdc_gfx, self.tdc_soc), format!("{}..{} W | TDC <= {}/{} A", min_w, max_w, max_tdc_gfx, max_tdc_soc), pwr_sev, "Calibrated to factory silicon VRM current & socket board power limits."));
 
         let arch = crate::ppt_arch::PptArch::detect(&self.raw_buffer);
+        if arch.supports_card(crate::ppt_arch::PptCard::ThermalVmin) && (self.vmin_lh_gfx[0] > 0 || self.vmin_lh_gfx[1] > 0) {
+            let tv_sev = if self.vmin_lh_gfx[0] < self.vmin_lh_gfx[1] { 1 } else { 0 };
+            checks.push(("Thermal Vmin", "Cold (<TVmin) vs Warm Vmin", format!("Low {} mV / High {} mV", self.vmin_lh_gfx[0], self.vmin_lh_gfx[1]), "Low >= High mV (Cold Margin)".to_string(), tv_sev, "7nm FinFET requires higher Vmin below TVmin (55°C) to prevent cold-boot/transient crashes."));
+        }
         if arch.has_per_dpm_mem_voltage() {
             let mut mem_v_sev = 0u8;
             for volt in self.mem_dpm_volt.iter().take(4) {
