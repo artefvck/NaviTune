@@ -86,7 +86,7 @@ pub(crate) fn check_linux_systemd_service() -> (String, &'static str, egui::Colo
     )
 }
 
-#[cfg(target_os = "linux")]
+//#[cfg(target_os = "linux")]
 pub(crate) fn detect_linux_card(selected_label: &str) -> String {
     for tok in selected_label.split(|c: char| !c.is_ascii_alphanumeric()) {
         if tok.starts_with("card") && tok.len() > 4 && tok[4..].chars().all(|c| c.is_ascii_digit()) {
