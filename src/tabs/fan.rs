@@ -113,16 +113,25 @@ impl PowerPlayApp {
                     if !arch.has_5point_fan_curve_slots() {
                         ui.colored_label(egui::Color32::from_rgb(160, 175, 195), arch.fan_curve_note());
                     } else {
-                        let has_pts = self.fan_curve_temp.iter().any(|&t| t > 0) || self.fan_curve_pwm.iter().any(|&p| p > 0);
-                        ui.add_enabled_ui(has_pts, |ui| {
-                            kv_header_2(ui, "Temp (°C)", "PWM (%)", 62.0);
-                            for i in 0..5 {
-                                let mut pair = [self.fan_curve_temp[i], self.fan_curve_pwm[i]];
-                                kv_row_2(ui, &format!("Point {}", i + 1), &format!("fan_pt_{}", i), &mut pair, 62.0);
-                                self.fan_curve_temp[i] = pair[0];
-                                self.fan_curve_pwm[i] = pair[1];
-                            }
-                        }).response.on_disabled_hover_text("Read-only: VBIOS ini menggunakan kurva kipas dinamis SMU (slot 5-titik bernilai 0).");
+                        let w2 = dynamic_box_w(ui, 62.0, 2);
+                        kv_header_2(ui, "Temp (°C)", "PWM (%)", 62.0);
+                        for i in 0..5 {
+                            let lbl = format!("Point {}", i + 1);
+                            let tag = format!("od_fan_curve_min[i] (0x{:03X})", 0x22A + i * 8);
+                            ui.horizontal(|ui| {
+                                ui.spacing_mut().item_spacing.x = 6.0;
+                                ui.ctx().data_mut(|d| {
+                                    d.insert_temp(egui::Id::new("cur_field_info"), (lbl.clone(), tag.clone()));
+                                    d.insert_temp(egui::Id::new("cur_box_idx"), 0usize);
+                                    d.insert_temp(egui::Id::new("cur_col_units"), (" °C".to_string(), " %".to_string()));
+                                });
+                                crate::num_box(ui, &mut self.fan_curve_temp[i], w2);
+                                ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("cur_box_idx"), 1usize));
+                                crate::num_box(ui, &mut self.fan_curve_pwm[i], w2);
+                                ui.add_space(2.0);
+                                label_with_var(ui, &lbl, &tag);
+                            });
+                        }
                     }
                 });
             }
