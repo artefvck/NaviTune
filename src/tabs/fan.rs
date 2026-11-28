@@ -113,13 +113,16 @@ impl PowerPlayApp {
                     if !arch.has_5point_fan_curve_slots() {
                         ui.colored_label(egui::Color32::from_rgb(160, 175, 195), arch.fan_curve_note());
                     } else {
-                        kv_header_2(ui, "Temp (°C)", "PWM (%)", 62.0);
-                        for i in 0..5 {
-                            let mut pair = [self.fan_curve_temp[i], self.fan_curve_pwm[i]];
-                            kv_row_2(ui, &format!("Point {}", i + 1), &format!("fan_pt_{}", i), &mut pair, 62.0);
-                            self.fan_curve_temp[i] = pair[0];
-                            self.fan_curve_pwm[i] = pair[1];
-                        }
+                        let has_pts = self.fan_curve_temp.iter().any(|&t| t > 0) || self.fan_curve_pwm.iter().any(|&p| p > 0);
+                        ui.add_enabled_ui(has_pts, |ui| {
+                            kv_header_2(ui, "Temp (°C)", "PWM (%)", 62.0);
+                            for i in 0..5 {
+                                let mut pair = [self.fan_curve_temp[i], self.fan_curve_pwm[i]];
+                                kv_row_2(ui, &format!("Point {}", i + 1), &format!("fan_pt_{}", i), &mut pair, 62.0);
+                                self.fan_curve_temp[i] = pair[0];
+                                self.fan_curve_pwm[i] = pair[1];
+                            }
+                        }).response.on_disabled_hover_text("Read-only: VBIOS ini menggunakan kurva kipas dinamis SMU (slot 5-titik bernilai 0).");
                     }
                 });
             }
