@@ -68,12 +68,19 @@ impl PowerPlayApp {
             let f1 = (f0 + f2) / 2;
             let v0 = if self.volt_gfx[0] > 0 { self.volt_gfx[0] } else { 750 };
             let v2 = if self.volt_gfx[1] > 0 { self.volt_gfx[1] } else { safe_v_cap };
-            let off_c = (self.static_off_c[0] * 1000.0).round() as i32;
-            let v2_eff = (v2 + off_c).clamp(v0, 1300);
-            let v1_eff = v0 + ((v2_eff - v0) as f32 * 0.44).round() as i32;
+            let fg0 = (f0 as f64) / 1000.0;
+            let fg1 = (f1 as f64) / 1000.0;
+            let fg2 = (f2 as f64) / 1000.0;
+            let base0 = v0 as f64;
+            let base2 = v2 as f64;
+            let base1 = base0 + (base2 - base0) * 0.48;
+            let eval_off = |fg: f64| -> f64 { (self.static_off_a[0] * fg * fg + self.static_off_b[0] * fg + self.static_off_c[0]) * 1000.0 };
+            let v0_eff = (base0 + eval_off(fg0)).round().clamp(650.0, 1350.0) as i32;
+            let v1_eff = (base1 + eval_off(fg1)).round().clamp(650.0, 1350.0) as i32;
+            let v2_eff = (base2 + eval_off(fg2)).round().clamp(v0_eff as f64, 1350.0) as i32;
             st.f_pts = [f0, f1, f2];
-            st.v_pts = [v0, v1_eff, v2_eff];
-            st.base_v_pts = [v0 as f64, (v0 as f64) + ((v2 as f64) - (v0 as f64)) * 0.48, v2 as f64];
+            st.v_pts = [v0_eff, v1_eff, v2_eff];
+            st.base_v_pts = [base0, base1, base2];
             st.initialized = true;
             ui.ctx().data_mut(|d| d.insert_temp(gen_id, self.baseline_gen));
         }
