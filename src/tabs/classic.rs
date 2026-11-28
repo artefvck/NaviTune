@@ -68,8 +68,10 @@ impl PowerPlayApp {
             let f1 = (f0 + f2) / 2;
             let v0 = if self.volt_gfx[0] > 0 { self.volt_gfx[0] } else { 750 };
             let v2 = if self.volt_gfx[1] > 0 { self.volt_gfx[1] } else { safe_v_cap };
+            let saved_mid = std::env::var_os("HOME").and_then(|h| std::fs::read_to_string(std::path::PathBuf::from(h).join(".config/navitune/classic_mid.cfg")).ok()).and_then(|t| t.trim().parse::<i32>().ok()).unwrap_or(f1);
+            let f_mid = saved_mid.clamp(f0 + 50, (f2 - 50).max(f0 + 50));
             let fg0 = (f0 as f64) / 1000.0;
-            let fg1 = (f1 as f64) / 1000.0;
+            let fg1 = (f_mid as f64) / 1000.0;
             let fg2 = (f2 as f64) / 1000.0;
             let base0 = v0 as f64;
             let base2 = v2 as f64;
@@ -78,7 +80,7 @@ impl PowerPlayApp {
             let v0_eff = (base0 + eval_off(fg0)).round().clamp(650.0, 1350.0) as i32;
             let v1_eff = (base1 + eval_off(fg1)).round().clamp(650.0, 1350.0) as i32;
             let v2_eff = (base2 + eval_off(fg2)).round().clamp(v0_eff as f64, 1350.0) as i32;
-            st.f_pts = [f0, f1, f2];
+            st.f_pts = [f0, f_mid, f2];
             st.v_pts = [v0_eff, v1_eff, v2_eff];
             st.base_v_pts = [base0, base1, base2];
             st.initialized = true;
@@ -103,7 +105,17 @@ impl PowerPlayApp {
             if ui.button("Apply Classic Curve (a, b, c + Fan)").clicked() {
                 self.freq_gfx = [st.f_pts[0], st.f_pts[2]];
                 if self.volt_gfx[1] > 0 {
-                    self.volt_gfx = [st.v_pts[0], st.v_pts[2]];
+                    if st.write_to_offset_table && arch.has_static_vid_coeffs() {
+                        self.volt_gfx[1] = st.v_pts[2];
+                    } else {
+                        self.volt_gfx = [st.v_pts[0], st.v_pts[2]];
+                    }
+                }
+                if let Some(h) = std::env::var_os("HOME") {
+                    let dir = std::path::PathBuf::from(h).join(".config/navitune");
+                    let _ = std::fs::create_dir_all(&dir);
+                    let _ = std::fs::write(dir.join("classic_mid.cfg"), format!("{}
+", st.f_pts[1]));
                 }
                 self.gpu_clock_curve = true;
                 if arch.has_static_vid_coeffs() {
