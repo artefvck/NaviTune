@@ -48,3 +48,7 @@ V(f) = a · f² + b · f + c
 ### C. Coupled 5-Point Fan Curve (`P1..P5`)
 - Links `Zero RPM`, `fan_target_gfx_clock`, and the 5-point fan table (`P1..P5 Temp °C` and `PWM %`) to your V/F curve.
 - Click **`Auto-Scale Fan to V/F Load`** to automatically proportion PWM duty cycle across `P1..P5` based on your chosen `V_max` voltage envelope, then click **`Apply Classic Curve (a, b, c + Fan)`** to sync all values into the active `PPTable`.
+
+### D. Interactive 2D Plot Drag & Reload Reconstruction
+- **Direct Mouse Drag**: Drag the **`Min`**, **`Mid`**, or **`Max`** handles directly on the 2D quadratic plot in **`Classic`** to adjust frequency (`MHz`) and voltage (`mV`) simultaneously while live-solving `(a, b, c)`.
+- **Reload Persistence**: When reopening a saved PPTable or `.cfg`, NaviTune reconstructs your `Min / Mid / Max` points from the stored `0x7AA` quadratic offset polynomial and saved midpoint frequency (`~/.config/navitune/classic_mid.cfg`).
