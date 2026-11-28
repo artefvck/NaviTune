@@ -194,27 +194,81 @@ impl PowerPlayApp {
             });
         });
 
-        draw_card(ui, "3. Classic 3-Point Quadratic V/F Curve Preview (Min -> Mid -> Max)", |ui| {
-            let desired = egui::vec2(ui.available_width().max(260.0), 165.0);
-            let (rect, _) = ui.allocate_exact_size(desired, egui::Sense::hover());
+        draw_card(ui, "3. Classic 3-Point Quadratic V/F Curve (Drag Min / Mid / Max Points)", |ui| {
+            let desired = egui::vec2(ui.available_width().max(260.0), 185.0);
+            let (rect, response) = ui.allocate_exact_size(desired, egui::Sense::click_and_drag());
             let painter = ui.painter_at(rect);
             painter.rect_filled(rect, 6.0, egui::Color32::from_rgb(18, 23, 33));
             painter.rect_stroke(rect, 6.0, egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(52, 66, 92)));
             let plot = egui::Rect::from_min_max(egui::pos2(rect.left() + 44.0, rect.top() + 14.0), egui::pos2(rect.right() - 18.0, rect.bottom() - 22.0));
             if plot.width() > 20.0 && plot.height() > 20.0 {
-                let f_min = st.f_pts[0] as f32;
-                let f_max = (st.f_pts[2] as f32).max(f_min + 100.0);
-                let v_lo = 650.0_f32;
-                let v_hi = (st.v_pts[2] as f32 + 60.0).max(1150.0);
+                let f_axis_min = 300.0_f32;
+                let f_axis_max = (self.oc_gfx_clock[1].max(st.f_pts[2]).max(2400) as f32 + 100.0).min(3500.0);
+                let (v_lo, v_hi) = (650.0_f32, (st.v_pts[2] as f32 + 80.0).max(1200.0));
                 let to_scr = |f: f32, v: f32| -> egui::Pos2 {
-                    let nx = ((f - f_min) / (f_max - f_min)).clamp(0.0, 1.0);
+                    let nx = ((f - f_axis_min) / (f_axis_max - f_axis_min)).clamp(0.0, 1.0);
                     let ny = ((v - v_lo) / (v_hi - v_lo)).clamp(0.0, 1.0);
                     egui::pos2(plot.left() + nx * plot.width(), plot.bottom() - ny * plot.height())
                 };
-                let (qa, qb, qc) = solve_quadratic_3pts(st.f_pts, target_v_f64);
-                let mut pts = Vec::with_capacity(25);
-                for s in 0..=24 {
-                    let f = f_min + (s as f32 / 24.0) * (f_max - f_min);
+                let from_scr = |pos: egui::Pos2| -> (i32, i32) {
+                    let nx = ((pos.x - plot.left()) / plot.width()).clamp(0.0, 1.0);
+                    let ny = ((plot.bottom() - pos.y) / plot.height()).clamp(0.0, 1.0);
+                    ((f_axis_min + nx * (f_axis_max - f_axis_min)).round() as i32, (v_lo + ny * (v_hi - v_lo)).round() as i32)
+                };
+                for mv in [700, 850, 1000, 1150, 1300] {
+                    if (mv as f32) > v_hi { continue; }
+                    let y = to_scr(f_axis_min, mv as f32).y;
+                    painter.line_segment([egui::pos2(plot.left(), y), egui::pos2(plot.right(), y)], egui::Stroke::new(1.0_f32, egui::Color32::from_rgba_unmultiplied(120, 145, 185, 28)));
+                    painter.text(egui::pos2(rect.left() + 4.0, y), egui::Align2::LEFT_CENTER, format!("{}mV", mv), egui::FontId::proportional(10.0), egui::Color32::from_rgb(145, 165, 195));
+                }
+                for mhz in [500, 1000, 1500, 2000, 2500, 3000] {
+                    if (mhz as f32) >= f_axis_max { continue; }
+                    let x = to_scr(mhz as f32, v_lo).x;
+                    painter.line_segment([egui::pos2(x, plot.top()), egui::pos2(x, plot.bottom())], egui::Stroke::new(1.0_f32, egui::Color32::from_rgba_unmultiplied(120, 145, 185, 28)));
+                    painter.text(egui::pos2(x, rect.bottom() - 4.0), egui::Align2::CENTER_BOTTOM, format!("{}MHz", mhz), egui::FontId::proportional(10.0), egui::Color32::from_rgb(145, 165, 195));
+                }
+                let drag_id = egui::Id::new("classic_vf_drag_pt");
+                if response.drag_started() {
+                    if let Some(pos) = response.interact_pointer_pos() {
+                        let nearest = (0..3usize)
+                            .map(|i| (i, to_scr(st.f_pts[i] as f32, st.v_pts[i] as f32)))
+                            .filter(|(_, hp)| hp.distance(pos) <= 18.0)
+                            .min_by(|a, b| a.1.distance(pos).partial_cmp(&b.1.distance(pos)).unwrap_or(std::cmp::Ordering::Equal))
+                            .map(|(i, _)| i);
+                        ui.ctx().data_mut(|d| d.insert_temp(drag_id, nearest));
+                    }
+                }
+                if response.dragged() {
+                    let active: Option<usize> = ui.ctx().data(|d| d.get_temp(drag_id)).flatten();
+                    if let (Some(pid), Some(pos)) = (active, response.interact_pointer_pos()) {
+                        let (nf, nv) = from_scr(pos);
+                        let ceil_f = f_axis_max as i32;
+                        match pid {
+                            0 => {
+                                st.f_pts[0] = nf.clamp(300, (st.f_pts[1] - 50).max(300));
+                                st.v_pts[0] = nv.clamp(650, st.v_pts[1].max(650));
+                            }
+                            1 => {
+                                st.f_pts[1] = nf.clamp(st.f_pts[0] + 50, (st.f_pts[2] - 50).max(st.f_pts[0] + 50));
+                                st.v_pts[1] = nv.clamp(st.v_pts[0], st.v_pts[2].max(st.v_pts[0]));
+                            }
+                            _ => {
+                                st.f_pts[2] = nf.clamp(st.f_pts[1] + 50, ceil_f);
+                                st.v_pts[2] = nv.clamp(st.v_pts[1].max(650), 1350);
+                            }
+                        }
+                    }
+                }
+                if response.drag_stopped() {
+                    ui.ctx().data_mut(|d| d.insert_temp(drag_id, None::<usize>));
+                }
+                let updated_v = [st.v_pts[0] as f64, st.v_pts[1] as f64, st.v_pts[2] as f64];
+                let (qa, qb, qc) = solve_quadratic_3pts(st.f_pts, updated_v);
+                let f0 = st.f_pts[0] as f32;
+                let f2 = (st.f_pts[2] as f32).max(f0 + 100.0);
+                let mut pts = Vec::with_capacity(29);
+                for s in 0..=28 {
+                    let f = f0 + (s as f32 / 28.0) * (f2 - f0);
                     let fg = (f as f64) / 1000.0;
                     let v = ((qa * fg * fg + qb * fg + qc) * 1000.0) as f32;
                     pts.push(to_scr(f, v));
@@ -222,10 +276,18 @@ impl PowerPlayApp {
                 for w in pts.windows(2) {
                     painter.line_segment([w[0], w[1]], egui::Stroke::new(2.2_f32, egui::Color32::from_rgb(240, 88, 108)));
                 }
+                let active_pt: Option<usize> = ui.ctx().data(|d| d.get_temp(drag_id)).flatten();
+                let hover_pos = response.hover_pos();
                 for (idx, tag) in [(0usize, "Min"), (1, "Mid"), (2, "Max")] {
                     let p = to_scr(st.f_pts[idx] as f32, st.v_pts[idx] as f32);
-                    painter.circle_filled(p, 5.5, egui::Color32::from_rgb(255, 200, 75));
-                    painter.text(egui::pos2(p.x, p.y - 8.0), egui::Align2::CENTER_BOTTOM, format!("{} ({}MHz/{}mV)", tag, st.f_pts[idx], st.v_pts[idx]), egui::FontId::proportional(10.0), egui::Color32::from_rgb(230, 238, 250));
+                    let is_hot = active_pt == Some(idx) || hover_pos.is_some_and(|hp| p.distance(hp) <= 14.0);
+                    if is_hot {
+                        ui.ctx().set_cursor_icon(if active_pt.is_some() { egui::CursorIcon::Grabbing } else { egui::CursorIcon::Grab });
+                        painter.text(egui::pos2(plot.left() + 6.0, plot.top() + 4.0), egui::Align2::LEFT_TOP, format!("{} Point: {} MHz · {} mV", tag, st.f_pts[idx], st.v_pts[idx]), egui::FontId::proportional(10.5), egui::Color32::from_rgb(255, 215, 110));
+                    }
+                    painter.circle_filled(p, if is_hot { 7.0 } else { 5.5 }, egui::Color32::from_rgb(255, 200, 75));
+                    painter.circle_stroke(p, if is_hot { 7.0 } else { 5.5 }, egui::Stroke::new(1.2_f32, egui::Color32::from_rgb(18, 23, 33)));
+                    painter.text(egui::pos2(p.x, p.y - 9.0), egui::Align2::CENTER_BOTTOM, format!("{} ({}MHz/{}mV)", tag, st.f_pts[idx], st.v_pts[idx]), egui::FontId::proportional(10.0), egui::Color32::from_rgb(230, 238, 250));
                 }
             }
         });
