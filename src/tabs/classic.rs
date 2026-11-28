@@ -129,8 +129,7 @@ impl PowerPlayApp {
                         self.static_volt_c[0] = sol_c;
                     }
                 }
-                if st.couple_fan_to_vf {
-                    self.fan_curve = true;
+                if st.couple_fan_to_vf && self.fan_target_gfx_clock > 0 {
                     self.fan_target_gfx_clock = st.f_pts[2];
                 }
                 self.sync_fields_to_buffer();
@@ -178,14 +177,18 @@ impl PowerPlayApp {
                     crate::ui_theme::green_checkbox(ui, &mut self.fan_zero_rpm_enable, "Zero RPM");
                     if ui.button("Auto-Scale Fan to V/F Load").clicked() {
                         let v_ratio = ((vmax_snapshot as f32 - 900.0) / 250.0).clamp(0.0, 1.2);
-                        let peak_pwm = (52.0 + v_ratio * 28.0).round() as i32;
-                        let base_t = if self.fan_start_temp > 0 { self.fan_start_temp } else { 50 };
-                        let span_t = (self.fan_target_temp.max(base_t + 20) - base_t).max(20);
-                        for p_i in 0..5 {
-                            self.fan_curve_temp[p_i] = base_t + (span_t * (p_i as i32)) / 4;
-                            self.fan_curve_pwm[p_i] = (self.fan_pwm_min.max(20) + ((peak_pwm - self.fan_pwm_min.max(20)) * (p_i as i32)) / 4).clamp(0, 100);
+                        let has_slots = self.fan_curve_temp.iter().any(|&t| t > 0) || self.fan_curve_pwm.iter().any(|&p| p > 0);
+                        if has_slots {
+                            let peak_pwm = (52.0 + v_ratio * 28.0).round() as i32;
+                            let base_t = if self.fan_start_temp > 0 { self.fan_start_temp } else { 50 };
+                            let span_t = (self.fan_target_temp.max(base_t + 20) - base_t).max(20);
+                            for p_i in 0..5 {
+                                self.fan_curve_temp[p_i] = base_t + (span_t * (p_i as i32)) / 4;
+                                self.fan_curve_pwm[p_i] = (self.fan_pwm_min.max(20) + ((peak_pwm - self.fan_pwm_min.max(20)) * (p_i as i32)) / 4).clamp(0, 100);
+                            }
+                        } else {
+                            self.fan_target_temp = (72.0 + v_ratio * 6.0).round() as i32;
                         }
-                        self.fan_curve = true;
                         ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("ppt_dirty"), true));
                     }
                 });
