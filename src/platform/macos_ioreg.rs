@@ -1,4 +1,4 @@
-#[cfg(target_os = "macos")]
+//#[cfg(target_os = "macos")]
 use std::process::Command;
 
 #[derive(Clone, Debug)]
